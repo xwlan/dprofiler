@@ -6,13 +6,21 @@ A open source fast, lightweight win32/64 CPU and memory profiler
 goal
 =====
 1, very low overhead and impact to target application
+
 2, portable, easy to deploy and easy to use, intuitive
+
 3, both flat and graphic performance data
+
 4, collect data on machine A, analyze data on machine on B
+
 5, both CPU/memory profiling supported
+
 6, easy to pinpoint CPU and memory hot path.
+
 7, both 32/64 bits are supported.
+
 8, the report can be re-analyzed with more accurate symbols anytime.
+
 
 
 features
