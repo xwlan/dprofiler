@@ -21,6 +21,8 @@ goal
 
 8, the report can be re-analyzed with more accurate symbols anytime.
 
+9, dynamic attach to and detach from target without code re-compiling,
+   only pdb are required to parse report.
 
 
 features
@@ -51,6 +53,9 @@ Memory profiling support:
 3, Heap Allocation by CallTree (Examine high heap allocation by code path)
 
 4, Heap Allocation by FlameGraph (Examine high heap allocation intuitively by graph)
+
+
+checkout gallery/*.png for snapshots.
 
 
 build
