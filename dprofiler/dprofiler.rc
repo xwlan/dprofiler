@@ -1,0 +1,747 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// Chinese (Simplified, PRC) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP_WIZARD       BITMAP                  "res\\wizard.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x17L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "lan.john@gmail.com"
+            VALUE "FileDescription", "D Profile"
+            VALUE "FileVersion", "1, 0, 0, 1"
+            VALUE "InternalName", "D Profile"
+            VALUE "LegalCopyright", "Copyright (C) 2014"
+            VALUE "OriginalFilename", "dprofile.exe"
+            VALUE "ProductName", "D Profile"
+            VALUE "ProductVersion", "1, 0, 0, 1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x804, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AVI
+//
+
+IDR_AVI3                AVI                     "res\\dprofile.avi"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG_DEDUCTION DIALOGEX 0, 0, 275, 102
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,163,81,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,218,81,50,14
+    LTEXT           "If you enable trimming, when a report is displayed, the calltree and allocation views will omit functions whose values fall under the threshold set below.",IDC_STATIC,7,7,261,21
+    CONTROL         "Enable Trimming",IDC_CHECK_TRIMMING,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,7,32,67,10
+    LTEXT           "Inclusive Sample % threshold:",IDC_STATIC,7,50,103,8
+    EDITTEXT        IDC_EDIT_THRESHOLD,110,47,40,14,ES_RIGHT | ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "%",IDC_STATIC,151,50,8,8
+END
+
+IDD_DIALOG_SOURCE DIALOGEX 0, 0, 316, 185
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "D Profile"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_TAB_FILE,"SysTabControl32",TCS_TOOLTIPS,7,7,302,171
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_DIALOG_DEDUCTION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 268
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 95
+    END
+
+    IDD_DIALOG_SOURCE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 309
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 178
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU_SOURCE MENU
+BEGIN
+    POPUP ""
+    BEGIN
+        MENUITEM "Close",                       ID_SOURCE_CLOSE
+        MENUITEM "Open From Shell",             ID_SOURCE_OPENFROMSHELL
+        MENUITEM "Open Containing Folder",      ID_SOURCE_OPENFOLDER
+        MENUITEM "Copy Full Path",              ID_SOURCE_COPYPATH
+    END
+END
+
+#endif    // Chinese (Simplified, PRC) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP_ZOOMIN       BITMAP                  "res\\zoomin.bmp"
+IDB_BITMAP_ZOOMOUT      BITMAP                  "res\\zoomout.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_DIALOG_APPLY DIALOGEX 0, 0, 270, 53
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_PROGRESS,"msctls_progress32",WS_BORDER,7,28,256,14
+    LTEXT           "Static",IDC_STATIC,7,7,256,8
+END
+
+IDD_DIALOG_ANALYZE DIALOGEX 0, 0, 239, 53
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_PROGRESS,"msctls_progress32",WS_BORDER,7,32,225,14
+    LTEXT           "Static",IDC_STATIC,7,7,225,14
+END
+
+IDD_DIALOG_OPTION DIALOGEX 0, 0, 361, 183
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Option"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_TREE_OPTION,"SysTreeView32",TVS_HASBUTTONS | TVS_LINESATROOT | TVS_SHOWSELALWAYS | WS_BORDER | WS_HSCROLL | WS_TABSTOP,7,6,70,149
+    LTEXT           "Static",IDC_STATIC,85,6,268,149,NOT WS_GROUP
+    DEFPUSHBUTTON   "OK",IDOK,250,162,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,304,162,50,14
+END
+
+IDD_DIALOG_CPU_ATTACH DIALOGEX 0, 0, 368, 194
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    CONTROL         "",IDC_LIST_TASK,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,7,354,157
+    COMBOBOX        IDC_COMBO_PERIOD,69,173,52,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Refresh",IDC_BUTTON_REFRESH,205,173,50,14
+    DEFPUSHBUTTON   "OK",IDOK,258,173,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,311,173,50,14
+    LTEXT           "Sampling Period:",IDC_STATIC,8,175,54,8
+END
+
+IDD_ABOUTBOX DIALOGEX 0, 0, 250, 138
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,193,117,50,14,WS_GROUP
+    CTEXT           "Static",IDC_STATIC_PRODUCT,7,2,236,11
+    CONTROL         "",IDC_LIST_VERSION,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | LVS_NOSCROLL | WS_TABSTOP,7,30,236,77,WS_EX_CLIENTEDGE
+    CTEXT           "Static",IDC_STATIC_COPYRIGHT,7,15,236,9
+END
+
+IDD_DIALOG_CTRL DIALOGEX 0, 0, 254, 162
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Stop",IDOK,197,141,50,14
+    CONTROL         "",IDC_PROGRESS,"msctls_progress32",PBS_MARQUEE | WS_BORDER,7,120,240,14
+    LTEXT           "Static",IDC_STATIC,8,4,213,10
+    PUSHBUTTON      "Start",IDC_BUTTON_START,143,141,50,14
+    CONTROL         "",IDC_LIST_DATA,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,20,240,91,WS_EX_TRANSPARENT
+END
+
+IDD_PROPPAGE_MM DIALOGEX 0, 0, 301, 153
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "Heap Allocator",IDC_CHECK_HEAP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,21,187,10
+    CONTROL         "Virtual Allocator",IDC_CHECK_VIRTUAL,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,37,187,10
+    CONTROL         "Kernel Handle",IDC_CHECK_HANDLE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,53,187,10
+    CONTROL         "GDI Handle",IDC_CHECK_GDI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,11,69,187,10
+    GROUPBOX        "Memory Allocator",IDC_STATIC,7,7,283,82
+    LTEXT           "Connect Target By:",IDC_STATIC,7,99,64,8
+    CONTROL         "Attach",IDC_RADIO_ATTACH,"Button",BS_AUTORADIOBUTTON,7,114,37,10
+    CONTROL         "Launch",IDC_RADIO_RUN,"Button",BS_AUTORADIOBUTTON,7,132,39,10
+END
+
+IDD_PROPPAGE_IO DIALOGEX 0, 0, 301, 146
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    GROUPBOX        "I/O Type",IDC_STATIC,7,7,284,64
+    CONTROL         "Socket",IDC_CHECK_SOCKET,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,21,37,10
+    CONTROL         "File",IDC_CHECK_FILE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,35,27,10
+    CONTROL         "Device",IDC_CHECK_DEVICE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,51,37,10
+    LTEXT           "Connect Target By:",IDC_STATIC,7,84,64,8
+    CONTROL         "Attach",IDC_RADIO_ATTACH,"Button",BS_AUTORADIOBUTTON,7,99,37,10
+    CONTROL         "Launch",IDC_RADIO_RUN,"Button",BS_AUTORADIOBUTTON,7,119,39,10
+END
+
+IDD_PROPPAGE_CPU DIALOGEX 0, 0, 301, 157
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    COMBOBOX        IDC_COMBO_PERIOD,80,22,51,30,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL         "Sampling Include Wait Time",IDC_CHECK_INCLUDEWAIT,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,23,103,10
+    EDITTEXT        IDC_EDIT_STACKDEPTH,80,49,51,14,ES_RIGHT | ES_AUTOHSCROLL | ES_READONLY | ES_NUMBER
+    CONTROL         "",IDC_SPIN,"msctls_updown32",UDS_SETBUDDYINT | UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_ARROWKEYS,131,49,11,14
+    LTEXT           "Connect Target By:",IDC_STATIC,7,89,64,8
+    CONTROL         "Attach",IDC_RADIO_ATTACH,"Button",BS_AUTORADIOBUTTON,7,104,37,10
+    CONTROL         "Launch",IDC_RADIO_RUN,"Button",BS_AUTORADIOBUTTON,7,119,39,10
+    LTEXT           "Sampling Period:",IDC_STATIC,13,23,54,8
+    LTEXT           "StackWalk Depth:",IDC_STATIC,13,51,61,8
+    LTEXT           "(1-60 frames)",IDC_STATIC,150,51,45,8
+    GROUPBOX        "Sampling Property",IDC_STATIC,7,7,286,73
+    CONTROL         "Pause Sampling On Start",IDC_CHECK_PAUSE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,8,137,95,10
+    CONTROL         "Track Thread Stack History",IDC_CHECK_HISTORY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,150,137,113,10
+END
+
+IDD_PROPPAGE_ATTACH DIALOGEX 0, 0, 301, 146
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_TASK,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,7,287,115
+    PUSHBUTTON      "Refresh",IDC_BUTTON_REFRESH,244,125,50,14
+END
+
+IDD_PROPPAGE_RUN DIALOGEX 0, 0, 301, 129
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Image Path:",IDC_STATIC,7,9,40,8
+    LTEXT           "Argument:",IDC_STATIC,7,34,35,8
+    LTEXT           "Work Path:",IDC_STATIC,7,59,37,8
+    EDITTEXT        IDC_EDIT_IMAGEPATH,52,7,204,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "...",IDC_BUTTON_PATH,274,7,18,14
+    EDITTEXT        IDC_EDIT_ARGUMENT,52,32,204,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDIT_WORKPATH,52,57,204,14,ES_AUTOHSCROLL
+END
+
+IDD_FORMVIEW_MM_LEAK DIALOGEX 0, 0, 274, 183
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CENTER | WS_CHILD | WS_CLIPSIBLINGS
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_SPLIT,"SdkSplit",WS_CLIPSIBLINGS | WS_GROUP,109,0,6,172,WS_EX_TRANSPARENT
+    CONTROL         "",IDC_LIST_BACKTRACE,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,118,0,145,172
+    CONTROL         "",IDC_TREELIST,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,0,0,105,172,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_IO DIALOGEX 0, 0, 277, 174
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+EXSTYLE WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+END
+
+IDD_FORMVIEW_CPU_HISTORY DIALOGEX 0, 0, 522, 369
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_CPU_HISTORY_THREAD,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,103,521,80
+    CONTROL         "",IDC_LIST_CPU_HISTORY_STACK,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,197,521,167
+    CONTROL         "Custom1",IDC_CPU_HISTORY_GRAPH,"SdkTrackBar",WS_TABSTOP,0,0,521,80
+    CONTROL         "",IDC_CPU_HISTORY_HORIZON,"SdkSplit",WS_CLIPSIBLINGS | WS_GROUP,0,186,521,6,WS_EX_TRANSPARENT
+    CONTROL         "",IDC_CPU_HISTORY_REBAR,"ReBarWindow32",WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_GROUP | 0x2a44,0,84,521,14
+END
+
+IDD_FORMVIEW_CPU_SUMMARY DIALOGEX 0, 0, 337, 170
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+EXSTYLE WS_EX_CLIENTEDGE
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_CPU_SUMMARY,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSCROLL | LVS_NOCOLUMNHEADER | WS_TABSTOP,49,12,231,128
+    PUSHBUTTON      "Export",IDC_BUTTON_CPU_SUMMARY,277,147,50,14
+END
+
+IDD_FORMVIEW_MM_SUMMARY DIALOGEX 0, 0, 337, 170
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+EXSTYLE WS_EX_CLIENTEDGE
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_MM_SUMMARY,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | LVS_NOSCROLL | LVS_NOCOLUMNHEADER | WS_TABSTOP,49,12,231,128
+    PUSHBUTTON      "Export",IDC_BUTTON_MM_SUMMARY,277,147,50,14
+END
+
+IDD_FORMVIEW_CPU_PC DIALOGEX 0, 0, 294, 197
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_PC,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,0,249,151
+END
+
+IDD_FORMVIEW_CPU_FUNCTION DIALOGEX 0, 0, 267, 169
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_FUNCTION,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,0,224,123
+END
+
+IDD_FORMVIEW_CPU_MODULE DIALOGEX 0, 0, 302, 184
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_TREELIST,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,288,170,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_MM_HEAP DIALOGEX 0, 0, 327, 220
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_SPLIT,"SdkSplit",WS_CLIPSIBLINGS | WS_GROUP,109,0,6,172,WS_EX_TRANSPARENT
+    CONTROL         "",IDC_LIST_BACKTRACE,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,118,0,145,172
+    CONTROL         "",IDC_TREELIST,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,0,0,105,172,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_MM_MODULE DIALOGEX 0, 0, 185, 93
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+END
+
+IDD_FORMVIEW_BLANK DIALOGEX 0, 0, 185, 95
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+END
+
+IDD_FORMVIEW_CPU_STACK DIALOGEX 0, 0, 345, 188
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "Custom1",IDC_TREELIST,"",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,331,174,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_OPTION_SYMBOL_GENERAL DIALOGEX 0, 0, 269, 132
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Symbol file locations:",IDC_STATIC,0,3,68,8
+    PUSHBUTTON      "Add",IDC_BUTTON_SYMBOL_ADD,165,2,50,14
+    PUSHBUTTON      "Remove",IDC_BUTTON_SYMBOL_REMOVE,218,2,50,14
+    CONTROL         "",IDC_LIST_SYMBOL,"SysListView32",LVS_REPORT | LVS_EDITLABELS | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,0,19,267,81
+    CONTROL         "Use Microsoft symbol server to download system symbol files",IDC_CHECK_MS_SYMBOL_SERVER,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,0,107,211,10
+END
+
+IDD_OPTION_SOURCE_GENERAL DIALOGEX 0, 0, 269, 132
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    LTEXT           "Source code locations:",IDC_STATIC,0,3,73,8
+    CONTROL         "",IDC_LIST_SOURCE,"SysListView32",LVS_REPORT | LVS_EDITLABELS | LVS_ALIGNLEFT | LVS_NOCOLUMNHEADER | WS_BORDER | WS_TABSTOP,0,19,267,81
+    PUSHBUTTON      "Add",IDC_BUTTON_SOURCE_ADD,165,2,50,14
+    PUSHBUTTON      "Remove",IDC_BUTTON_SOURCE_REMOVE,218,2,50,14
+END
+
+IDD_OPTION_VIEW DIALOGEX 0, 0, 269, 132
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+END
+
+IDD_FORMVIEW_CPU_THREAD DIALOGEX 0, 0, 300, 210
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_LIST_CPU_THREAD_THREAD,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,0,0,97,209
+    CONTROL         "",IDC_SPLIT,"SdkSplit",WS_CLIPSIBLINGS | WS_GROUP,97,0,6,209,WS_EX_TRANSPARENT
+    CONTROL         "",IDC_LIST_CPU_THREAD_PC,"SysListView32",LVS_REPORT | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,103,0,186,209
+END
+
+IDD_FORMVIEW_CTL DIALOGEX 0, 0, 307, 202
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD | WS_CLIPCHILDREN
+EXSTYLE WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    PUSHBUTTON      "Pause",IDC_BUTTON_PAUSE_RESUME,193,184,50,14
+    PUSHBUTTON      "Mark",IDC_BUTTON_MARK,136,184,50,14
+    PUSHBUTTON      "Stop",IDC_BUTTON_STOP,250,184,50,14
+    CONTROL         "",IDC_ANIMATE,"SysAnimate32",ACS_CENTER,9,8,29,23
+    CTEXT           "Static",IDC_STATIC,0,0,306,83
+END
+
+IDD_OPTION_GENERAL DIALOGEX 0, 0, 269, 132
+STYLE DS_SETFONT | DS_FIXEDSYS | DS_CONTROL | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "Analyze automatically after data collection",IDC_CHECK_AUTOANALYZE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,2,2,151,10
+END
+
+IDD_FORMVIEW_CPU_TREE DIALOGEX 0, 0, 302, 184
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_TREELIST_CPU_TREE,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,288,170,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_MM_TREE DIALOGEX 0, 0, 313, 217
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "Custom1",IDC_TREELIST_MM_TREE,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,299,203,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_CPU_FLAME DIALOGEX 0, 0, 300, 178
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "CpuFlameGraph",IDC_CPU_FLAME,"SdkFlame",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,286,164,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_FORMVIEW_MM_FLAME DIALOGEX 0, 0, 300, 178
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "MmFlameGraph",IDC_MM_FLAME,"SdkFlame",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,286,164,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+IDD_DIALOG_HELP DIALOGEX 0, 0, 316, 241
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,259,220,50,14
+    CONTROL         "",IDC_RICHEDIT,"RichEdit20W",WS_BORDER | WS_VSCROLL | WS_HSCROLL | WS_TABSTOP | 0x8c4,7,7,302,208
+END
+
+IDD_DIALOG_FULLSTACK DIALOGEX 0, 0, 342, 262
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Full Stack"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Close",IDOK,285,241,50,14
+    CONTROL         "",IDC_TREE_FULLSTACK,"SdkTreeList",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,328,227,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+    PUSHBUTTON      "Expand",IDC_BUTTON_EXPAND,7,241,50,14
+    PUSHBUTTON      "Collapse",IDC_BUTTON_COLLAPSE,64,241,50,14
+    PUSHBUTTON      "Export",IDC_BUTTON_EXPORT,121,241,50,14
+END
+
+IDD_DIALOG_FLAME_REPORT DIALOGEX 0, 0, 382, 262
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_MAXIMIZEBOX | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "Flame Report"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "Close",IDOK,326,241,50,14
+    CONTROL         "Custom1",IDC_FLAME_REPORT,"SdkFlame",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,368,227,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_FORMVIEW_CPU_SUMMARY, DIALOG
+    BEGIN
+        RIGHTMARGIN, 336
+        BOTTOMMARGIN, 169
+    END
+
+    IDD_FORMVIEW_MM_SUMMARY, DIALOG
+    BEGIN
+        RIGHTMARGIN, 336
+        BOTTOMMARGIN, 169
+    END
+
+    IDD_FORMVIEW_CTL, DIALOG
+    BEGIN
+        RIGHTMARGIN, 306
+    END
+
+    IDD_FORMVIEW_CPU_TREE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        TOPMARGIN, 7
+    END
+
+    IDD_FORMVIEW_MM_TREE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 306
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 210
+    END
+
+    IDD_FORMVIEW_CPU_FLAME, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 293
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 171
+    END
+
+    IDD_FORMVIEW_MM_FLAME, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 293
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 171
+    END
+
+    IDD_DIALOG_HELP, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 309
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 234
+    END
+
+    IDD_DIALOG_FULLSTACK, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 335
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 255
+    END
+
+    IDD_DIALOG_FLAME_REPORT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 375
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 255
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDC_DPROFILE MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "Open",                        IDM_OPEN
+        MENUITEM "Save",                        IDM_SAVE
+        MENUITEM "E&xit",                       IDM_EXIT
+    END
+    POPUP "Profile"
+    BEGIN
+        MENUITEM "CPU",                         IDM_CPU
+        MENUITEM "Memory",                      IDM_MM
+    END
+    POPUP "Tool"
+    BEGIN
+        MENUITEM "Option",                      IDM_OPTION
+        MENUITEM "Analyze",                     IDM_ANALYZE
+        MENUITEM "Noise Deduction",             IDM_DEDUCTION
+    END
+    POPUP "&Help"
+    BEGIN
+        MENUITEM "Help",                        IDM_HELP
+        MENUITEM "&About ...",                  IDM_ABOUT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_SMALL               ICON                    "res\\apsara.ico"
+IDI_ICON_APSARA         ICON                    "res\\apsara.ico"
+IDI_ICON_GENERIC        ICON                    "res\\generic.ico"
+IDI_ICON_BACKWARD       ICON                    "res\\backward.ico"
+IDI_ICON_DEDUCTION      ICON                    "res\\deduction.ico"
+IDI_ICON_FORWARD        ICON                    "res\\forward.ico"
+IDI_ICON_SEARCH         ICON                    "res\\search.ico"
+IDI_ICON_SAMPLELEFT     ICON                    "res\\sampleleft.ico"
+IDI_ICON_SAMPLERIGHT    ICON                    "res\\sampleright.ico"
+IDI_ICON_SAMPLEDOWN     ICON                    "res\\sampledown.ico"
+IDI_ICON_SAMPLEUP       ICON                    "res\\sampleup.ico"
+IDI_ICON_SAMPLEBOTTOM   ICON                    "res\\samplebottom.ico"
+IDI_ICON_SAMPLETOP      ICON                    "res\\sampletop.ico"
+IDI_ICON_SAMPLESTACK    ICON                    "res\\samplestack.ico"
+IDI_ICON_SAMPLEREPORT   ICON                    "res\\samplereport.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDC_DPROFILE ACCELERATORS
+BEGIN
+    "?",            IDM_ABOUT,              ASCII,  ALT
+    "/",            IDM_ABOUT,              ASCII,  ALT
+END
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "#include ""windows.h""\r\n"
+    "#undef APSTUDIO_HIDDEN_SYMBOLS\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// HELP
+//
+
+IDR_HELP                HELP                    "res\\help.rtf"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_COPYRIGHT           "Copyright(C) 2009-2014 Apsara Labs"
+    IDS_SAMPLE_LEFT         "Backward"
+    IDS_SAMPLE_RIGHT        "Forward"
+    IDS_SAMPLE_UP           "Upward"
+    IDS_SAMPLE_DOWN         "Downward"
+    IDS_SAMPLE_REPORT       "Flame Graph"
+    IDS_SAMPLE_FULLSTACK    "Full Stack"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_PRODUCT             "D Profile"
+    IDS_VERSION             "1.0"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
