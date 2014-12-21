@@ -130,58 +130,6 @@ AboutOnInitDialog(
 		ListView_InsertColumn(hWndChild, i, &Column);
     } 
 
-#ifndef _LITE
-	Item.iItem = 0;
-	Item.mask = LVIF_TEXT;
-
-	Item.iSubItem = 0;
-	Item.pszText = L"License";
-	ListView_InsertItem(hWndChild, &Item);
-
-	Item.iSubItem = 1;
-	Item.pszText = L"Single User";
-	ListView_SetItem(hWndChild, &Item);
-
-	Item.iItem = i;
-	Item.mask = LVIF_TEXT;
-
-	Item.iItem = 1;
-	Item.iSubItem = 0;
-	Item.pszText = L"Registration";
-	ListView_InsertItem(hWndChild, &Item);
-
-	Item.iSubItem = 1;
-	Item.pszText = L"John Lan";
-	ListView_SetItem(hWndChild, &Item);
-
-	Item.iItem = 2;
-	Item.iSubItem = 0;
-	Item.pszText = L"Contact";
-	ListView_InsertItem(hWndChild, &Item);
-
-	Item.iSubItem = 1;
-	Item.pszText = L"lan.john@gmail.com";
-	ListView_SetItem(hWndChild, &Item);
-
-	Item.iItem = 3;
-	Item.iSubItem = 0;
-	Item.pszText = L"Expiration";
-	ListView_InsertItem(hWndChild, &Item);
-
-	Item.iSubItem = 1;
-	Item.pszText = L"2013-12-31";
-	ListView_SetItem(hWndChild, &Item);
-
-	Item.iItem = 4;
-	Item.iSubItem = 0;
-	Item.pszText = L"Product Key";
-	ListView_InsertItem(hWndChild, &Item);
-
-	Item.iSubItem = 1;
-	Item.pszText = L"5e048971048b3e158971088b4e043b2d";
-	ListView_SetItem(hWndChild, &Item);
-
-#else
 	Item.mask = LVIF_TEXT;
 	Item.iItem = 0;
 	Item.iSubItem = 0;
@@ -191,7 +139,6 @@ AboutOnInitDialog(
 	Item.iSubItem = 1;
 	Item.pszText = L"lan.john@gmail.com";
 	ListView_SetItem(hWndChild, &Item);
-#endif
 
 	SetWindowText(hWnd, L"About");
 	SdkSetMainIcon(hWnd);
