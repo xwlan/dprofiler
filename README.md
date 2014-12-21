@@ -27,19 +27,29 @@ features
 =======
 CPU profiling support:
 1, IPs On CPU  (what code executing on CPU)
+
 2, Function ( IP grouped by function)
+
 3, Module   ( IP grouped by module)
+
 4, Thread   ( IP grouped by thread)
+
 5, CallTree ( IP grouped by calltree)
+
 6, FlameGraph ( IP visualized by flame graph, pinpoint hot path intuitively)
+
 7, History   (The whole CPU execution history, pinpoint CPU high usage intuitively)
 
 
 Memory profiling support:
 1, Outstanding Allocation (Examine memory leak, include heap/handle/GDI/virtual allocation)
+
 2, Heap Allocation by Module ( Examine high heap allocation by module)
+
 3, Heap Allocation by CallTree (Examine high heap allocation by code path)
+
 4, Heap Allocation by FlameGraph (Examine high heap allocation intuitively by graph)
+
 
 build
 ====== 
