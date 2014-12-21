@@ -55,13 +55,10 @@ Memory profiling support:
 4, Heap Allocation by FlameGraph (Examine high heap allocation intuitively by graph)
 
 
-checkout gallery/*.png for snapshots.
-
-
 build
 ====== 
 open dprofiler.sln, rebuild solution. VS 2012 with update 4
 
 usage
 ======
-see cpudemo.swf, mmdemo.swf.
+checkout gallery/*.png for snapshots and see cpudemo.swf, mmdemo.swf.
