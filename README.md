@@ -26,6 +26,7 @@ goal
 features
 =======
 CPU profiling support:
+
 1, IPs On CPU  (what code executing on CPU)
 
 2, Function ( IP grouped by function)
@@ -42,6 +43,7 @@ CPU profiling support:
 
 
 Memory profiling support:
+
 1, Outstanding Allocation (Examine memory leak, include heap/handle/GDI/virtual allocation)
 
 2, Heap Allocation by Module ( Examine high heap allocation by module)
