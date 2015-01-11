@@ -429,6 +429,12 @@ CpuHistoryOnSampleReport(
 	__in PDIALOG_OBJECT Object
 	);
 
+LRESULT 
+CpuHistoryOnDbClick(
+	__in PDIALOG_OBJECT Object,
+	__in LPNMITEMACTIVATE lpnmitem
+	);
+
 #ifdef __cplusplus
 }
 #endif

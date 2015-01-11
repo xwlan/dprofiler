@@ -503,7 +503,7 @@ CtlPaneDrawBootstrap(
 	)
 {
 	PCTL_PANE_CONTEXT Context;
-	PWSTR WelcomeText = L"Welcome to DragonFly profiler!";
+	PWSTR WelcomeText = L"Welcome to D Profile !";
 	PWSTR QuickStartText = L"\r\nTo start CPU profiling,use:\r\nProfile -> CPU\r\n"
 						   L"\r\nTo start Memory profiling,use:\r\nProfile -> Memory\r\n"
 						   L"\r\nTo analyze report,use:\r\nFile -> Open.";

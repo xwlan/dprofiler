@@ -1423,6 +1423,10 @@ CpuHistoryOnNotify(
 		case TTN_GETDISPINFO:
 			Status = CpuHistoryOnTtnGetDispInfo(Object, (LPNMTTDISPINFO)lp);
 			break;
+
+		case NM_DBLCLK:
+			Status = CpuHistoryOnDbClick(Object, (LPNMITEMACTIVATE)lp);
+			break;
 	}
 
 	return Status;
@@ -2204,6 +2208,8 @@ CpuHistoryInsertBackTrace(
 	HWND hWndCtrl;
 	PBTR_TEXT_TABLE Table;
 	PBTR_TEXT_ENTRY Text;
+	PBTR_LINE_ENTRY LineEntry;
+	PBTR_LINE_ENTRY Line;
 	WCHAR Buffer[MAX_PATH];
 	ULONG i;
 	LVITEM lvi = {0};
@@ -2231,6 +2237,13 @@ CpuHistoryInsertBackTrace(
 
     Record = (PBTR_STACK_RECORD)ApsGetStreamPointer(Report, STREAM_STACK);
 	Record = &Record[StackTraceId];
+
+	if (Report->Streams[STREAM_LINE].Offset != 0 && 
+		Report->Streams[STREAM_LINE].Length != 0) {
+		Line = (PBTR_LINE_ENTRY)((PUCHAR)Report + Report->Streams[STREAM_LINE].Offset);
+	} else {
+		Line = NULL;
+	}
 
 	Table = (PBTR_TEXT_TABLE)Report->Context;
 	if (!Table) {
@@ -2286,6 +2299,21 @@ CpuHistoryInsertBackTrace(
 		//
 		// line information
 		//
+
+		lvi.iItem = i;
+		lvi.iSubItem = 2;
+		lvi.mask = LVIF_TEXT;
+
+		if (Text->LineId != -1) {
+			ASSERT(Line != NULL);
+			LineEntry = Line + Text->LineId;
+			StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
+			lvi.pszText = Buffer; 
+		} else {
+			lvi.pszText = L""; 
+		}
+		
+		ListView_SetItem(hWndCtrl, &lvi);
 
 	}
 }
@@ -2693,4 +2721,61 @@ CpuHistoryGetThreadTable(
 
     Table = CpuThreadGetTable(hWndForm);
     return Table;
+}
+
+LRESULT 
+CpuHistoryOnDbClick(
+	__in PDIALOG_OBJECT Object,
+	__in LPNMITEMACTIVATE lpnmitem
+	)
+{
+	HWND hWndList;
+	PWCHAR Ptr;
+	WCHAR Buffer[MAX_PATH];
+	size_t Length;
+	ULONG Line;
+
+	//
+	// Check whether source column is clicked
+	//
+
+	if (lpnmitem->iSubItem != 2) {
+		return 0;
+	}
+
+	//
+	// Ensure it targets stack listview
+	//
+
+	if (lpnmitem->hdr.idFrom != IDC_LIST_CPU_HISTORY_STACK) {
+		return 0;
+	}
+
+	//
+	// Check whether there's any source information
+	//
+
+	hWndList = lpnmitem->hdr.hwndFrom;
+
+	Buffer[0] = 0;
+	ListView_GetItemText(hWndList, lpnmitem->iItem, 2, Buffer, MAX_PATH);
+
+	Length = wcslen(Buffer);
+	if (!Length) {
+
+		//
+		// there's no source information
+		//
+
+		return 0;
+	}
+
+	Ptr = wcsrchr(Buffer, L':');
+	ASSERT(Ptr != NULL);
+
+	Line = _wtoi(Ptr + 1);
+	Ptr[0] = 0;
+
+	FrameShowSource(Object->hWnd, Buffer, Line);
+	return 0;
 }
