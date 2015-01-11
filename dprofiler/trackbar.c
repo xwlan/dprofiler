@@ -385,15 +385,18 @@ TrackCreateBitmap(
 	ASSERT(hdcTrack != NULL);
 
 	if (!hdcTrack) {
+		ReleaseDC(Object->hWnd, hdc);
 		return FALSE;
 	}
 
 	hbmp = CreateCompatibleBitmap(hdc, Object->Width, Object->Height);
 	ASSERT(hbmp != NULL);
 	if (!hbmp) {
+		ReleaseDC(Object->hWnd, hdc);
 		return FALSE;
 	}
 
+	ReleaseDC(Object->hWnd, hdc);
 	hbmpOld = (HBITMAP)SelectObject(hdcTrack, hbmp);
 	ASSERT(hbmpOld != NULL);
 

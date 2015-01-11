@@ -1139,6 +1139,8 @@ TreeListGetTextMetrics(
 	if (UpperWidth) {
 		*UpperWidth = (tm.tmPitchAndFamily & 1 ? 3 : 2) * tm.tmAveCharWidth / 2; 
 	}
+
+	ReleaseDC(hWnd, hdc);
 }
 
 int

@@ -251,6 +251,7 @@ FlameBuildGraph(
 
 	hdc = GetDC(Object->hWnd);
 	GetTextExtentPoint32(hdc, L"MM", sizeof(L"MM"), &Object->EmptyLimit);
+	ReleaseDC(Object->hWnd, hdc);
 
     //
     // Compute the coordination attach to each node 
@@ -674,6 +675,7 @@ FlameInvalidateRect(
 
     hdc = GetDC(Object->hWnd);
     InvalidateRect(Object->hWnd, &rc, FALSE);
+	ReleaseDC(Object->hWnd, hdc);
 }
 
 VOID
@@ -1192,6 +1194,7 @@ FlameCreateBitmap(
 
 	hbmp = CreateCompatibleBitmap(hdc, Size, Size);
 	ASSERT(hbmp != NULL);
+	ReleaseDC(hWnd, hdc);
 
 	hbmpOld = (HBITMAP)SelectObject(hdcFlame, hbmp);
 	ASSERT(hbmpOld != NULL);
@@ -1202,16 +1205,15 @@ FlameCreateBitmap(
 	Rect.bottom = Size;
 
 	hBrush = CreateSolidBrush(Object->BackColor);
-	hOldBrush = SelectObject(Object->hdcFlame, hBrush);
+	hOldBrush = SelectObject(hdcFlame, hBrush);
 
 	FillRect(hdcFlame, &Rect, hBrush);
 
-	SelectObject(Object->hdcFlame, hOldBrush);
+	SelectObject(hdcFlame, hOldBrush);
 	DeleteObject(hBrush);
 
     FlameSetFonts(Object);
-    Object->hOldFont = (HFONT)SelectObject(Object->hdcFlame, Object->hNormalFont);
-
+    Object->hOldFont = (HFONT)SelectObject(hdcFlame, Object->hNormalFont);
 	Object->hdcFlame = hdcFlame;
 	Object->hbmpFlame = hbmp;
 	Object->hbmpFlameOld = hbmpOld;

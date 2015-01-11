@@ -235,12 +235,15 @@ CtlPaneOnEraseBkgnd(
 	RECT Rect;
 	PDIALOG_OBJECT Object;
 	PCTL_PANE_CONTEXT Context;
+	HDC hdc;
 
 	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
 	Context = (PCTL_PANE_CONTEXT)Object->Context;
 
 	GetClientRect(hWnd, &Rect);
-	FillRect(GetDC(hWnd), &Rect, Context->hBrushPane);
+	hdc = GetDC(hWnd);
+	FillRect(hdc, &Rect, Context->hBrushPane);
+	ReleaseDC(hWnd, hdc);
 	return TRUE;
 }
 
