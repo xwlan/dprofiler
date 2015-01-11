@@ -362,7 +362,11 @@ ApsOpenSourceFile(
 	ASSERT(SpecifiedPath != NULL);
 	ASSERT(RealPath != NULL);
 
-	if (!SourceFolder) {
+	//
+	// Source folder is possible ""
+	//
+
+	if (!SourceFolder || !wcslen(SourceFolder)) {
 
 		//
 		// If source folder is not specified, directly open
