@@ -728,24 +728,6 @@ CpuThreadGetTable(
     return (PCPU_THREAD_TABLE)Context->Context;
 }
 
-PCPU_THREAD
-CpuThreadGetMostBusyThread(
-    __in HWND hWnd
-    )
-{
-    PDIALOG_OBJECT Object;
-    PCPU_FORM_CONTEXT Context;
-    PCPU_THREAD_TABLE Table;
-
-    Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
-    Context = (PCPU_FORM_CONTEXT)Object->Context;
-    Table = (PCPU_THREAD_TABLE)Context->Context;
-
-    ASSERT(Table != NULL);
-
-
-}
-
 VOID
 CpuThreadInsertThreads(
 	__in HWND hWnd,

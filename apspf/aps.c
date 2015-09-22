@@ -221,8 +221,10 @@ ApsInitialize(
 
 	StringCchPrintf(ApsLogPath, MAX_PATH, L"%s\\log", Path);
 	Status = CreateDirectory(ApsLogPath, NULL);
-	if (Status != APS_STATUS_OK && Status != ERROR_ALREADY_EXISTS) {
-		return Status;
+	if (!Status) { 
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return APS_STATUS_ERROR;
+		}
 	}
 
 	//
@@ -231,8 +233,10 @@ ApsInitialize(
 
 	StringCchPrintf(ApsLocalSymPath, MAX_PATH, L"%s\\sym", Path);
 	Status = CreateDirectory(ApsLocalSymPath, NULL);
-	if (Status != APS_STATUS_OK && Status != ERROR_ALREADY_EXISTS) {
-		return Status;
+	if (!Status) { 
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
+			return APS_STATUS_ERROR;
+		}
 	}
 
 	Status = ApsInitializeLog(APS_FLAG_LOGGING);

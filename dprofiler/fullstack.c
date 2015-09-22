@@ -206,7 +206,6 @@ FullStackInsertBackTrace(
     PBTR_TEXT_TABLE Table;
     PPF_REPORT_HEAD Report;
     PBTR_TEXT_ENTRY Text;
-    PBTR_DLL_ENTRY DllEntry;
     ULONG Length;
     PWCHAR Symbol;
     ULONG i;
@@ -507,7 +506,6 @@ FullStackOnTreeListSort(
 	PDIALOG_OBJECT Object;
     PFULLSTACK_CONTEXT Context;
 	PTREELIST_OBJECT TreeList;
-	ULONG Column;
 	TVSORTCB Tsc = {0};
     CPU_SORT_CONTEXT SortContext;
 	TVITEM tvi = {0};
@@ -518,7 +516,7 @@ FullStackOnTreeListSort(
     ASSERT(TreeList != NULL);
 	
     SortContext.Column = wp;
-    SortContext.Context = NULL;
+    SortContext.Context = (LPARAM)NULL;
     SortContext.Order = TreeList->SortOrder;
 
 	Tsc.hParent = TVI_ROOT;

@@ -12,8 +12,6 @@ FindIsComplete(
 	__in ULONG Current
 	)
 {
-	ULONG Count;
-
 	if (Context->FindForward) {
 		return TRUE;
 	}

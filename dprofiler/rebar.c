@@ -267,7 +267,6 @@ RebarInsertBands(
 	HWND hWndCombo;
 	HWND hWndBar;
 	HWND hWndRebar;
-	HWND hWndEdit;
 	PREBAR_BAND Band;
 	HIMAGELIST Normal;
 	HIMAGELIST Grayed;

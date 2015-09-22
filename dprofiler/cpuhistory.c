@@ -2304,7 +2304,7 @@ CpuHistoryInsertBackTrace(
 		lvi.iSubItem = 2;
 		lvi.mask = LVIF_TEXT;
 
-		if (Text->LineId != -1) {
+		if (Text != NULL && Text->LineId != -1) {
 			ASSERT(Line != NULL);
 			LineEntry = Line + Text->LineId;
 			StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);

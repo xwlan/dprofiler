@@ -236,8 +236,6 @@ CpuFlameInsertData(
     PBTR_STACK_RECORD Record;
     ULONG Count;
     PCALL_GRAPH Graph;
-	PCPU_THREAD_TABLE ThreadTable;
-	PCPU_THREAD Thread;
      
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;

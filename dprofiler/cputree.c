@@ -534,8 +534,6 @@ CpuTreeInsertData(
     PBTR_STACK_RECORD Record;
     ULONG Count;
     PCALL_GRAPH Graph;
-    PCPU_THREAD Thread;
-    PCPU_THREAD_TABLE ThreadTable;
      
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;
