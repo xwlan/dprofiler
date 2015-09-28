@@ -1,0 +1,17 @@
+*.user
+*.bsc
+*.map
+*.pdb
+*.exe
+*.dll
+*.log
+*.ilk
+*.exp
+*.sdf
+*.opensdf
+*.suo
+bin
+lib
+obj
+
+
