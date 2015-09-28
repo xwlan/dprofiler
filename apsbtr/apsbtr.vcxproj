@@ -67,25 +67,29 @@
     <_ProjectFileVersion>11.0.50727.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
     <LinkIncremental />
     <EmbedManifest>false</EmbedManifest>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
     <LinkIncremental />
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)bin\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -98,7 +102,7 @@
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
-      <AssemblerOutput>All</AssemblerOutput>
+      <AssemblerOutput>NoListing</AssemblerOutput>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
@@ -120,19 +124,15 @@
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <ModuleDefinitionFile>apsbtr.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <GenerateMapFile>true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
       <MapExports>true</MapExports>
       <SubSystem>Windows</SubSystem>
       <SetChecksum>true</SetChecksum>
       <TargetMachine>MachineX86</TargetMachine>
+      <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(OutDir)$(TargetName).lib   ..\lib\x86\debug\$(TargetName).lib
-copy /Y $(OutDir)$(TargetName).dll   ..\bin\x86\debug\$(TargetName).dll
-copy /Y $(OutDir)$(TargetName).pdb  ..\bin\x86\debug\$(TargetName).pdb
-copy /Y $(OutDir)$(TargetName).pdb  F:\sym\$(TargetName).pdb
-
-copy /Y $(ProjectDir)\status.h   ..\inc
+      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
 copy /Y $(ProjectDir)\list.h   ..\inc
 copy /Y $(ProjectDir)\bitmap.h   ..\inc
 copy /Y $(ProjectDir)\lock.h   ..\inc
@@ -177,18 +177,15 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
       <ModuleDefinitionFile>apsbtr.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <GenerateMapFile>true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
       <MapExports>true</MapExports>
       <SubSystem>Windows</SubSystem>
       <SetChecksum>true</SetChecksum>
       <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(OutDir)$(TargetName).lib   ..\lib\x64\debug\$(TargetName).lib
-copy /Y $(OutDir)$(TargetName).dll   ..\bin\x64\debug\$(TargetName).dll
-copy /Y $(OutDir)$(TargetName).pdb  ..\bin\x64\debug\$(TargetName).pdb
-copy $(OutDir)$(TargetName).pdb  h:\sym\$(TargetName).pdb
-copy /Y $(ProjectDir)\status.h   ..\inc
+      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
 copy /Y $(ProjectDir)\list.h   ..\inc
 copy /Y $(ProjectDir)\bitmap.h   ..\inc
 copy /Y $(ProjectDir)\lock.h   ..\inc
@@ -214,7 +211,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <PrecompiledHeader />
-      <AssemblerOutput>All</AssemblerOutput>
+      <AssemblerOutput>NoListing</AssemblerOutput>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -227,28 +224,23 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <UACExecutionLevel>AsInvoker</UACExecutionLevel>
       <ModuleDefinitionFile>apsbtr.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <GenerateMapFile>true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
       <MapExports>true</MapExports>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration />
       <TargetMachine>MachineX86</TargetMachine>
+      <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x86\release\$(TargetName).lib
-copy $(OutDir)$(TargetName).dll   ..\bin\x86\release\$(TargetName).dll
-copy $(OutDir)$(TargetName).pdb  ..\bin\x86\release\$(TargetName).pdb
-copy $(OutDir)$(TargetName).pdb  F:\sym\$(TargetName).pdb
-
-copy /Y $(ProjectDir)\status.h   ..\inc
+      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
 copy /Y $(ProjectDir)\list.h   ..\inc
 copy /Y $(ProjectDir)\bitmap.h   ..\inc
 copy /Y $(ProjectDir)\lock.h   ..\inc
 copy /Y $(ProjectDir)\apsbtr.h   ..\inc
 copy /Y $(ProjectDir)\apsprofile.h   ..\inc
 copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -267,7 +259,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
-      <AssemblerOutput>All</AssemblerOutput>
+      <AssemblerOutput>NoListing</AssemblerOutput>
       <BrowseInformation>true</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -279,20 +271,17 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <AdditionalLibraryDirectories>..\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>apsbtr.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <GenerateMapFile>true</GenerateMapFile>
+      <GenerateMapFile>false</GenerateMapFile>
       <MapExports>true</MapExports>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <LinkTimeCodeGeneration />
       <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x64\release\$(TargetName).lib
-copy $(OutDir)$(TargetName).dll   ..\bin\x64\release\$(TargetName).dll
-copy $(OutDir)$(TargetName).pdb  ..\bin\x64\release\$(TargetName).pdb
-copy $(OutDir)$(TargetName).pdb  h:\sym\$(TargetName).pdb
-copy /Y $(ProjectDir)\status.h   ..\inc
+      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
 copy /Y $(ProjectDir)\list.h   ..\inc
 copy /Y $(ProjectDir)\bitmap.h   ..\inc
 copy /Y $(ProjectDir)\lock.h   ..\inc
@@ -333,8 +322,8 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       </ExceptionHandling>
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ExceptionHandling>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AssemblyAndSourceCode</AssemblerOutput>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">AssemblyAndSourceCode</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="ioprof.c" />
     <ClCompile Include="lock.c" />
@@ -366,10 +355,10 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClCompile Include="thread.c">
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </ExceptionHandling>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">All</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NoListing</AssemblerOutput>
       <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ExceptionHandling>
-      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">All</AssemblerOutput>
+      <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NoListing</AssemblerOutput>
     </ClCompile>
     <ClCompile Include="timer.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>

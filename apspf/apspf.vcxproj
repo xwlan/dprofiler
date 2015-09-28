@@ -66,20 +66,20 @@
     <_ProjectFileVersion>11.0.50727.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
-    <IntDir>$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(ProjectName)\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -96,8 +96,7 @@
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x86\debug\$(TargetName).lib
-
+      <Command>
 copy /Y $(ProjectDir)\aps.h          ..\inc
 copy /Y $(ProjectDir)\apsdefs.h   ..\inc
 copy /Y $(ProjectDir)\apsctl.h      ..\inc
@@ -132,16 +131,20 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x64\debug\$(TargetName).lib
-
+      <Command>
 copy /Y $(ProjectDir)\aps.h          ..\inc
 copy /Y $(ProjectDir)\apsdefs.h   ..\inc
 copy /Y $(ProjectDir)\apsctl.h      ..\inc
 copy /Y $(ProjectDir)\apsrpt.h     ..\inc
 copy /Y $(ProjectDir)\apscpu.h    ..\inc
-copy /Y $(ProjectDir)\apspdb.h        ..\inc
+
 copy /Y $(ProjectDir)\apsfile.h        ..\inc
 copy /Y $(ProjectDir)\apsqueue.h   ..\inc
+copy /Y $(ProjectDir)\apsport.h   ..\inc
+copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
+copy /Y $(ProjectDir)\apspdb.h   ..\inc
+copy /Y $(ProjectDir)\calltree.h   ..\inc
+copy /Y $(ProjectDir)\apslog.h   ..\inc
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -158,8 +161,7 @@ copy /Y $(ProjectDir)\apsqueue.h   ..\inc
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x86\release\$(TargetName).lib
-
+      <Command>
 copy /Y $(ProjectDir)\aps.h          ..\inc
 copy /Y $(ProjectDir)\apsdefs.h   ..\inc
 copy /Y $(ProjectDir)\apsctl.h      ..\inc
@@ -168,7 +170,10 @@ copy /Y $(ProjectDir)\apscpu.h    ..\inc
 
 copy /Y $(ProjectDir)\apsfile.h        ..\inc
 copy /Y $(ProjectDir)\apsqueue.h   ..\inc
+copy /Y $(ProjectDir)\apsport.h   ..\inc
 copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
+copy /Y $(ProjectDir)\apspdb.h   ..\inc
+copy /Y $(ProjectDir)\calltree.h   ..\inc
 copy /Y $(ProjectDir)\apslog.h   ..\inc
 </Command>
     </PostBuildEvent>
@@ -191,8 +196,7 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
       <CompileAs>CompileAsC</CompileAs>
     </ClCompile>
     <PostBuildEvent>
-      <Command>copy $(OutDir)$(TargetName).lib   ..\lib\x64\release\$(TargetName).lib
-
+      <Command>
 copy /Y $(ProjectDir)\aps.h          ..\inc
 copy /Y $(ProjectDir)\apsdefs.h   ..\inc
 copy /Y $(ProjectDir)\apsctl.h      ..\inc
@@ -201,6 +205,11 @@ copy /Y $(ProjectDir)\apscpu.h    ..\inc
 
 copy /Y $(ProjectDir)\apsfile.h        ..\inc
 copy /Y $(ProjectDir)\apsqueue.h   ..\inc
+copy /Y $(ProjectDir)\apsport.h   ..\inc
+copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
+copy /Y $(ProjectDir)\apspdb.h   ..\inc
+copy /Y $(ProjectDir)\calltree.h   ..\inc
+copy /Y $(ProjectDir)\apslog.h   ..\inc
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
