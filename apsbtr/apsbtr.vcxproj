@@ -402,9 +402,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClInclude Include="pstdint.h" />
     <ClInclude Include="queue.h" />
     <ClInclude Include="resource.h" />
-    <ClInclude Include="resource1.h" />
     <ClInclude Include="smp.h" />
-    <ClInclude Include="ringbuf.h" />
     <ClInclude Include="stacktrace.h" />
     <ClInclude Include="status.h" />
     <ClInclude Include="stream.h" />
