@@ -1,9 +1,10 @@
 //
 // lan.john@gmail.com 
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
+#include "apsbtr.h"
 #include "btr.h"
 #include "stacktrace.h"
 #include "util.h"
@@ -11,7 +12,6 @@
 #include "heap.h"
 #include "list.h"
 #include "hal.h"
-#include <windows.h>
 #include "trap.h"
 #include "status.h"
 
@@ -67,13 +67,6 @@ LIST_ENTRY BtrStackPageRetireList;
 //
 
 BTR_MAPPING_OBJECT BtrStackMapping;
-
-//
-// Hash a stack hash to its bucket in stack table
-//
-
-#define STACK_ENTRY_BUCKET(_H) \
- (_H % STACK_RECORD_BUCKET)
 
 //
 // Determine whether a file offset is mapped by mapping object's view
@@ -147,7 +140,7 @@ BtrInitializeStack(
 	BtrInitLock(&BtrStackPageLock);
 	InitializeListHead(&BtrStackPageRetireList);
 
-	BtrStackPageFree = BtrAllocateStackPage();
+	BtrStackPageFree = BtrAllocateStackPage(ENTRY_COUNT_PER_STACK_PAGE);
 	if (!BtrStackPageFree) {
 		return S_FALSE;
 	}
@@ -275,7 +268,7 @@ BtrCloseStackFile(
 	Size.QuadPart = BtrStackTable.Count * sizeof(BTR_STACK_RECORD);
 
 #ifdef _DEBUG
-	{
+	if (BtrProfileObject->Attribute.Type != PROFILE_CCR_TYPE){
 		ULONG64 CurrentLength;
 		CurrentLength = (ULONG64)Size.QuadPart;
 		ASSERT(CurrentLength == BtrSharedData->StackValidLength);
@@ -309,7 +302,6 @@ BtrCaptureStackTrace(
 
 ULONG
 BtrCaptureStackTraceEx(
-	__in PBTR_THREAD_OBJECT Thread,
 	__in PVOID Callers[],
 	__in ULONG MaxDepth,
 	__in PVOID Frame, 
@@ -388,6 +380,80 @@ BtrCaptureStackTraceEx(
 	*Hash = Id;
 
 	return Id;
+}
+
+PBTR_STACK_RECORD
+BtrCaptureStackTracePerThread(
+	__in PBTR_THREAD_OBJECT Thread,
+	__in PVOID Callers[],
+	__in ULONG MaxDepth,
+	__in PVOID Frame, 
+	__in PVOID Address,
+	__out PULONG Hash,
+	__out PULONG Depth
+	)
+{
+	ULONG i;
+	PBTR_STACK_RECORD Record;
+	PVOID Caller;
+	SIZE_T Size;
+	BOOLEAN Heap = FALSE;
+
+	Caller = Callers[0];
+	Size = (SIZE_T)PtrToUlong(Callers[1]);
+
+	if (PtrToUlong(Callers[2]) == (ULONG)1) {
+		Heap = TRUE;
+	}
+
+	//
+	// N.B. Only x86 require start frame pointer, x64 has different
+	// stack walk algorithm, don't use it.
+	//
+
+	BtrWalkCallStack(Frame, Address, MaxDepth, Depth, &Callers[0], Hash);
+
+	Record = BtrAllocateStackRecordPerThread();
+	if (!Record) {
+		return NULL;
+	}
+
+	//
+	// N.B. Must clear Committed bit, since record is allocated from lookaside, 
+	// whose state must be dirty currently.
+	//
+
+	Record->Committed = 0;
+	Record->Heap = Heap;
+	Record->StackId = 0;
+	Record->Count = 0;
+	Record->SizeOfAllocs = (ULONG64)Size;
+
+	if (*Depth >= 2) {
+
+		Record->Depth = *Depth;
+		Record->Hash = *Hash;
+
+		for(i = 0; i < *Depth; i++) {
+			Record->Frame[i] = Callers[i];
+		}
+
+	} else {
+
+		//
+		// N.B. Some FPO frame may have only 1 or 2 frames, we need null Frame[1],
+		// because we rely on Frame[1] to compare stack entry, the bottom line is
+		// Frame[0] tracks callback, Frame[1] tracks callback's caller.
+		//
+
+		Record->Depth = 2;
+		Record->Frame[0] = Address;
+		Record->Frame[1] = Caller;
+		Record->Hash = (ULONG)((ULONG_PTR)Record->Frame[0] + (ULONG_PTR)Record->Frame[1]);
+	}
+
+	Record = BtrInsertStackRecordPerThread(Record);
+	return Record;
 }
 
 BOOLEAN
@@ -482,19 +548,39 @@ BtrWalkFrameChain(
 
 PBTR_STACK_PAGE
 BtrAllocateStackPage(
-	VOID
+	_In_ ULONG BucketCount	
 	)
 {
 	PBTR_STACK_PAGE Page;
 	SIZE_T Size;
 
-	Size = FIELD_OFFSET(BTR_STACK_PAGE, Buckets[ENTRY_COUNT_PER_STACK_PAGE]);
+	Size = FIELD_OFFSET(BTR_STACK_PAGE, Buckets[BucketCount]);
 	Page = (PBTR_STACK_PAGE)VirtualAlloc(NULL, Size, MEM_COMMIT, PAGE_READWRITE);
 	if (!Page) {
 		return NULL;
 	}
 
-	Page->Count = ENTRY_COUNT_PER_STACK_PAGE;
+	Page->Count = BucketCount;
+	Page->Next = 0;
+
+	return Page;
+}
+
+PBTR_STACK_RECORD_PAGE
+BtrAllocateStackRecordPage(
+	_In_ ULONG BucketCount	
+	)
+{
+	PBTR_STACK_RECORD_PAGE Page;
+	SIZE_T Size;
+
+	Size = FIELD_OFFSET(BTR_STACK_RECORD_PAGE, Buckets[BucketCount]);
+	Page = (PBTR_STACK_RECORD_PAGE)VirtualAlloc(NULL, Size, MEM_COMMIT, PAGE_READWRITE);
+	if (!Page) {
+		return NULL;
+	}
+
+	Page->Count = BucketCount;
 	Page->Next = 0;
 
 	return Page;
@@ -527,7 +613,7 @@ BtrAllocateStackEntry(
 
 		InsertHeadList(&BtrStackPageRetireList, &BtrStackPageFree->ListEntry);
 
-		Page = BtrAllocateStackPage();
+		Page = BtrAllocateStackPage(ENTRY_COUNT_PER_STACK_PAGE);
 		if (Page != NULL) {
 
 			ASSERT(Page->Next == 0);
@@ -624,6 +710,88 @@ BtrInsertStackEntry(
 	return Entry->StackId;
 }
 
+PBTR_STACK_TABLE_PER_THREAD
+BtrAllocateStackTablePerThread(
+	_In_ PBTR_THREAD_OBJECT Thread	
+	)
+{
+	ULONG Number;
+
+	Thread->StackTable = (PBTR_STACK_TABLE_PER_THREAD)BtrMalloc(sizeof(BTR_STACK_TABLE_PER_THREAD));
+
+	for(Number = 0; Number < STACK_RECORD_BUCKET_PER_THREAD; Number += 1) {
+		InitializeListHead(&Thread->StackTable->ListHead[Number]);
+	}
+
+	Thread->StackTable->Count = STACK_RECORD_BUCKET_PER_THREAD;
+	return Thread->StackTable;
+}
+
+PBTR_STACK_RECORD
+BtrInsertStackRecordPerThread(
+	__in PBTR_STACK_RECORD Record
+	)
+{
+	ULONG Bucket;
+	PLIST_ENTRY ListEntry;
+	PLIST_ENTRY ListHead;
+	PBTR_STACK_RECORD Entry;
+	BOOLEAN Found = FALSE;
+	PBTR_THREAD_OBJECT Thread;
+	PBTR_STACK_TABLE_PER_THREAD Table;
+
+	Thread = BtrGetCurrentThread();
+	ASSERT(Thread != NULL);
+
+	if (!Thread->StackTable) {
+		BtrAllocateStackTablePerThread(Thread);
+	}
+
+	Table = Thread->StackTable;
+	ASSERT(Table != NULL);
+
+	//
+	// N.B. Per thread lookup use STACK_RECORD_BUCKET, not
+	// STACK_ENTRY_BUCKET, otherwise, it's buffer overflow access!
+	//
+
+	Bucket = GET_STACK_RECORD_BUCKET(Record->Hash);
+	ListHead = &Table->ListHead[Bucket];
+	ListEntry = ListHead->Flink;
+
+	while (ListEntry != ListHead) {
+		Entry = CONTAINING_RECORD(ListEntry, BTR_STACK_RECORD, ListEntry2);
+		if (Entry->Hash == Record->Hash && Entry->Depth == Record->Depth &&
+			Entry->Frame[0] == Record->Frame[0] && Entry->Frame[1] == Record->Frame[1]) {
+			Entry->Count += 1;
+			Entry->SizeOfAllocs += Record->SizeOfAllocs;
+			Found = TRUE;
+			break;
+		}
+		ListEntry = ListEntry->Flink;
+	}
+
+	if (Found) {
+		BtrFreeStackRecordPerThread(Record);
+		return Entry;
+	}
+
+	//
+	// Insert the new stack record into bucket
+	//
+
+	InsertHeadList(ListHead, &Record->ListEntry2);
+	Table->Count += 1;
+
+	//
+	// It does not make sense for per thread stack id, we just return 0 here,
+	// when merge into a single stack database, we will assign a unique stack id
+	// to each different stack trace.
+	//
+
+	return Record;
+}
+
 PBTR_STACK_ENTRY 
 BtrLookupStackEntry(
 	__in PBTR_STACK_ENTRY Lookup 
@@ -685,6 +853,78 @@ BtrAllocateStackRecord(
 	return Entry;
 }
 
+PBTR_STACK_RECORD
+BtrAllocateStackRecordPerThread(
+	VOID
+	)
+{
+	PBTR_STACK_RECORD_PAGE Page;
+	PBTR_STACK_RECORD_PAGE StackPage;
+	PBTR_THREAD_OBJECT Thread;
+	PBTR_STACK_RECORD Record;
+	PSLIST_HEADER Lookaside;
+
+	Thread = BtrGetCurrentThread();
+	ASSERT(Thread != NULL);
+
+	StackPage = Thread->StackPage;
+	Lookaside = Thread->StackRecordLookaside;
+
+	if (!StackPage) {
+
+		//
+		// First time usage initialization of per thread stack record data structure
+		//
+
+		ASSERT(Thread->StackRecordLookaside == NULL);
+		Thread->StackRecordLookaside = (PSLIST_HEADER)BtrAlignedMalloc(sizeof(SLIST_HEADER), 
+																MEMORY_ALLOCATION_ALIGNMENT);
+		InitializeSListHead(Thread->StackRecordLookaside);
+		Lookaside = NULL;
+
+		InitializeListHead(&Thread->StackPageRetireList);
+
+		StackPage = BtrAllocateStackRecordPage(RECORD_COUNT_PER_STACK_RECORD_PAGE_PER_THREAD);
+		Thread->StackPage = StackPage;
+	}
+
+	if (Lookaside){
+		PSLIST_ENTRY SListEntry;
+		SListEntry = InterlockedPopEntrySList(Lookaside);
+		if (SListEntry){
+			return (PBTR_STACK_RECORD)SListEntry;
+		}
+	}
+	
+	if (StackPage->Next < StackPage->Count) {
+		Record = &StackPage->Buckets[StackPage->Next];
+		StackPage->Next += 1;
+
+	} else {
+
+		//
+		// Current page is full, retire it and allocate new page
+		//
+
+		InsertHeadList(&Thread->StackPageRetireList, &StackPage->ListEntry);
+
+		Page = BtrAllocateStackRecordPage(RECORD_COUNT_PER_STACK_RECORD_PAGE_PER_THREAD);
+		if (Page != NULL) {
+
+			ASSERT(Page->Next == 0);
+			Record = &Page->Buckets[Page->Next];
+			Page->Next += 1;
+			
+			Thread->StackPage = Page;
+
+		} else {
+			Record = NULL;
+		}
+
+	}
+	return Record;
+}
+
 VOID
 BtrFreeStackRecord(
 	__in PBTR_STACK_RECORD Record
@@ -700,6 +940,22 @@ BtrFreeStackRecord(
 	else {
 		BtrAlignedFree(Record);
 	}
+}
+
+VOID
+BtrFreeStackRecordPerThread(
+	__in PBTR_STACK_RECORD Record
+	)
+{
+	PBTR_THREAD_OBJECT Thread;
+	PSLIST_HEADER Lookaside;
+
+	Thread = BtrGetCurrentThread();
+	ASSERT(Thread != NULL);
+
+	Lookaside = Thread->StackRecordLookaside;
+	ASSERT(Lookaside != NULL);
+	InterlockedPushEntrySList(Lookaside, &Record->ListEntry);
 }
 
 VOID

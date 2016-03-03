@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _THREAD_H_
@@ -10,7 +10,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+	
 #include "apsbtr.h"
 #include "btr.h"
 #include "lock.h"
@@ -41,10 +41,39 @@ C_ASSERT(sizeof(BTR_TEB) == (4096 * 2));
 
 #define STACK_TLS_SIZE 10
 
+//
+// N.B. For IO profiling, If APC_IO_COMPLETED is set,
+// the intercepted APC must not queue a completion packet 
+// into request table, since its request has never been queued.
+//
+
+typedef enum _BTR_APC_FLAG {
+	APC_STANDARD_APC        = 1,
+	APC_FILE_COMPLETION     = 1 << 1,
+	APC_SOCKET_COMPLETION   = 1 << 2,
+	APC_IO_COMPLETED		= 1 << 3,
+	APC_IO_FALSE_POSITIVE	= 1 << 4,  
+} BTR_APC_FLAG;
+
+typedef struct _BTR_USER_APC {
+	LIST_ENTRY ListEntry;
+	ULONG Flag;
+	PVOID Context;
+	union {
+		PAPCFUNC ApcRoutine;
+		LPOVERLAPPED_COMPLETION_ROUTINE CompletionRoutine;
+		LPWSAOVERLAPPED_COMPLETION_ROUTINE SkCompletionRoutine;
+	};
+} BTR_USER_APC, *PBTR_USER_APC;
+
 #pragma pack(push, 16)
 typedef struct _BTR_THREAD_OBJECT {
 
-	LIST_ENTRY ListEntry;
+	union {
+		SLIST_ENTRY SListEntry;
+		LIST_ENTRY ListEntry;
+	};
+
 	BTR_THREAD_TYPE Type;
 
 	ULONG ThreadFlag;
@@ -69,20 +98,31 @@ typedef struct _BTR_THREAD_OBJECT {
 	LIST_ENTRY FrameList;
 	ULONG64 CallCount;
 
+	BTR_SPINLOCK IrpLock;
+	LIST_ENTRY IrpList;
+	SLIST_HEADER IrpLookaside;
+	LIST_ENTRY ApcList;
+
 	//
-	// stack lookup cache
+	// Pointer to lock cache of CCR profiling
 	//
 
-	ULONG StackCount;
-	BTR_STACK_ENTRY StackCache[STACK_TLS_SIZE];
+	struct _CCR_LOCK_CACHE *CcrLockCache;
+
+	//
+	// Per thread stack database
+	//
+
+	PSLIST_HEADER StackRecordLookaside;
+	PBTR_STACK_RECORD_PAGE StackPage;
+	LIST_ENTRY StackPageRetireList;
+	PBTR_STACK_TABLE_PER_THREAD StackTable;
+
+	struct _CCR_STACKTRACE_PAGE *TracePage;
+	LIST_ENTRY TracePageRetireList;
 
 } BTR_THREAD_OBJECT, *PBTR_THREAD_OBJECT;
 #pragma pack(pop)
-
-typedef enum _BTR_THREAD_TYPE {
-	ThreadRuntime,
-	ThreadUser,
-} BTR_THREAD_TYPE, *PBTR_THREAD_TYPE;
 
 typedef struct _BTR_THREAD_STATE {
 	ULONG ActiveCount;
@@ -99,6 +139,29 @@ typedef struct _BTR_THREAD_PAGE {
 	BTR_BITMAP BitMap;
 	BTR_THREAD_OBJECT Object[ANYSIZE_ARRAY];
 } BTR_THREAD_PAGE, *PBTR_THREAD_PAGE;
+
+typedef struct _BTR_SUSPENDEE {
+	LIST_ENTRY ListEntry;
+	ULONG ThreadId;
+	ULONG SuspendCount;
+	HANDLE ThreadHandle;
+	PTEB Teb;
+	PBTR_THREAD_OBJECT Object;
+	PCONTEXT Context;
+
+	//
+	// N.B. Currently we only support MAX_STACK_DEPTH frames, technically
+	// we need walk the frame until RtlUserThreadStart is reached to safely
+	// determine whether there's left runtime frame on stack, however it's
+	// expected that 60 frames are enough since our interception callbacks
+	// are low level routines which won't incur complex code path. we may
+	// walk up to RtlUserThreadStart if we hit any issue.
+	//
+
+	ULONG Depth;
+	PVOID Frame[MAX_STACK_DEPTH];
+
+} BTR_SUSPENDEE, *PBTR_SUSPENDEE;
 
 //
 // N.B. Forward declare to enable inline
@@ -166,6 +229,11 @@ BtrUninitializeThread(
 BOOLEAN
 BtrIsThreadTerminated(
 	__in PBTR_THREAD_OBJECT Thread 
+	);
+
+VOID
+BtrClearThreadStackByTeb(
+	IN PTEB Teb 
 	);
 
 BOOL
@@ -260,6 +328,33 @@ BtrDereferenceDll(
 {
 	_InterlockedDecrement(&BtrDllReferences);
 }
+
+//
+// Suspend all threads except message runtime thread
+// (the thread call BtrSuspendProcess)
+//
+
+ULONG
+BtrSuspendProcess(
+	_Out_ PLIST_ENTRY SuspendList,
+	_Out_ PULONG Count
+	);
+
+VOID
+BtrResumeProcess(
+	_Inout_ PLIST_ENTRY SuspendList,
+	_In_ BOOLEAN Clean
+	);
+
+VOID
+BtrWalkSuspendeeStack(
+	_In_ PLIST_ENTRY SuspendeeList
+	);
+
+BOOLEAN
+BtrScanFrameFromSuspendeeList(
+	_In_ PLIST_ENTRY SuspendeeList
+	);
 
 #ifdef __cplusplus
 }

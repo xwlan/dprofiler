@@ -319,7 +319,7 @@ SourceLoadFile(
 	//
 
 	if(_wfopen_s(&fp, FullPath, L"rt,ccs=UNICODE") != 0) {
-		MessageBox(Object->hWnd, L"Failed to open file!", L"D Profile", MB_ICONERROR|MB_OK);
+		MessageBox(Object->hWnd, L"Failed to open file!", APP_TITLE, MB_ICONERROR|MB_OK);
 		return NULL;
 	}
 

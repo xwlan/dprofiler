@@ -96,7 +96,7 @@
       <Optimization>Disabled</Optimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_DFKERNEL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <ExceptionHandling />
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -139,7 +139,7 @@ copy /Y $(ProjectDir)\lock.h   ..\inc
 copy /Y $(ProjectDir)\apsbtr.h   ..\inc
 copy /Y $(ProjectDir)\apsprofile.h   ..\inc
 copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -150,7 +150,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <Optimization>Disabled</Optimization>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_DPROBE;_M_X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -192,7 +192,7 @@ copy /Y $(ProjectDir)\lock.h   ..\inc
 copy /Y $(ProjectDir)\apsbtr.h   ..\inc
 copy /Y $(ProjectDir)\apsprofile.h   ..\inc
 copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -205,7 +205,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_DFKERNEL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
       <ExceptionHandling />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -241,7 +241,7 @@ copy /Y $(ProjectDir)\lock.h   ..\inc
 copy /Y $(ProjectDir)\apsbtr.h   ..\inc
 copy /Y $(ProjectDir)\apsprofile.h   ..\inc
 copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -255,7 +255,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <OmitFramePointers>false</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>false</WholeProgramOptimization>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
@@ -288,7 +288,7 @@ copy /Y $(ProjectDir)\lock.h   ..\inc
 copy /Y $(ProjectDir)\apsbtr.h   ..\inc
 copy /Y $(ProjectDir)\apsprofile.h   ..\inc
 copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -300,6 +300,16 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClCompile Include="buildin.c" />
     <ClCompile Include="cache.c" />
     <ClCompile Include="callback.c" />
+    <ClCompile Include="ccrcap.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="ccrprof.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="cpuprof.c" />
     <ClCompile Include="decode.c" />
     <ClCompile Include="except.c" />
@@ -324,6 +334,10 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       </ExceptionHandling>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NoListing</AssemblerOutput>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NoListing</AssemblerOutput>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="iocap.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ioprof.c" />
     <ClCompile Include="lock.c" />
@@ -335,21 +349,9 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClCompile Include="mmheap.c" />
     <ClCompile Include="mmpage.c" />
     <ClCompile Include="mmprof.c" />
-    <ClCompile Include="numa.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="perf.c" />
     <ClCompile Include="port.c" />
     <ClCompile Include="queue.c" />
-    <ClCompile Include="smp.c">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="stacktrace.c" />
     <ClCompile Include="stream.c" />
     <ClCompile Include="thread.c">
@@ -367,7 +369,6 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="trap.c" />
-    <ClCompile Include="unload.c" />
     <ClCompile Include="util.c" />
   </ItemGroup>
   <ItemGroup>
@@ -378,14 +379,15 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClInclude Include="buildin.h" />
     <ClInclude Include="cache.h" />
     <ClInclude Include="callback.h" />
+    <ClInclude Include="ccrprof.h" />
     <ClInclude Include="cpuprof.h" />
     <ClInclude Include="decode.h" />
     <ClInclude Include="exempt.h" />
-    <ClInclude Include="global.h" />
     <ClInclude Include="hal.h" />
     <ClInclude Include="hde32.h" />
     <ClInclude Include="hde64.h" />
     <ClInclude Include="heap.h" />
+    <ClInclude Include="iodefs.h" />
     <ClInclude Include="ioprof.h" />
     <ClInclude Include="list.h" />
     <ClInclude Include="lock.h" />
@@ -396,7 +398,7 @@ copy /Y $(ProjectDir)\cpuprof.h   ..\inc
     <ClInclude Include="mmheap.h" />
     <ClInclude Include="mmpage.h" />
     <ClInclude Include="mmprof.h" />
-    <ClInclude Include="numa.h" />
+    <ClInclude Include="ntioapi.h" />
     <ClInclude Include="perf.h" />
     <ClInclude Include="port.h" />
     <ClInclude Include="pstdint.h" />

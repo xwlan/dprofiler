@@ -85,7 +85,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_IPCTL_;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -110,7 +110,7 @@ copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
 copy /Y $(ProjectDir)\apspdb.h   ..\inc
 copy /Y $(ProjectDir)\calltree.h   ..\inc
 copy /Y $(ProjectDir)\apslog.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -120,7 +120,7 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_IPCTL_;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -145,7 +145,7 @@ copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
 copy /Y $(ProjectDir)\apspdb.h   ..\inc
 copy /Y $(ProjectDir)\calltree.h   ..\inc
 copy /Y $(ProjectDir)\apslog.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -153,7 +153,7 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_IPCTL_;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
@@ -175,7 +175,7 @@ copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
 copy /Y $(ProjectDir)\apspdb.h   ..\inc
 copy /Y $(ProjectDir)\calltree.h   ..\inc
 copy /Y $(ProjectDir)\apslog.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -186,7 +186,7 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_IPCTL_;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <PrecompiledHeader />
@@ -210,16 +210,18 @@ copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
 copy /Y $(ProjectDir)\apspdb.h   ..\inc
 copy /Y $(ProjectDir)\calltree.h   ..\inc
 copy /Y $(ProjectDir)\apslog.h   ..\inc
-</Command>
+copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="aps.c" />
     <ClCompile Include="apsanalysis.c" />
+    <ClCompile Include="apsccr.c" />
     <ClCompile Include="apscpu.c" />
     <ClCompile Include="apsctl.c" />
     <ClCompile Include="apsctldbg.c" />
     <ClCompile Include="apsfile.c" />
+    <ClCompile Include="apsio.c" />
     <ClCompile Include="apsldr.c" />
     <ClCompile Include="apslog.c" />
     <ClCompile Include="apsmm.c" />
@@ -237,6 +239,8 @@ copy /Y $(ProjectDir)\apslog.h   ..\inc
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="apsccr.h" />
+    <ClInclude Include="apsio.h" />
     <ClInclude Include="calltree.h" />
     <ClInclude Include="aps.h" />
     <ClInclude Include="apsanalysis.h" />

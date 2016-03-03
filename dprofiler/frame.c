@@ -18,6 +18,7 @@
 #include "cpuwiz.h"
 #include "mmwiz.h"
 #include "iowiz.h"
+#include "ccrwiz.h"
 #include "analyzedlg.h"
 #include "apsctl.h"
 #include "apsdefs.h"
@@ -35,8 +36,6 @@
 #include "mmflame.h"
 #include "cpusummary.h"
 #include "cpupc.h"
-#include "cpufunc.h"
-#include "cpumodule.h"
 #include "cputhread.h"
 #include "cpuhistory.h"
 #include "cputree.h"
@@ -45,6 +44,14 @@
 #include "deduction.h"
 #include "srcdlg.h"
 #include "help.h"
+#include "iosummary.h"
+#include "iofile.h"
+#include "iosocket.h"
+#include "ioflame.h"
+#include "ccrsummary.h"
+#include "ccrcontention.h"
+#include "ccrflame.h"
+
 
 PWSTR SdkFrameClass = L"SdkFrame";
 
@@ -166,9 +173,9 @@ FrameOnContextMenu(
 	if (Point.x >= Rect.left && Point.x <= Rect.right && 
 		Point.y >= Rect.top  && Point.y <= Rect.bottom ) {
 
-        //
-        // N.B. Not implemented
-        //
+		//
+		// N.B. Context menu is handled by each view and its children
+		//
 	}
 
 	return 0L;
@@ -255,7 +262,7 @@ FrameOnOpen(
 	Ofn.lpstrFilter = Ofn.lpstrFilter = L"D Profile Report (*.dpf)\0*.dpf\0\0";
 	Ofn.lpstrFile = Path;
 	Ofn.nMaxFile = sizeof(Path); 
-	Ofn.lpstrTitle = L"D Profile";
+	Ofn.lpstrTitle = APP_TITLE;
 	Ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
 	Status = GetOpenFileName(&Ofn);
@@ -269,7 +276,7 @@ FrameOnOpen(
 
     Frame = (PFRAME_OBJECT)SdkGetObject(hWnd);
     if (!wcsicmp(Path, Frame->FilePath)) {
-        MessageBox(hWnd, L"It's already opened!", L"D Profile", MB_OK|MB_ICONWARNING);
+        MessageBox(hWnd, L"It's already opened!", APP_TITLE, MB_OK|MB_ICONWARNING);
         return 0;
     }
 
@@ -325,7 +332,7 @@ FrameOnSave(
 	Ofn.lpstrFilter = Ofn.lpstrFilter = L"D Profile Report (*.dpf)\0*.dpf\0\0";
 	Ofn.lpstrFile = Name; 
 	Ofn.nMaxFile = sizeof(Path); 
-	Ofn.lpstrTitle = L"D Profile";
+	Ofn.lpstrTitle = APP_TITLE;
 	Ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
 	Status = GetSaveFileName(&Ofn);
@@ -374,7 +381,7 @@ FrameOnAnalyze(
 		//
 
 		Continue = MessageBox(hWnd, L"The report was analyzed, press OK to continue", 
-							  L"D Profile", MB_YESNO|MB_ICONWARNING);
+							  APP_TITLE, MB_YESNO|MB_ICONWARNING);
 		if (Continue != IDYES) {
 			return APS_STATUS_OK;
 		}
@@ -501,6 +508,9 @@ FrameOnCommand(
 		
 		case IDM_IO:
 			return FrameOnIo(hWnd, uMsg, wp, lp);
+		
+		case IDM_CCR:
+			return FrameOnCcr(hWnd, uMsg, wp, lp);
 
 		case IDM_OPEN:
 			return FrameOnOpen(hWnd, uMsg, wp, lp);
@@ -623,6 +633,7 @@ FrameOnSwitchView(
 
 					break;
 
+					/*
 				case CPU_FORM_FUNCTION:
 
 					if (Object->CpuForm.hWndForm[CPU_FORM_FUNCTION] == NULL) {
@@ -652,6 +663,7 @@ FrameOnSwitchView(
 					ShowWindow(Object->hWndCurrent, SW_SHOW);
 					PostMessage(hWnd, WM_SIZE, 0, 0);
 					break;
+					*/
 
                 case CPU_FORM_THREAD:
 
@@ -779,6 +791,119 @@ FrameOnSwitchView(
 		}
 	}
 
+	if (Object->Type == PROFILE_IO_TYPE) {
+
+		if (Object->IoForm.Current != Current) {
+
+			switch (Current) {
+
+				case IO_FORM_SUMMARY:
+
+					if (Object->IoForm.hWndForm[IO_FORM_SUMMARY] == NULL) {
+						hWndForm = IoSummaryCreate(hWnd, IO_FORM_SUMMARY);
+						Object->IoForm.hWndForm[IO_FORM_SUMMARY] = hWndForm;
+						IoSummaryInsertData(hWndForm, Object->Head);
+					} 
+
+					Object->IoForm.Current = (IO_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->IoForm.hWndForm[IO_FORM_SUMMARY];
+
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+
+				case IO_FORM_FILE:
+					if (Object->IoForm.hWndForm[IO_FORM_FILE] == NULL) {
+						hWndForm = IoFsCreate(hWnd, IO_FORM_FILE);
+						Object->IoForm.hWndForm[IO_FORM_FILE] = hWndForm;
+						IoFsInsertData(hWndForm, Object->Head);
+					} 
+					Object->IoForm.Current = (IO_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->IoForm.hWndForm[IO_FORM_FILE];
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+
+				case IO_FORM_SOCKET:
+					if (Object->IoForm.hWndForm[IO_FORM_SOCKET] == NULL) {
+						hWndForm = IoSkCreate(hWnd, IO_FORM_SOCKET);
+						Object->IoForm.hWndForm[IO_FORM_SOCKET] = hWndForm;
+						IoSkInsertData(hWndForm, Object->Head);
+					} 
+					Object->IoForm.Current = (IO_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->IoForm.hWndForm[IO_FORM_SOCKET];
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+
+				case IO_FORM_FLAME:
+					if (Object->IoForm.hWndForm[IO_FORM_FLAME] == NULL) {
+						hWndForm = IoFlameCreate(hWnd, IO_FORM_FLAME);
+						Object->IoForm.hWndForm[IO_FORM_FLAME] = hWndForm;
+						IoFlameInsertData(hWndForm, Object->Head);
+					} 
+					Object->IoForm.Current = (IO_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->IoForm.hWndForm[IO_FORM_FLAME];
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+
+				case IO_FORM_THREAD:
+					break;
+			}
+		}
+		else {
+			ShowWindow(Object->hWndCurrent, SW_SHOW);
+		}
+	}
+	if (Object->Type == PROFILE_CCR_TYPE) {
+		if (Object->CcrForm.Current != Current) {
+			switch (Current) {
+				case CCR_FORM_SUMMARY:
+					if (Object->CcrForm.hWndForm[CCR_FORM_SUMMARY] == NULL) {
+						hWndForm = CcrSummaryCreate(hWnd, CCR_FORM_SUMMARY);
+						Object->CcrForm.hWndForm[CCR_FORM_SUMMARY] = hWndForm;
+						CcrSummaryInsertData(hWndForm, Object->Head);
+					} 
+
+					Object->CcrForm.Current = (CCR_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->CcrForm.hWndForm[CCR_FORM_SUMMARY];
+
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+				case CCR_FORM_CONTENTION:
+					if (Object->CcrForm.hWndForm[CCR_FORM_CONTENTION] == NULL) {
+						hWndForm = CcrContentionCreate(hWnd, CCR_FORM_CONTENTION);
+						Object->CcrForm.hWndForm[CCR_FORM_CONTENTION] = hWndForm;
+						CcrContentionInsertData(hWndForm, Object->Head);
+					} 
+
+					Object->CcrForm.Current = (CCR_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->CcrForm.hWndForm[CCR_FORM_CONTENTION];
+
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+				case CCR_FORM_FLAME:
+					if (Object->CcrForm.hWndForm[CCR_FORM_FLAME] == NULL) {
+						hWndForm = CcrFlameCreate(hWnd, CCR_FORM_FLAME);
+						Object->CcrForm.hWndForm[CCR_FORM_FLAME] = hWndForm;
+						CcrFlameInsertData(hWndForm, Object->Head);
+					} 
+
+					Object->CcrForm.Current = (CCR_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->CcrForm.hWndForm[CCR_FORM_FLAME];
+
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+			}
+		}
+		else {
+			ShowWindow(Object->hWndCurrent, SW_SHOW);
+		}
+	}
 	return 0;
 }
 
@@ -798,16 +923,8 @@ FrameOnCreate(
 	lpcs = (CREATESTRUCT *)lp;
 	Frame = (PFRAME_OBJECT)lpcs->lpCreateParams;
 
-#ifdef _LITE
-#if defined(_M_X64)
-	SetWindowText(hWnd, L"D Profile Lite x64");
-#else
-	SetWindowText(hWnd, L"D Profile Lite");
-#endif
-#else
 	LoadString(SdkInstance, IDS_PRODUCT, Buffer, MAX_PATH);
 	SetWindowText(hWnd, Buffer);
-#endif
 
 	SdkSetObject(hWnd, Frame);
 	Frame->hWnd = hWnd;
@@ -1068,7 +1185,7 @@ FrameOnUserProfileAnalyzed(
 
 	Status = FrameOpenReport(Frame, Buffer);
 	if (!Status) {
-		MessageBox(hWnd, L"Failed to open report!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Failed to open report!", APP_TITLE, MB_OK|MB_ICONERROR);
 		return 0;
 	}
 
@@ -1098,9 +1215,31 @@ FrameOnUserProfileAnalyzed(
         MmSummaryInsertData(hWndForm, Frame->Head);
     }
 
-    else {
-        ASSERT(0);
+    else if (Type == PROFILE_IO_TYPE) {
+        Frame->Type = PROFILE_IO_TYPE;
+		RebarSetType(Frame->Rebar, PROFILE_IO_TYPE);
+
+        hWndForm = IoSummaryCreate(hWnd, IO_FORM_SUMMARY);
+		Frame->IoForm.hWndForm[IO_FORM_SUMMARY] = hWndForm;
+        Frame->IoForm.Current = IO_FORM_SUMMARY;
+		Frame->hWndCurrent = hWndForm;
+        
+        IoSummaryInsertData(hWndForm, Frame->Head);
     }
+    else if (Type == PROFILE_CCR_TYPE) {
+		Frame->Type = PROFILE_CCR_TYPE;
+		RebarSetType(Frame->Rebar, PROFILE_CCR_TYPE);
+
+        hWndForm = CcrSummaryCreate(hWnd, CCR_FORM_SUMMARY);
+		Frame->CcrForm.hWndForm[CCR_FORM_SUMMARY] = hWndForm;
+        Frame->CcrForm.Current = CCR_FORM_SUMMARY;
+		Frame->hWndCurrent = hWndForm;
+        
+        CcrSummaryInsertData(hWndForm, Frame->Head);
+	}
+	else {
+		ASSERT(0);
+	}
 
 	//
 	// Change frame object state to reporting mode
@@ -1157,7 +1296,7 @@ FrameOnUserProfileOpened(
 
 	Status = FrameOpenReport(Frame, Buffer);
 	if (!Status) {
-		MessageBox(hWnd, L"Failed to open report!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Failed to open report!", APP_TITLE, MB_OK|MB_ICONERROR);
 		return 0;
 	}
 
@@ -1189,9 +1328,31 @@ FrameOnUserProfileOpened(
         MmSummaryInsertData(hWndForm, Frame->Head);
     }
 
-    else {
-        ASSERT(0);
+	else if (Head->IncludeIo) {
+        Frame->Type = PROFILE_IO_TYPE;
+		RebarSetType(Frame->Rebar, PROFILE_IO_TYPE);
+
+        hWndForm = IoSummaryCreate(hWnd, IO_FORM_SUMMARY);
+		Frame->IoForm.hWndForm[IO_FORM_SUMMARY] = hWndForm;
+        Frame->IoForm.Current = IO_FORM_SUMMARY;
+		Frame->hWndCurrent = hWndForm;
+        
+        IoSummaryInsertData(hWndForm, Frame->Head);
     }
+	else if (Head->IncludeCcr) {
+		Frame->Type = PROFILE_CCR_TYPE;
+		RebarSetType(Frame->Rebar, PROFILE_CCR_TYPE);
+
+        hWndForm = CcrSummaryCreate(hWnd, CCR_FORM_SUMMARY);
+		Frame->CcrForm.hWndForm[CCR_FORM_SUMMARY] = hWndForm;
+        Frame->CcrForm.Current = CCR_FORM_SUMMARY;
+		Frame->hWndCurrent = hWndForm;
+        
+        CcrSummaryInsertData(hWndForm, Frame->Head);
+	}
+	else {
+		ASSERT(0);
+	}
 
 	//
 	// Change frame object state to reporting mode
@@ -1277,7 +1438,7 @@ FrameOnCpu(
 	}
 
 	if (Status != APS_STATUS_OK) {
-		MessageBox(hWnd, L"Failed to create profile!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Failed to create profile!", APP_TITLE, MB_OK|MB_ICONERROR);
 		return Status;
 	}
 
@@ -1381,7 +1542,7 @@ FrameOnMm(
 	}
 
 	if (Status != APS_STATUS_OK) {
-		MessageBox(hWnd, L"Failed to create profile!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Failed to create profile!", APP_TITLE, MB_OK|MB_ICONERROR);
 		return Status;
 	}
 
@@ -1442,7 +1603,24 @@ FrameCleanForm(
 		}
 		Object->MmForm.Current = MM_FORM_SUMMARY;
 	}
-
+	if (Object->Type == PROFILE_IO_TYPE) {
+		for(i = 0; i < IO_FORM_COUNT; i++) {
+			if (Object->IoForm.hWndForm[i] != NULL) {
+				DestroyWindow(Object->IoForm.hWndForm[i]);
+				Object->IoForm.hWndForm[i] = NULL;
+			}
+		}
+		Object->IoForm.Current = IO_FORM_SUMMARY;
+	}
+	if (Object->Type == PROFILE_CCR_TYPE) {
+		for(i = 0; i < CCR_FORM_COUNT; i++) {
+			if (Object->CcrForm.hWndForm[i] != NULL) {
+				DestroyWindow(Object->CcrForm.hWndForm[i]);
+				Object->CcrForm.hWndForm[i] = NULL;
+			}
+		}
+		Object->CcrForm.Current = CCR_FORM_SUMMARY;
+	}
 	Object->hWndCurrent = NULL;
 
 }
@@ -1455,6 +1633,121 @@ FrameOnIo(
 	__in LPARAM lp
 	)
 {
+	ULONG Status;
+	PFRAME_OBJECT Frame;
+	WIZARD_CONTEXT Context;
+	WCHAR ReportPath[MAX_PATH];
+
+	ZeroMemory(&Context, sizeof(Context));
+
+	Context.Type = PROFILE_IO_TYPE;
+	IoWizard(hWnd, &Context);
+
+	if (Context.Cancel) {
+		return 0;
+	}
+
+	Frame = (PFRAME_OBJECT)SdkGetObject(hWnd);
+	if (Frame->State == FRAME_REPORTING) {
+		ApsCleanReport();
+	}
+
+	//
+	// Create profile object
+	//
+
+	if (Context.Attach) {
+		Status = CtlPaneCreateProfileByAttach(Frame->hWndCtlPane, &Context, ReportPath);
+	}
+	else {
+		Status = CtlPaneCreateProfileByLaunch(Frame->hWndCtlPane, &Context, ReportPath);
+	}
+
+	if (Status != APS_STATUS_OK) {
+		MessageBox(hWnd, L"Failed to create profile!", APP_TITLE, MB_OK|MB_ICONERROR);
+		return Status;
+	}
+
+    //
+    // Start profile
+    //
+
+	CtlPaneStartProfile(Frame->hWndCtlPane);
+
+	FrameCleanForm(Frame);
+	FrameCloseReport(Frame);
+    Frame->State = FRAME_PROFILING;
+    FrameSetMenuState(Frame);
+
+	//
+	// Copy report path
+	//
+
+	StringCchCopy(Frame->FilePath, MAX_PATH, ReportPath);
+	FrameShowCtlPane(Frame, TRUE);
+	return 0;
+}
+
+LRESULT
+FrameOnCcr(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	)
+{
+	ULONG Status;
+	PFRAME_OBJECT Frame;
+	WIZARD_CONTEXT Context;
+	WCHAR ReportPath[MAX_PATH];
+
+	ZeroMemory(&Context, sizeof(Context));
+
+	Context.Type = PROFILE_CCR_TYPE;
+	CcrWizard(hWnd, &Context);
+
+	if (Context.Cancel) {
+		return 0;
+	}
+
+	Frame = (PFRAME_OBJECT)SdkGetObject(hWnd);
+	if (Frame->State == FRAME_REPORTING) {
+		ApsCleanReport();
+	}
+
+	//
+	// Create profile object
+	//
+
+	if (Context.Attach) {
+		Status = CtlPaneCreateProfileByAttach(Frame->hWndCtlPane, &Context, ReportPath);
+	}
+	else {
+		Status = CtlPaneCreateProfileByLaunch(Frame->hWndCtlPane, &Context, ReportPath);
+	}
+
+	if (Status != APS_STATUS_OK) {
+		MessageBox(hWnd, L"Failed to create profile!", APP_TITLE, MB_OK|MB_ICONERROR);
+		return Status;
+	}
+
+    //
+    // Start profile
+    //
+
+	CtlPaneStartProfile(Frame->hWndCtlPane);
+
+	FrameCleanForm(Frame);
+	FrameCloseReport(Frame);
+    Frame->State = FRAME_PROFILING;
+    FrameSetMenuState(Frame);
+
+	//
+	// Copy report path
+	//
+
+	StringCchCopy(Frame->FilePath, MAX_PATH, ReportPath);
+	FrameShowCtlPane(Frame, TRUE);
 	return 0;
 }
 
@@ -1599,6 +1892,8 @@ FrameSetMenuState(
         hSubMenu = GetSubMenu(hMenu, 1);
         EnableMenuItem(hSubMenu, IDM_CPU, MF_ENABLED);
         EnableMenuItem(hSubMenu, IDM_MM, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_IO, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_CCR, MF_ENABLED);
         hSubMenu = GetSubMenu(hMenu, 2);
         EnableMenuItem(hSubMenu, IDM_ANALYZE, MF_DISABLED|MF_GRAYED);    
         break;
@@ -1611,6 +1906,8 @@ FrameSetMenuState(
         hSubMenu = GetSubMenu(hMenu, 1);
         EnableMenuItem(hSubMenu, IDM_CPU, MF_DISABLED|MF_GRAYED);
         EnableMenuItem(hSubMenu, IDM_MM, MF_DISABLED|MF_GRAYED);
+        EnableMenuItem(hSubMenu, IDM_IO, MF_DISABLED|MF_GRAYED);
+        EnableMenuItem(hSubMenu, IDM_CCR, MF_DISABLED|MF_GRAYED);
         hSubMenu = GetSubMenu(hMenu, 2);
         EnableMenuItem(hSubMenu, IDM_ANALYZE, MF_DISABLED|MF_GRAYED);
         break;
@@ -1622,6 +1919,8 @@ FrameSetMenuState(
         hSubMenu = GetSubMenu(hMenu, 1);
         EnableMenuItem(hSubMenu, IDM_CPU, MF_ENABLED);
         EnableMenuItem(hSubMenu, IDM_MM, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_IO, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_CCR, MF_ENABLED);
         hSubMenu = GetSubMenu(hMenu, 2);
         EnableMenuItem(hSubMenu, IDM_ANALYZE, MF_ENABLED);    
         break;
@@ -1633,6 +1932,8 @@ FrameSetMenuState(
         hSubMenu = GetSubMenu(hMenu, 1);
         EnableMenuItem(hSubMenu, IDM_CPU, MF_ENABLED);
         EnableMenuItem(hSubMenu, IDM_MM, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_IO, MF_ENABLED);
+        EnableMenuItem(hSubMenu, IDM_CCR, MF_ENABLED);
         hSubMenu = GetSubMenu(hMenu, 2);
         EnableMenuItem(hSubMenu, IDM_ANALYZE, MF_DISABLED|MF_GRAYED);    
         break;
@@ -1807,7 +2108,7 @@ FrameShowSource(
 		CloseHandle(Handle);
 	}
 	else {
-		MessageBox(Object->hWnd, L"Failed to find source file!", L"D Profile",
+		MessageBox(Object->hWnd, L"Failed to find source file!", APP_TITLE,
 			       MB_OK|MB_ICONERROR);
 		SymCleanup(GetCurrentProcess());
 		return;

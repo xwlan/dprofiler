@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 //
@@ -171,14 +171,10 @@ RebarSetType(
 			SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Summary");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"IPs On CPU");
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Function");
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Module");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Thread");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Call Tree");
-#ifndef _LITE
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Flame Graph");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"History");
-#endif
 			SendMessage(hWnd, CB_SETCURSEL, 0, 0);
 			break;
 
@@ -187,20 +183,28 @@ RebarSetType(
 			SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Summary");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Outstanding Allocation");
-#ifndef _LITE
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Heap Allocation By Module");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Heap Allocation Call Tree");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Heap Allocation Flame Graph");
-#endif
 			SendMessage(hWnd, CB_SETCURSEL, 0, 0);
 			break;
 
 		case PROFILE_IO_TYPE:
 			
 			SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Network");
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"File System");
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Device");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Summary");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"File");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Socket");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"I/O Flame Graph");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Thread");
+			SendMessage(hWnd, CB_SETCURSEL, 0, 0);
+			break;
+
+		case PROFILE_CCR_TYPE:
+			SendMessage(hWnd, CB_RESETCONTENT, 0, 0);
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Summary");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Contention");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Lock Flame Graph");
 			SendMessage(hWnd, CB_SETCURSEL, 0, 0);
 			break;
 

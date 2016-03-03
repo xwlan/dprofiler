@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "wizard.h"
@@ -36,7 +36,7 @@ MmWizard(
 	// MM 
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwSize = sizeof(psp);
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszHeaderTitle = L"Memory Profiling";
@@ -50,7 +50,7 @@ MmWizard(
 	// Attach 
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszTemplate = MAKEINTRESOURCE(IDD_PROPPAGE_ATTACH);
     psp.pszHeaderTitle = L"Memory Profiling";
@@ -63,7 +63,7 @@ MmWizard(
 	// Run
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszTemplate = MAKEINTRESOURCE(IDD_PROPPAGE_RUN);
     psp.pszHeaderTitle = L"Memory Profiling";
@@ -308,7 +308,7 @@ MmTaskOnFinish(
 	index = ListViewGetFirstSelected(hWndCtrl);
 
 	if (index == -1) {
-		MessageBox(hWnd, L"No process is selected!", L"D Profile", MB_OK|MB_ICONWARNING);
+		MessageBox(hWnd, L"No process is selected!", APP_TITLE, MB_OK|MB_ICONWARNING);
 		SetWindowLongPtr(hWnd, DWL_MSGRESULT, TRUE);
 		return;
 	}
@@ -631,7 +631,7 @@ MmRunOnFinish(
 	}
 
 	if (!MmRunCheckPath(hWnd)) {
-		MessageBox(hWnd, L"Invalid image file path!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Invalid image file path!", APP_TITLE, MB_OK|MB_ICONERROR);
 		SetWindowLongPtr(hWnd, DWL_MSGRESULT, TRUE);
 		return;
 	}
@@ -728,7 +728,7 @@ MmRunOnPath(
 	Ofn.lpstrFilter = L"Executable File (*.exe)\0*.exe\0All Files (*.*)\0*.*\0\0";
 	Ofn.lpstrFile = Path;
 	Ofn.nMaxFile = sizeof(Path); 
-	Ofn.lpstrTitle = L"D Profile";
+	Ofn.lpstrTitle = APP_TITLE;
 	Ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
 	Status = GetOpenFileName(&Ofn);

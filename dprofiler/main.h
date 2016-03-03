@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #ifndef _MAIN_H_
@@ -14,7 +14,8 @@ extern "C" {
 #include "sdk.h"
 
 extern HWND hWndMain;
-    
+extern LPCWSTR APP_TITLE; 
+
 BOOLEAN
 MainInitialize(
 	VOID

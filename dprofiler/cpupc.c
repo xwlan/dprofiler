@@ -264,7 +264,7 @@ CpuPcOnCustomDraw(
 				//
 				
 				if (lvcd->iSubItem == CpuPcPercentColumn) {
-					CpuPcFillPercentRect(Context->Context, pNmhdr->hwndFrom, lvcd->nmcd.hdc,
+					CpuPcFillPercentRect((PCPU_PC_CONTEXT)Context->Context, pNmhdr->hwndFrom, lvcd->nmcd.hdc,
 									lvcd->nmcd.dwItemSpec, &lvcd->nmcd.rc,
 									lvcd->nmcd.uItemState & CDIS_FOCUS);
 				}
@@ -575,42 +575,6 @@ CpuPcInsertData(
 	Unicode = (PWSTR)ApsMalloc(MAX_PATH * 2);
 	StringCchPrintf(Unicode, MAX_PATH, L"Total %u IP samples", Exclusive);
 	PostMessage(GetParent(hWnd), WM_USER_STATUSBAR, 0, (LPARAM)Unicode);
-}
-
-LRESULT
-CpuPcOnFindForward(
-	__in HWND hWnd, 
-	__in UINT uMsg, 
-	__in WPARAM wp, 
-	__in LPARAM lp
-	)
-{
-	PFRAME_OBJECT Object;
-    FIND_CALLBACK FindCallback;
-	LONG Current;
-	HWND hWndCtrl;
-
-	Object = (PFRAME_OBJECT)SdkGetObject(GetParent(hWnd));
-	FindCallback = Object->FindContext.FindCallback;
-	
-	if (!FindCallback) {
-		return 0L;
-	}
-
-	hWndCtrl = GetDlgItem(hWnd, IDC_LIST_PC);
-	Current = ListViewGetFirstSelected(hWndCtrl);
-
-	Object->FindContext.PreviousIndex = Current;
-	FrameRetrieveFindString(Object, Object->FindContext.FindString, MAX_PATH);
-
-	__try {
-		Object->FindContext.FindForward = TRUE;
-		(*FindCallback)(&Object->FindContext);
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) {
-	}
-
-	return 0L;
 }
 
 LRESULT 

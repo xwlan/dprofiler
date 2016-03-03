@@ -1,15 +1,11 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #pragma warning(disable: 4100 4201)
 
-#include <windows.h>
-#include <windowsx.h>
-#include <tchar.h>
-#include <limits.h>
 #include "sdk.h"
 #include "split.h"
 

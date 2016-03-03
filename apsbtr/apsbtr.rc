@@ -73,7 +73,7 @@ BEGIN
             VALUE "FileDescription", "D Profile Runtime"
             VALUE "FileVersion", "1, 0, 0, 1"
             VALUE "InternalName", "D Profile Runtime"
-            VALUE "LegalCopyright", "Copyright (C) 2014"
+            VALUE "LegalCopyright", "Copyright (C) 2016"
             VALUE "OriginalFilename", "apsbtr.dll"
             VALUE "ProductName", "D Profile"
             VALUE "ProductVersion", "1, 0, 0, 1"

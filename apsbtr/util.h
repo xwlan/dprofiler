@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _UTIL_H_
@@ -123,6 +123,17 @@ BtrCopySmallMemory(
 	);
 
 BOOLEAN
+BtrProbePtrPtr(
+	_In_ PVOID Buffer
+	);
+
+BOOLEAN
+BtrProbeBuffer(
+	__in PVOID Buffer,
+	__in ULONG Size
+	);
+
+BOOLEAN
 BtrValidateHandle(
 	__in HANDLE Handle
 	);
@@ -155,11 +166,32 @@ DebugTrace2(
 	...
 	);
 
+VOID 
+BtrTrace(
+	__in PSTR Format,
+	...
+	);
+
+VOID 
+BtrTrace2(
+	__in PSTR Format,
+	...
+	);
+
 ULONG
 BtrCreateRandomNumber(
     __in ULONG Minimum,
     __in ULONG Maximum
     );
+
+struct _BTR_SPINLOCK;
+
+ULONG64
+BtrInterlockedAdd64(
+	_In_ volatile ULONG64 *Destine,
+	_In_ ULONG Increment,
+	_In_ struct _BTR_SPINLOCK *Lock
+	);
 
 #ifdef __cplusplus
 }

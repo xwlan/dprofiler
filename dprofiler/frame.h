@@ -15,7 +15,6 @@
 #include "profileform.h"
 #include "wizard.h"
 #include "apsctl.h"
-#include "find.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,6 +49,8 @@ typedef struct _FRAME_OBJECT {
 	HWND hWndCurrent;
 	CPU_FORM CpuForm;
 	MM_FORM MmForm;
+	IO_FORM IoForm;
+	CCR_FORM CcrForm;
 
 	BTR_PROFILE_TYPE Type;
 	HANDLE FileHandle;
@@ -57,8 +58,6 @@ typedef struct _FRAME_OBJECT {
 	WCHAR FilePath[MAX_PATH];
 
 	PPF_REPORT_HEAD Head;
-	FIND_CONTEXT FindContext;
-
 	PDIALOG_OBJECT SourceForm;
 
 } FRAME_OBJECT, *PFRAME_OBJECT;
@@ -221,6 +220,14 @@ FrameOnMm(
 
 LRESULT
 FrameOnIo(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	);
+
+LRESULT
+FrameOnCcr(
 	__in HWND hWnd,
 	__in UINT uMsg,
 	__in WPARAM wp,

@@ -51,12 +51,12 @@ BtrInitSpinLock(
 
 VOID
 BtrAcquireSpinLock(
-	IN PBTR_SPINLOCK Lock
+	IN volatile PBTR_SPINLOCK Lock
 	);
 
 VOID
 BtrReleaseSpinLock(
-	IN PBTR_SPINLOCK Lock
+	IN volatile PBTR_SPINLOCK Lock
 	);
 
 #ifdef __cplusplus

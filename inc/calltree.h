@@ -46,6 +46,17 @@ typedef struct _CALL_NODE {
             ULONG64 ExclusiveBytes;
         } Mm;
 
+        struct {
+            ULONG Count;
+            ULONG64 InclusiveBytes;
+            ULONG64 ExclusiveBytes;
+        } Io;
+		
+		struct {
+            ULONG Inclusive;
+            ULONG Exclusive;
+        } Ccr;
+
     };
 
     LONG ChildCount;

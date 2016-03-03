@@ -1,12 +1,13 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "aps.h"
 #include "dialog.h"
 #include "analyzedlg.h"
+#include "main.h"
 
 typedef struct _ANALYZE_CONTEXT {
 	BTR_PROFILE_TYPE Type;
@@ -95,7 +96,7 @@ AnalyzeOnInitDialog(
 
 	SetTimer(hWnd, 1, 1000, NULL);
 
-	SetWindowText(hWnd, L"D Profile");
+	SetWindowText(hWnd, APP_TITLE);
 	SdkCenterWindow(hWnd);
 	return 0;
 }

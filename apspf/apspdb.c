@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "apsdefs.h"
@@ -15,6 +15,7 @@
 #include <dbghelp.h>
 #include "apsrpt.h"
 #include "aps.h"
+#include <stdlib.h>
 
 APS_PDB_OBJECT ApsPdbObject;
 PBTR_DLL_FILE ApsDllFile;

@@ -14,7 +14,7 @@ extern "C" {
 #include "apsbtr.h"
 #include "apsprofile.h"
 
-#ifdef _DFKERNEL
+#ifdef _IPCORE
 #include "callback.h"
 #endif
 

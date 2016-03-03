@@ -1,7 +1,7 @@
 //
 // Apsara Labs
 // lan.john@gmail.com
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_CTL_H_
@@ -78,6 +78,10 @@ typedef struct _APS_PROFILE_OBJECT {
 	HANDLE DataFileHandle;
 	HANDLE StackFileHandle;
 	HANDLE ReportFileHandle;
+
+	HANDLE IoObjectFile;
+	HANDLE IoIrpFile;
+	HANDLE IoNameFile;
 
 	//
 	// Control event object
@@ -196,6 +200,26 @@ ApsUnregisterProfile(
 
 ULONG
 ApsCreateMmProfile(
+	__in ULONG ProcessId,
+	__in PWSTR ImagePath,
+	__in BTR_PROFILE_MODE Mode,
+	__in PBTR_PROFILE_ATTRIBUTE Attribute,
+	__in PWSTR ReportPath,
+	__out PAPS_PROFILE_OBJECT *Object
+	);
+
+ULONG
+ApsCreateIoProfile(
+	__in ULONG ProcessId,
+	__in PWSTR ImagePath,
+	__in BTR_PROFILE_MODE Mode,
+	__in PBTR_PROFILE_ATTRIBUTE Attribute,
+	__in PWSTR ReportPath,
+	__out PAPS_PROFILE_OBJECT *Object
+	);
+
+ULONG
+ApsCreateCcrProfile(
 	__in ULONG ProcessId,
 	__in PWSTR ImagePath,
 	__in BTR_PROFILE_MODE Mode,

@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
@@ -78,7 +78,7 @@ VirtualAllocEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (FlagOn(flAllocationType, MEM_COMMIT)) {
@@ -200,7 +200,7 @@ VirtualAllocExEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (FlagOn(flAllocationType, MEM_COMMIT)) {

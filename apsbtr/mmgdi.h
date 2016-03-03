@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _MM_GDI_H_
@@ -735,7 +735,7 @@ GetEnhMetaFileWEnter(
 
 typedef HENHMETAFILE 
 (WINAPI *GETENHMETAFILE_W)(
-	LPCTSTR lpszMetaFile 
+	LPCWSTR lpszMetaFile 
 	);
   
 //

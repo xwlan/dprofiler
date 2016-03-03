@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #ifndef _WIZARD_H_
@@ -14,6 +14,7 @@ extern "C" {
 #include "sdk.h"
 #include "aps.h"
 #include "apsprofile.h"
+#include "main.h"
 
 typedef struct _WIZARD_CONTEXT {
 
@@ -38,11 +39,14 @@ typedef struct _WIZARD_CONTEXT {
 		} Mm;
 
 		struct {
+			ULONG EnableFile   : 1;
 			ULONG EnableNet    : 1;
-			ULONG EnableDisk   : 1;
-			ULONG EnablePipe   : 1;
 			ULONG EnableDevice : 1;
 		} Io;
+
+		struct {
+			BOOLEAN TrackSystemLock;
+		} Ccr;
 	};
 
 	BOOLEAN InitialPause;

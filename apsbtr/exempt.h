@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _EXEMPT_H_
@@ -41,6 +41,15 @@ BtrIsSystemDllAddress(
 VOID
 BtrInitSystemDllAddress(
 	VOID
+	);
+VOID
+BtrEnterExemptionRegion(
+	_In_ struct _BTR_THREAD_OBJECT *Thread
+	);
+
+VOID
+BtrLeaveExemptionRegion(
+	_In_ struct _BTR_THREAD_OBJECT *Thread
 	);
 
 //

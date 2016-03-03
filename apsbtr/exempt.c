@@ -1,9 +1,10 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
+#include "apsbtr.h"
 #include "hal.h"
 #include "exempt.h"
 #include "thread.h"
@@ -11,7 +12,7 @@
 #include <mmintrin.h>
 
 DECLSPEC_CACHEALIGN
-ULONG BtrStopped;
+ULONG BtrStopped = 0;
 
 BOOLEAN BtrIgnoreSystemDll;
 
@@ -25,32 +26,12 @@ PWSTR BtrSystemDllName[] = {
 	BTR_NAME,
 	L"ntdll.dll",
 	L"kernel32.dll",
-	L"msvcrt.dll",
+	L"kernelbase.dll",
+	L"user32.dll",
+	L"gdi32.dll",
 	L"advapi32.dll",
 	L"rpcrt4.dll",
 	L"ole32.dll",
-	L"oleaut32.dll",
-	L"user32.dll",
-	L"comctl32.dll",
-	L"gdi32.dll",
-	L"shell32.dll",
-	L"shlwapi.dll",
-	L"usp10.dll",
-	L"imm32.dll",
-	L"clbcatq.dll",
-	L"normaliz.dll",
-	L"comdlg32.dll",
-	L"lpk.dll",
-	L"ws2_32.dll",
-	L"iertutil.dll",
-	L"nsi.dll",
-	L"urlmon.dll",
-	L"wininet.dll",
-	L"wldap32.dll",
-	L"imagehlp.dll",
-	L"dbghelp.dll",
-	L"version.dll",
-	L"psapi.dll",
 };
 
 ULONG BtrSystemDllCount = ARRAYSIZE(BtrSystemDllName);
@@ -189,7 +170,7 @@ BtrInitSystemDllAddress(
 
 	for(i = 0, j = 0; i < BtrSystemDllCount; i++) {
 
-		DllHandle = GetModuleHandle(BtrSystemDllName[i]);
+		DllHandle = GetModuleHandleW(BtrSystemDllName[i]);
 		if (DllHandle != NULL) {
 
 			Status = GetModuleInformation(GetCurrentProcess(), DllHandle, &Info, sizeof(Info));
@@ -202,4 +183,24 @@ BtrInitSystemDllAddress(
 	}
 
 	BtrSystemDllFilledCount = j;
+}
+
+VOID
+BtrEnterExemptionRegion(
+	_In_ PBTR_THREAD_OBJECT Thread
+	)
+{
+	if (!FlagOn(Thread->ThreadFlag, BTR_FLAG_EXEMPTION)){
+		SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
+	}
+}
+
+VOID
+BtrLeaveExemptionRegion(
+	_In_ PBTR_THREAD_OBJECT Thread
+	)
+{
+	if (FlagOn(Thread->ThreadFlag, BTR_FLAG_EXEMPTION)){
+		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
+	}
 }

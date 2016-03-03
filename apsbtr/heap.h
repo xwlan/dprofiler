@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _HEAP_H_
@@ -11,17 +11,17 @@
 extern "C" {
 #endif
 
-#include <windows.h>
 #include "apsprofile.h"
 
 typedef enum _BTR_LOOKASIDE_TYPE {
-	LOOKASIDE_HEAP,
-	LOOKASIDE_PAGE,
-	LOOKASIDE_HANDLE,
-	LOOKASIDE_GDI,
-	LOOKASIDE_NET,
-	LOOKASIDE_FILE,
-	BTR_MAX_LOOKASIDE, 
+	LOOKASIDE_HEAP = 0,
+	LOOKASIDE_PAGE = 1,
+	LOOKASIDE_HANDLE = 2,
+	LOOKASIDE_GDI = 3,
+	LOOKASIDE_IO_IRP = 0,
+	LOOKASIDE_IO_IRP_TRACK = 1,
+	LOOKASIDE_IO_COMPLETION = 2,
+	BTR_MAX_LOOKASIDE = 4, 
 } BTR_LOOKASIDE_TYPE;
 
 typedef struct DECLSPEC_CACHEALIGN _BTR_LOOKASIDE {

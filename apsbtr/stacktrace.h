@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _STACKTRACE_H_
@@ -31,7 +31,12 @@ BtrCloseStackFile(
 
 PBTR_STACK_PAGE
 BtrAllocateStackPage(
-	VOID
+	_In_ ULONG BucketCount	
+	);
+
+PBTR_STACK_RECORD_PAGE
+BtrAllocateStackRecordPage(
+	_In_ ULONG BucketCount	
 	);
 
 PBTR_STACK_ENTRY
@@ -41,6 +46,11 @@ BtrAllocateStackEntry(
 
 ULONG
 BtrInsertStackEntry(
+	__in PBTR_STACK_RECORD Record
+	);
+
+PBTR_STACK_RECORD
+BtrInsertStackRecordPerThread(
 	__in PBTR_STACK_RECORD Record
 	);
 
@@ -54,8 +64,18 @@ BtrAllocateStackRecord(
 	VOID
 	);
 
+PBTR_STACK_RECORD
+BtrAllocateStackRecordPerThread(
+	VOID
+	);
+
 VOID
 BtrFreeStackRecord(
+	__in PBTR_STACK_RECORD Record
+	);
+
+VOID
+BtrFreeStackRecordPerThread(
 	__in PBTR_STACK_RECORD Record
 	);
 
@@ -84,6 +104,16 @@ BtrCaptureStackTrace(
 
 ULONG
 BtrCaptureStackTraceEx(
+	__in PVOID Callers[],
+	__in ULONG MaxDepth,
+	__in PVOID Frame, 
+	__in PVOID Address,
+	__out PULONG Hash,
+	__out PULONG Depth
+	);
+
+PBTR_STACK_RECORD
+BtrCaptureStackTracePerThread(
 	__in struct _BTR_THREAD_OBJECT *Thread,
 	__in PVOID Callers[],
 	__in ULONG MaxDepth,

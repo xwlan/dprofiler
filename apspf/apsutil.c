@@ -10,6 +10,8 @@
 #include <math.h>
 #include "calltree.h"
 
+#pragma comment(lib,"ws2_32.lib")
+
 //
 // _P2 should be greater than _P1
 //
@@ -165,6 +167,12 @@ ApsCreateRandomNumber(
     ULONG Result;
     
     Result = (ULONG)(((double)rand()/(double)RAND_MAX) * Maximum + Minimum);
+	if (Result < Minimum){
+		Result = Minimum;
+	}
+	if (Result > Maximum){
+		Result = Maximum;
+	}
     return Result;
 }
 
@@ -186,6 +194,15 @@ ApsComputeClosestLong(
     }
 
     return Result;
+}
+
+double
+ApsComputeMicroseconds(
+	_In_ LONG64 Ticks,
+	_In_ LONG64 QpcFrequency
+	)
+{
+	return (1.0 * Ticks * 1000000) / (1.0 * QpcFrequency);
 }
 
 VOID
@@ -477,4 +494,84 @@ ApsIsProcessLive(
 	}
 
 	return TRUE;
+}
+
+PWSTR 
+ApsIpv4AddressToString(
+	_In_  const IN_ADDR *Addr,
+	_Out_       PWSTR   S
+	)
+{
+	typedef LPTSTR (NTAPI *RtlIpv4AddressToString)(const IN_ADDR *, PWSTR);
+	static RtlIpv4AddressToString Address = NULL;
+
+	if (!Address){
+		HMODULE Ntdll;
+		Ntdll = GetModuleHandle(L"ntdll.dll");
+		Address = (RtlIpv4AddressToString)GetProcAddress(Ntdll, "RtlIpv4AddressToStringW");
+	}
+	return (*Address)(Addr, S); 
+}
+
+PWSTR 
+ApsIpv6AddressToString(
+	_In_  const IN6_ADDR *Addr,
+	_Out_       PWSTR   S
+	)
+{
+	typedef LPTSTR (NTAPI *RtlIpv6AddressToString)(const IN6_ADDR *, PWSTR);
+	static RtlIpv6AddressToString Address = NULL;
+
+	if (!Address){
+		HMODULE Ntdll;
+		Ntdll = GetModuleHandle(L"ntdll.dll");
+		Address = (RtlIpv6AddressToString)GetProcAddress(Ntdll, "RtlIpv6AddressToStringW");
+	}
+	return (*Address)(Addr, S); 
+}
+
+PWSTR 
+ApsSockaddrToString(
+	_In_  const SOCKADDR_STORAGE *Address,
+	_Out_       PWSTR   S
+	)
+{
+	PWSTR Ptr;
+
+	S[0] = 0;
+
+	if (Address->ss_family == AF_INET){
+		Ptr = ApsIpv4AddressToString(&((PSOCKADDR_IN)Address)->sin_addr, S);
+		ASSERT(Ptr);
+		return S;
+	}
+	else if (Address->ss_family == AF_INET6){
+		Ptr = ApsIpv6AddressToString(&((PSOCKADDR_IN6)Address)->sin6_addr, S);
+		ASSERT(Ptr);
+		return S;
+	}
+	else {
+		return NULL;
+	}
+}
+
+PWSTR 
+ApsSockaddrToPort(
+	_In_  const SOCKADDR_STORAGE *Address,
+	_Out_       PWSTR   S,
+	_In_ ULONG Length
+	)
+{
+	S[0] = 0;
+
+	if (Address->ss_family == AF_INET){
+		StringCchPrintf(S, Length, L"%d", ntohs(((PSOCKADDR_IN)Address)->sin_port));
+	}
+	else if (Address->ss_family == AF_INET6){
+		StringCchPrintf(S, Length, L"%d", ntohs(((PSOCKADDR_IN6)Address)->sin6_port));
+	}
+	else {
+		S[0] = 0;
+	}
+	return S;
 }

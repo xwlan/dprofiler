@@ -1,13 +1,13 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_PRIVATE_H_
 #define _APS_PRIVATE_H_
 
-#include <windows.h>
+#include "aps.h"
 
 #ifdef __cplusplus
 extern "C" {

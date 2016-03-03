@@ -40,7 +40,7 @@ BtrInitializeTimerList(
 	MMRESULT Result;
 
 	InitializeListHead(&BtrTimerListHead);
-	WinMmHandle = LoadLibrary(L"winmm.dll");
+	WinMmHandle = LoadLibraryW(L"winmm.dll");
 	if (WinMmHandle) {
 
 		//

@@ -139,7 +139,7 @@ CtlPaneOnInitDialog(
 
 	SetWindowSubclass(hWndCtrl, CtlPaneStaticProcedure, 0, (DWORD_PTR)Object);
 
-	SetWindowText(hWnd, L"D Profile");
+	SetWindowText(hWnd, APP_TITLE);
 	SdkSetMainIcon(hWnd);
 	SdkCenterWindow(hWnd);
 
@@ -509,6 +509,8 @@ CtlPaneDrawBootstrap(
 	PWSTR WelcomeText = L"Welcome to D Profile !";
 	PWSTR QuickStartText = L"\r\nTo start CPU profiling,use:\r\nProfile -> CPU\r\n"
 						   L"\r\nTo start Memory profiling,use:\r\nProfile -> Memory\r\n"
+						   L"\r\nTo start I/O profiling,use:\r\nProfile -> I/O\r\n"
+						   L"\r\nTo start Lock profiling,use:\r\nProfile -> Lock\r\n"
 						   L"\r\nTo analyze report,use:\r\nFile -> Open.";
 	HFONT hOldFont;
 	HBRUSH hBrush;
@@ -579,7 +581,7 @@ CtlPaneDrawProfiling(
 	SIZE Size;
     ULONG Count;
 	PWSTR ProfilingText = L"Profiling ...";
-	PWSTR HintText = L"D Profile is collecting data. This may take few moments.\r\n"
+	PWSTR HintText = L"Profiler is collecting data. This may take few moments.\r\n"
 		             L"Closing this window will cancel this profiling session.";
 
 	Context = (PCTL_PANE_CONTEXT)Object->Context;
@@ -636,7 +638,7 @@ CtlPaneDrawPaused(
 {
 	PCTL_PANE_CONTEXT Context;
 	PWSTR PausedText = L"Paused";
-	PWSTR HintText = L"Profile is currently paused, press Resume button to continue.";
+	PWSTR HintText = L"Profiler is currently paused, press Resume button to continue.";
 	HFONT hOldFont;
 	RECT TextRect;
 	SIZE Size;
@@ -833,6 +835,8 @@ CtlPaneDrawFailed(
 	PWSTR FailedText = L"Failed";
     PWSTR ProfileText = L"\r\nTo start CPU profiling,use:\r\nProfile -> CPU\r\n"
 						L"\r\nTo start Memory profiling,use:\r\nProfile -> Memory\r\n"
+						L"\r\nTo start I/O profiling,use:\r\nProfile -> I/O\r\n"
+						L"\r\nTo start Lock profiling,use:\r\nProfile -> Lock\r\n"
 						L"\r\nTo analyze report,use:\r\nFile -> Open.";
 	PWSTR MessageText;
     WCHAR BaseName[MAX_PATH];
@@ -904,6 +908,8 @@ CtlPaneDrawResumeFailed(
 	PWSTR ResumeText = L"Resume Failed";
     PWSTR ProfileText = L"\r\nTo start CPU profiling,use:\r\nProfile -> CPU\r\n"
 						L"\r\nTo start Memory profiling,use:\r\nProfile -> Memory\r\n"
+						L"\r\nTo start I/O profiling,use:\r\nProfile -> I/O\r\n"
+						L"\r\nTo start Lock profiling,use:\r\nProfile -> Lock\r\n"
 						L"\r\nTo analyze report,use:\r\nFile -> Open.";
 	PWSTR MessageText;
     WCHAR BaseName[MAX_PATH];
@@ -1143,15 +1149,27 @@ CtlPaneOnProfileStart(
         Status = ApsStartProfile(Profile);
         if (Status != APS_STATUS_OK) {
 
-            MessageBox(hWnd, L"Failed to start profile!", L"D Profile", MB_OK|MB_ICONERROR);
+            MessageBox(hWnd, L"Failed to start profile!", APP_TITLE, MB_OK|MB_ICONERROR);
 
 			if (Profile->Type == PROFILE_CPU_TYPE) {
 				StringCchPrintfA(Buffer, MAX_PATH, "Failed to start CPU profile for pid=%u",
 								 Profile->ProcessId);
-			} else {
+			} else if (Profile->Type == PROFILE_MM_TYPE) {
 				StringCchPrintfA(Buffer, MAX_PATH, "Failed to start MM profile for pid=%u",
 								 Profile->ProcessId);
 			}
+			else if (Profile->Type == PROFILE_IO_TYPE) {
+				StringCchPrintfA(Buffer, MAX_PATH, "Failed to start I/O profile for pid=%u",
+								 Profile->ProcessId);
+			}
+			else if (Profile->Type == PROFILE_CCR_TYPE) {
+				StringCchPrintfA(Buffer, MAX_PATH, "Failed to start Lock profile for pid=%u",
+								 Profile->ProcessId);
+			}
+			else {
+				ASSERT(0);
+			}
+
 			ApsWriteLogEntry(Profile->ProcessId, LogLevelFailure, Buffer);
 
             //
@@ -1167,10 +1185,23 @@ CtlPaneOnProfileStart(
 		if (Profile->Type == PROFILE_CPU_TYPE) {
 			StringCchPrintfA(Buffer, MAX_PATH, "Successful to start CPU profile for pid=%u",
 							 Profile->ProcessId);
-		} else {
+		} 
+		else if (Profile->Type == PROFILE_MM_TYPE) {
 			StringCchPrintfA(Buffer, MAX_PATH, "Successful to start MM profile for pid=%u",
 							 Profile->ProcessId);
 		}
+		else if (Profile->Type == PROFILE_IO_TYPE) {
+			StringCchPrintfA(Buffer, MAX_PATH, "Successful to start I/O profile for pid=%u",
+							 Profile->ProcessId);
+		}	
+		else if (Profile->Type == PROFILE_CCR_TYPE) {
+			StringCchPrintfA(Buffer, MAX_PATH, "Successful to start Lock profile for pid=%u",
+							 Profile->ProcessId);
+		}
+		else {
+			ASSERT(0);
+		}
+
 		ApsWriteLogEntry(Profile->ProcessId, LogLevelSuccess, Buffer);
 
 	}
@@ -1526,7 +1557,7 @@ CtlPaneOnPauseResume(
 		Status = ApsStartProfile(Profile);
 		if (Status != APS_STATUS_OK) {
 
-			MessageBox(hWnd, L"Failed to resume paused profile!", L"D Profile", MB_OK|MB_ICONERROR);
+			MessageBox(hWnd, L"Failed to resume paused profile!", APP_TITLE, MB_OK|MB_ICONERROR);
 
             //
             // Notify frame window to update menu state
@@ -1549,7 +1580,7 @@ CtlPaneOnPauseResume(
 		Status = ApsResumeProfile(Profile);
 		if (Status != APS_STATUS_OK) {
 			MessageBox(hWnd, L"Failed to resume paused profile!", 
-				       L"D Profile", MB_OK|MB_ICONERROR);
+				       APP_TITLE, MB_OK|MB_ICONERROR);
 			return Status;
 		}
 
@@ -1565,7 +1596,7 @@ CtlPaneOnPauseResume(
 		Status = ApsPauseProfile(Profile);
 		if (Status != APS_STATUS_OK) {
 			MessageBox(hWnd, L"Failed to pause profile!", 
-				       L"D Profile", MB_OK|MB_ICONERROR);
+				       APP_TITLE, MB_OK|MB_ICONERROR);
 			return Status;
 		}
 
@@ -1715,7 +1746,7 @@ CtlPaneOnMark(
 		//
 		
 		MessageBox(hWnd, L"Failed to mark profile!", 
-				   L"D Profile", MB_OK|MB_ICONERROR);
+				   APP_TITLE, MB_OK|MB_ICONERROR);
 	}
 
 	return Status;
@@ -1885,11 +1916,23 @@ CtlPaneCreateProfileByAttach(
 	}
 
 	else if (Wizard->Type == PROFILE_IO_TYPE) {
-		ASSERT(0);
+
+		Attr.Type = PROFILE_IO_TYPE;
+		Attr.Mode = DIGEST_MODE;
+		Attr.EnableFile = Wizard->Io.EnableFile;
+		Attr.EnableNet = Wizard->Io.EnableNet;
+		Attr.EnableDevice = Wizard->Io.EnableDevice;
+
+		Status = ApsCreateIoProfile(Process->ProcessId, Wizard->ImagePath, 
+									DIGEST_MODE, &Attr, ReportPath, &Profile);
 	}
 
 	else if (Wizard->Type == PROFILE_CCR_TYPE) {
-		ASSERT(0);
+		Attr.Type = PROFILE_CCR_TYPE;
+		Attr.Mode = DIGEST_MODE;
+		Attr.TrackSystemLock = Wizard->Ccr.TrackSystemLock;
+		Status = ApsCreateCcrProfile(Process->ProcessId, Wizard->ImagePath, 
+									DIGEST_MODE, &Attr, ReportPath, &Profile);
 	}
 	else {
 		ASSERT(0);
@@ -2003,11 +2046,25 @@ CtlPaneCreateProfileByLaunch(
 	}
 
 	else if (Wizard->Type == PROFILE_IO_TYPE) {
-		ASSERT(0);
+
+		Attr.Type = PROFILE_IO_TYPE;
+		Attr.Mode = DIGEST_MODE;
+		Attr.EnableFile = Wizard->Io.EnableFile;
+		Attr.EnableNet = Wizard->Io.EnableNet;
+		Attr.EnableDevice = Wizard->Io.EnableDevice;
+
+		Status = ApsCreateIoProfile(ProcessId, Wizard->ImagePath, 
+									DIGEST_MODE, &Attr, ReportPath, &Profile);
 	}
 
 	else if (Wizard->Type == PROFILE_CCR_TYPE) {
-		ASSERT(0);
+
+		Attr.Type = PROFILE_CCR_TYPE;
+		Attr.Mode = DIGEST_MODE;
+		Attr.TrackSystemLock = TRUE;
+
+		Status = ApsCreateCcrProfile(ProcessId, Wizard->ImagePath, 
+									DIGEST_MODE, &Attr, ReportPath, &Profile);
 	}
 	else {
 		ASSERT(0);
@@ -2104,7 +2161,7 @@ CtlPaneOpenReport(
     StringCchCopy(Context->ReportPath, MAX_PATH, ReportPath);
     Status = ApsReadReportHead(Context->ReportPath, &Head);
     if (Status != APS_STATUS_OK) {
-		MessageBox(hWnd, L"It's an invalid profile report!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"It's an invalid profile report!", APP_TITLE, MB_OK|MB_ICONERROR);
         return Status;
     }
 
@@ -2224,14 +2281,14 @@ CtlPaneOnAnalyze(
     Status = ApsReadReportHead(Context->ReportPath, &Head);
 	if (Status != APS_STATUS_OK) {
 		MessageBox(hWnd, L"It's an invalid profile report!", 
-			       L"D Profile", MB_OK|MB_ICONERROR);
+			       APP_TITLE, MB_OK|MB_ICONERROR);
         return Status;
 	}
 
 	Status = ApsPrepareForAnalysis(Context->ReportPath);
 	if (Status != APS_STATUS_OK) {
 		MessageBox(hWnd, L"Failed to clear analyzed report!", 
-				   L"D Profile", MB_OK|MB_ICONERROR);
+				   APP_TITLE, MB_OK|MB_ICONERROR);
 		return Status;
 	}
 
@@ -2286,9 +2343,6 @@ CtlPaneOnAnalyze(
 	// Copy symbol path
 	//
 
-	//Buffer = (PWSTR)ApsMalloc(APS_PAGESIZE);
-	//ApsGetSymbolPath(Buffer, APS_PAGESIZE / sizeof(WCHAR));
-	//Context->Analysis.SymbolPath = Buffer;
 	Context->Analysis.SymbolPath = UtilGetSymbolPath();
 
 	//

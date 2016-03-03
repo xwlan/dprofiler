@@ -11,8 +11,6 @@
 extern "C" {
 #endif
 
-#include <windows.h>
-
 //
 // APS Status
 //

@@ -1,8 +1,9 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
+
 
 #include "apsbtr.h"
 #include "hal.h"
@@ -16,7 +17,6 @@
 #include "stacktrace.h"
 #include "util.h"
 #include "mmhandle.h"
-#include <winsock2.h>
 
 BTR_CALLBACK MmHandleCallback[] = {
 
@@ -225,7 +225,7 @@ CreateProcessEnterA(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -301,7 +301,7 @@ CreateProcessEnterW(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -378,7 +378,7 @@ CreateProcessAsUserEnterA(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -455,7 +455,7 @@ CreateProcessAsUserEnterW(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -534,7 +534,7 @@ CreateProcessWithLogonWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -598,7 +598,7 @@ OpenProcessEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -664,7 +664,7 @@ CreateThreadEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -731,7 +731,7 @@ CreateRemoteThreadEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -792,7 +792,7 @@ OpenThreadEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -852,7 +852,7 @@ CreateJobObjectEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -913,7 +913,7 @@ OpenJobObjectEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -980,7 +980,7 @@ CreateFileWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1100,7 +1100,7 @@ CreateFileMappingWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1165,7 +1165,7 @@ MapViewOfFileEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	//
@@ -1236,7 +1236,7 @@ MapViewOfFileExEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	//
@@ -1344,7 +1344,7 @@ OpenFileMappingWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1408,7 +1408,7 @@ WSASocketEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1471,7 +1471,7 @@ WSAAcceptEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1577,7 +1577,7 @@ CreateEventWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1642,7 +1642,7 @@ CreateEventExWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1704,7 +1704,7 @@ OpenEventEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1765,7 +1765,7 @@ CreateMutexWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1827,7 +1827,7 @@ CreateMutexExWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1888,7 +1888,7 @@ OpenMutexEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1950,7 +1950,7 @@ CreateSemaphoreWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2016,7 +2016,7 @@ CreateSemaphoreExWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2077,7 +2077,7 @@ OpenSemaphoreEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2139,7 +2139,7 @@ CreateWaitableTimerExEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2200,7 +2200,7 @@ OpenWaitableTimerEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2264,7 +2264,7 @@ CreateIoCompletionPortEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2326,7 +2326,7 @@ CreatePipeEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2399,7 +2399,7 @@ CreateNamedPipeEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2463,7 +2463,7 @@ CreateMailslotEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2534,7 +2534,7 @@ CreateRestrictedTokenEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2595,7 +2595,7 @@ DuplicateTokenEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2661,7 +2661,7 @@ DuplicateTokenExEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2722,7 +2722,7 @@ OpenProcessTokenEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2784,7 +2784,7 @@ OpenThreadTokenEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2844,7 +2844,7 @@ RegOpenCurrentUserEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2905,7 +2905,7 @@ RegConnectRegistryEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -2967,7 +2967,7 @@ RegOpenUserClassesRootEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3028,7 +3028,7 @@ RegCreateKeyAEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3089,7 +3089,7 @@ RegCreateKeyWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3159,7 +3159,7 @@ RegCreateKeyExAEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3229,7 +3229,7 @@ RegCreateKeyExWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3292,7 +3292,7 @@ RegOpenKeyExAEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3355,7 +3355,7 @@ RegOpenKeyExWEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -3536,7 +3536,7 @@ DuplicateHandleEnter(
 	Callers[1] = 0;
 	Callers[2] = 0;
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);

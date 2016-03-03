@@ -1,7 +1,7 @@
 //
 // Apsara Labs
 // lan.john@gmail.com
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _MM_TREE_H_

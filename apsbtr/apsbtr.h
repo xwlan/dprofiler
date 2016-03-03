@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_BTR_H_
@@ -11,10 +11,16 @@
 extern "C" {
 #endif
 
+#pragma once
 #define WIN32_LEAN_AND_MEAN 
 
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600
+#endif
+
+#ifdef _IPCORE_
+#include <WinSock2.h>
+#include <MSWSock.h>
 #endif
 
 #include <windows.h> 
@@ -66,7 +72,7 @@ typedef enum _BTR_OBJECT_FLAG {
 	BTR_FLAG_EXEMPTION     = 0x00010000,
 } BTR_OBJECT_FLAG, *PBTR_OBJECT_FLAG;
 
-typedef enum _BTR_THRAD_TYPE {
+typedef enum {
 	NullThread,
 	SystemThread,
 	NormalThread,
@@ -150,6 +156,7 @@ typedef struct _BTR_SPINLOCK {
 } BTR_SPINLOCK, *PBTR_SPINLOCK;
 
 typedef CRITICAL_SECTION BTR_LOCK, *PBTR_LOCK;
+typedef SRWLOCK BTR_SRWLOCK, *PBTR_SRWLOCK;
 
 typedef struct _BTR_ADDRESS_RANGE {
 	LIST_ENTRY ListEntry;
@@ -211,9 +218,16 @@ typedef enum _BTR_STATE {
 } BTR_STATE, *PBTR_STATE;
 
 #define ENTRY_COUNT_PER_STACK_PAGE (1024 * 64 * 2)
+
 #define STACK_RECORD_SIZE          sizeof(BTR_STACK_RECORD)
 #define STACK_FILE_INCREMENT       (1024 * 1024 * 4)
 #define STACK_INVALID_ID           (ULONG)(-1)
+
+//
+// Caller's return address
+//
+
+#define CALLER ((ULONG_PTR)_ReturnAddress())
 
 //
 // N.B. All the following structure can be potential serialized
@@ -225,6 +239,9 @@ typedef enum _BTR_STATE {
 typedef struct _BTR_SPIN_HASH {
 	BTR_SPINLOCK SpinLock;
 	LIST_ENTRY ListHead;
+	union {
+		ULONG64 MissCount;
+	} u;
 } BTR_SPIN_HASH, *PBTR_SPIN_HASH;
 
 //
@@ -232,6 +249,18 @@ typedef struct _BTR_SPIN_HASH {
 //
 
 #define STACK_RECORD_BUCKET 23831
+#define STACK_RECORD_BUCKET_PER_THREAD 61 
+
+//
+// Hash a stack hash to its bucket in stack table
+//
+
+#define STACK_ENTRY_BUCKET(_H) \
+ (_H % STACK_RECORD_BUCKET)
+
+#define GET_STACK_RECORD_BUCKET(_H) \
+ (_H % STACK_RECORD_BUCKET_PER_THREAD)
+
 
 typedef struct _BTR_STACK_ENTRY {
 
@@ -251,6 +280,7 @@ typedef struct _BTR_STACK_ENTRY {
 	PVOID Frame[2];
 
 } BTR_STACK_ENTRY, *PBTR_STACK_ENTRY;
+
 
 typedef struct _BTR_STACK_PAGE {
 	LIST_ENTRY ListEntry;
@@ -286,6 +316,24 @@ typedef struct _BTR_STACK_TABLE {
 	ULONG Count;
 	BTR_SPIN_HASH Hash[STACK_RECORD_BUCKET];
 } BTR_STACK_TABLE, *PBTR_STACK_TABLE;
+
+//
+// Count of per thread BTR_STACK_PAGE, minus 1 to fix offset of Buckets[ANYSIZE_ARRAY]
+//
+
+#define RECORD_COUNT_PER_STACK_RECORD_PAGE_PER_THREAD (4096 / sizeof(BTR_STACK_RECORD) - 1)
+
+typedef struct _BTR_STACK_RECORD_PAGE {
+	LIST_ENTRY ListEntry;
+	ULONG Count;
+	ULONG Next;
+	BTR_STACK_RECORD Buckets[ANYSIZE_ARRAY];
+} BTR_STACK_RECORD_PAGE, *PBTR_STACK_RECORD_PAGE;
+
+typedef struct _BTR_STACK_TABLE_PER_THREAD {
+	ULONG Count;
+	LIST_ENTRY ListHead[STACK_RECORD_BUCKET_PER_THREAD];
+} BTR_STACK_TABLE_PER_THREAD, *PBTR_STACK_TABLE_PER_THREAD;
 
 //
 // PC 
@@ -534,6 +582,206 @@ typedef struct _BTR_LEAK_FILE {
 	BTR_LEAK_ENTRY Leak[ANYSIZE_ARRAY];
 } BTR_LEAK_FILE, *PBTR_LEAK_FILE;
 
+//
+// IO 
+//
+
+typedef enum _IO_OPERATION {
+	IO_OP_INVALID = 0,
+	IO_OP_CREATE,
+	IO_OP_CONNECT,
+	IO_OP_ACCEPT,
+	IO_OP_IOCONTROL,
+	IO_OP_FSCONTROL,
+	IO_OP_READ, 
+	IO_OP_RECV = IO_OP_READ, 
+	IO_OP_WRITE,
+	IO_OP_SEND = IO_OP_WRITE,
+	IO_OP_CLOSE,
+	IO_OP_NUMBER,
+} IO_OPERATION;
+
+typedef enum _IO_COMPLETION_MODE {
+	IO_MODE_REQUESTOR,
+	IO_MODE_COMPLETOR,
+} IO_COMPLETION_MODE;
+
+//
+// IO_IRP describe an I/O request
+//
+
+#define IO_IRP_TAG  'prI'
+
+#pragma pack(push, 1)
+
+typedef struct _IO_FLAGS {
+	BOOLEAN File		: 1;
+	BOOLEAN Socket		: 1;
+	BOOLEAN Synchronous : 1;
+	BOOLEAN UserApc     : 1;
+	BOOLEAN Completed   : 1;
+	BOOLEAN Orphaned    : 1;
+} IO_FLAGS, *PIO_FLAG;
+
+typedef enum _IO_OBJECT_FLAG {
+	OF_INVALID		= 0,
+	OF_FILE			= 1 << 2,
+	OF_SOCKET       = 1 << 3,
+	OF_SKIPV4		= 1 << 4,
+	OF_SKIPV6		= 1 << 5,
+	OF_SKTCP		= 1 << 6,
+	OF_SKUDP		= 1 << 7,
+	OF_OVERLAPPED	=  1 << 8,
+	OF_SKIPONSUCCESS = 1 << 9,
+	OF_SKIPSETEVENT  = 1 << 10,
+	OF_IOCPASSOCIATE = 1 << 11,
+	OF_LOCAL_VALID = 1 << 12,
+	OF_REMOTE_VALID = 1 << 13,
+} IO_OBJECT_FLAG;
+
+#pragma pack(pop)
+
+//
+// CCR definition shared by runtime and analyzer 
+//
+
+typedef enum _CCR_PROBE_TYPE {
+	CCR_PROBE_INVALID = -1,
+	CCR_PROBE_TRY_ENTER_CS,
+	CCR_PROBE_ENTER_CS,
+	CCR_PROBE_LEAVE_CS,
+	CCR_PROBE_TRY_ACQUIRE_SRW_SHARED,
+	CCR_PROBE_ACQUIRE_SRW_SHARED,
+	CCR_PROBE_RELEASE_SRW_SHARED,
+	CCR_PROBE_TRY_ACQUIRE_SRW_EXCLUSIVE,
+	CCR_PROBE_ACQUIRE_SRW_EXCLUSIVE,
+	CCR_PROBE_RELEASE_SRW_EXCLUSIVE,
+	CCR_PROBE_SLEEP_ON_CONDITION_SRW,
+	CCR_PROBE_WAIT_FOR_KEYED_EVENT,
+	CCR_PROBE_WAIT_FOR_SINGLE_OBJECT,
+	CCR_PROBE_HEAP_ALLOC,
+	CCR_PROBE_HEAP_FREE,
+	CCR_PROBE_COUNT,
+} CCR_PROBE_TYPE;
+
+typedef enum _CCR_LOCK_TYPE {
+	CCR_LOCK_INVALID,
+	CCR_LOCK_CS,
+	CCR_LOCK_SRW,
+} CCR_LOCK_TYPE;
+
+//
+// Stack trace counter track each lock's acquisition
+//
+
+typedef struct _CCR_STACKTRACE {
+	struct _CCR_STACKTRACE *Next;
+	union {
+		ULONG StackId;
+		PBTR_STACK_RECORD Record;
+	} u;
+	ULONG Count;
+} CCR_STACKTRACE, *PCCR_STACKTRACE;
+
+typedef struct _CCR_STACKTRACE_PAGE {
+	LIST_ENTRY ListEntry;
+	ULONG Count;
+	ULONG Next;
+	CCR_STACKTRACE Entries[ANYSIZE_ARRAY];
+} CCR_STACKTRACE_PAGE, *PCCR_STACKTRACE_PAGE;
+
+#define CCR_COUNT_OF_STACKTRACE_PER_PAGE  (4096 / sizeof(CCR_STACKTRACE) - 1)
+
+typedef struct DECLSPEC_ALIGN(16) _CCR_LOCK_TRACK {
+
+	union {
+		SLIST_ENTRY SListEntry;
+		LIST_ENTRY ListEntry;
+	};
+
+	PCCR_STACKTRACE StackTrace;
+	ULONG StackTraceCount;
+
+	CCR_LOCK_TYPE Type;
+	union {
+		PVOID LockPtr;
+		PCRITICAL_SECTION CsPtr;
+		PSRWLOCK SrwPtr;
+	};
+
+	//
+	// N.B. This field is used when this structure is inserted into
+	// global lock table, to chain all threads ever acquired this lock.
+	//
+
+	struct _CCR_LOCK_TRACK *SiblingAcquirers;
+
+	ULONG TryAcquire;
+	ULONG Acquire;
+	ULONG TryAcquireShared;
+	ULONG TryAcquireExclusive;
+	ULONG AcquireShared;
+	ULONG AcquireExclusive;
+	ULONG TryFailure;
+	ULONG Release;
+	ULONG KernelWait;
+	ULONG HeapAllocAcquire;
+	ULONG HeapFreeAcquire;
+
+	ULONG RecursiveCount;
+	ULONG LockOwner;
+
+	LARGE_INTEGER Start;
+	LARGE_INTEGER End;
+	LARGE_INTEGER MaximumAcquireLatency;  
+	LARGE_INTEGER MaximumHoldingDuration; 
+
+	ULONG TrackThreadId;
+	ULONG CreatorThreadId;
+	ULONG CreatorStackId;
+
+} CCR_LOCK_TRACK, *PCCR_LOCK_TRACK;
+
+#define CCR_LOCK_CACHE_BUCKET 17
+
+typedef struct _CCR_LOCK_CACHE {
+	ULONG LockTrackCount;
+	ULONG StackTraceCount;
+	PCCR_LOCK_TRACK Current;
+	BOOLEAN StackInHeapAlloc	: 1;
+	BOOLEAN StackInHeapFree		: 1;
+	BOOLEAN StackInAcquire		: 1;
+	BOOLEAN StackInKernelWait	: 1;
+	LIST_ENTRY LockList[CCR_LOCK_CACHE_BUCKET];
+} CCR_LOCK_CACHE, *PCCR_LOCK_CACHE;
+
+typedef struct _CCR_CALLER_RANGE {
+	LIST_ENTRY ListEntry;
+	ULONG_PTR Base;
+	ULONG_PTR Size;
+} CCR_CALLER_RANGE, *PCCR_CALLER_RANGE;
+
+//
+// Global lock table used after stopping profile,
+// to merge all per thread lock cache.
+//
+
+#define CCR_LOCK_TALBE_BUCKET 1023
+#define GET_CCR_LOCK_TABLE_BUCKET(_P) \
+	((ULONG_PTR)_P % CCR_LOCK_TALBE_BUCKET)
+
+typedef struct _CCR_LOCK_TABLE {
+	ULONG Count;
+	LIST_ENTRY LockList[CCR_LOCK_TALBE_BUCKET];
+} CCR_LOCK_TABLE, *PCCR_LOCK_TABLE;
+
+typedef struct _CCR_LOCK_INDEX {
+	ULONG ThreadId;
+	ULONG Offset;
+	ULONG Size;
+} CCR_LOCK_INDEX, *PCCR_LOCK_INDEX;
+
+
 #pragma pack(pop)
 
 //
@@ -583,12 +831,12 @@ typedef ULONG
 	__out PULONG Count
 	);
 
-typedef VOID
+typedef ULONG 
 (*BTR_THREAD_ATTACH_ROUTINE)(
 	__in struct _BTR_PROFILE_OBJECT *Object
 	);
 	
-typedef VOID
+typedef ULONG 
 (*BTR_THREAD_DETACH_ROUTINE)(
 	__in struct _BTR_PROFILE_OBJECT *Object
 	);
@@ -695,6 +943,7 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 
 		ULONG EnableNet     : 1;
 		ULONG EnableFile    : 1;
+		ULONG EnableDevice  : 1;
 		ULONG Spare1        : 30;
 
 		ULONG NumberOfIoRead;
@@ -704,6 +953,14 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 		ULONG64 SizeOfIoWrite;
 		ULONG64 SizeOfIoCtl;
 
+	};
+
+	//
+	// CCR Profile
+	//
+
+	struct {
+		BOOLEAN TrackSystemLock;
 	};
 
 } BTR_PROFILE_ATTRIBUTE, *PBTR_PROFILE_ATTRIBUTE;
@@ -810,6 +1067,9 @@ typedef struct _BTR_MESSAGE_START {
 	HANDLE ExitEvent;
 	HANDLE ExitAckEvent;
 	HANDLE ControlEnd;
+	HANDLE IoObjectFile;
+	HANDLE IoNameFile;
+	HANDLE IoIrpFile;
 	BTR_PROFILE_ATTRIBUTE Attribute;
 } BTR_MESSAGE_START, *PBTR_MESSAGE_START;
 

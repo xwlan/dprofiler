@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APSPORT_H_
@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#include <windows.h>
+#include "aps.h"
 
 typedef struct _APS_PORT {
 	LIST_ENTRY ListEntry;

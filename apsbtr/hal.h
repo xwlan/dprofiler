@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _HAL_H_
@@ -43,7 +43,8 @@ extern NTQUERYSYSTEMINFORMATION  NtQuerySystemInformation;
 extern NTQUERYINFORMATIONPROCESS NtQueryInformationProcess;
 extern NTQUERYINFORMATIONTHREAD  NtQueryInformationThread;
 
-extern double BtrMillisecondPerHardwareTick;
+extern double BtrNanosecondPerHardwareTick;
+extern LARGE_INTEGER BtrHardwareFrequency;
 
 ULONG
 BtrInitializeHal(
@@ -184,6 +185,15 @@ BtrIsAcspValid(
 	return NtCurrentTeb()->ActivationContextStackPointer ? TRUE : FALSE;
 }
 
+BOOLEAN
+HalQuerySkipOnSuccess(
+	_In_ HANDLE Handle
+	);
+
+BOOLEAN
+HalQueryOverlapped(
+	_In_ HANDLE Handle
+	);
 
 #if defined(_M_X64)
 

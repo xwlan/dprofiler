@@ -1,12 +1,11 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012 
+// Copyright(C) 2009-2016 
 // 
 
 #include "apsbtr.h"
 #include "btr.h"
-#include "global.h"
 #include "heap.h"
 #include "cache.h"
 #include "hal.h"
@@ -226,6 +225,7 @@ BtrCopyMemory(
 
 	return BTR_E_EXCEPTION;
 }
+
 ULONG
 BtrExtendFileLength(
 	__in HANDLE File,

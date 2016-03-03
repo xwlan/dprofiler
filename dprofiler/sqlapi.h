@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#include <windows.h>
+#include "sdk.h"
 #include "sqlite3.h"
 #include "aps.h"
 

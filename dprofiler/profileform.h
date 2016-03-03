@@ -22,8 +22,6 @@ extern "C" {
 typedef enum _CPU_FORM_TYPE {
 	CPU_FORM_SUMMARY,
 	CPU_FORM_IP,
-	CPU_FORM_FUNCTION,
-	CPU_FORM_MODULE,
     CPU_FORM_THREAD,
 	CPU_FORM_CALLTREE,
     CPU_FORM_FLAME,
@@ -55,7 +53,6 @@ typedef struct _CPU_FORM_CONTEXT {
 	ULONG DllExclusive;
 
     PVOID Context;
-
 } CPU_FORM_CONTEXT, *PCPU_FORM_CONTEXT;
 
 typedef struct _CPU_SORT_CONTEXT {
@@ -105,6 +102,84 @@ typedef struct _MM_SORT_CONTEXT {
 	ULONG Column;
 } MM_SORT_CONTEXT, *PMM_SORT_CONTEXT;
 
+//
+// IO Form Defs
+//
+
+typedef enum _IO_FORM_TYPE {
+	IO_FORM_SUMMARY,
+	IO_FORM_FILE,
+	IO_FORM_SOCKET,
+	IO_FORM_FLAME,
+	IO_FORM_THREAD,
+	IO_FORM_COUNT,
+} IO_FORM_TYPE;
+
+typedef struct _IO_FORM {
+	IO_FORM_TYPE Current;
+	HWND hWndForm[CPU_FORM_COUNT];
+} IO_FORM, *PIO_FORM;
+
+typedef struct _IO_FORM_CONTEXT {
+
+	PTREELIST_OBJECT TreeList;
+	PLISTVIEW_OBJECT ListView;
+	UINT_PTR CtrlId;
+	PPF_REPORT_HEAD Head;
+	HFONT hFontThin;
+	HFONT hFontBold;
+	HBRUSH hBrushBack;
+	WCHAR Path[MAX_PATH];
+
+	ULONG Inclusive;
+	ULONG Exclusive;
+	
+	ULONG DllInclusive;
+	ULONG DllExclusive;
+
+    PVOID Context;
+	PIO_OBJECT_ON_DISK IoObject;
+
+} IO_FORM_CONTEXT, *PIO_FORM_CONTEXT;
+
+//
+// CCR Form Defs
+//
+
+typedef enum _CCR_FORM_TYPE {
+	CCR_FORM_SUMMARY,
+	CCR_FORM_CONTENTION,
+	CCR_FORM_FLAME,
+	CCR_FORM_COUNT,
+} CCR_FORM_TYPE;
+
+typedef struct _CCR_FORM {
+	CCR_FORM_TYPE Current;
+	HWND hWndForm[CPU_FORM_COUNT];
+} CCR_FORM, *PCCR_FORM;
+
+typedef struct _CCR_FORM_CONTEXT {
+
+	PTREELIST_OBJECT TreeList;
+	PLISTVIEW_OBJECT ListView;
+	UINT_PTR CtrlId;
+	PPF_REPORT_HEAD Head;
+	HFONT hFontThin;
+	HFONT hFontBold;
+	HBRUSH hBrushBack;
+	WCHAR Path[MAX_PATH];
+
+	ULONG Inclusive;
+	ULONG Exclusive;
+	
+	ULONG DllInclusive;
+	ULONG DllExclusive;
+
+    PVOID Context;
+	PCCR_LOCK_TABLE Table;
+	PCCR_LOCK_TRACK Lock;
+
+} CCR_FORM_CONTEXT, *PCCR_FORM_CONTEXT;
 
 //
 // UI macro 

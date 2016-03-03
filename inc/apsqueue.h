@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_QUEUE_H_
@@ -63,6 +63,9 @@ typedef struct _APS_QUEUE_PACKET {
 			HANDLE ExitProcessEvent;
 			HANDLE ExitProcessAckEvent;
 			HANDLE ControlEnd;
+			HANDLE IoObjectFile;
+			HANDLE IoIrpFile;
+			HANDLE IoNameFile;
 			BTR_PROFILE_ATTRIBUTE Attribute;
 		} Start;
 		

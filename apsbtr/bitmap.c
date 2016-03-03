@@ -4,6 +4,7 @@
 // Copyright(C) 2009-2010
 //
 
+#include "apsbtr.h"
 #include "bitmap.h"
 #include "util.h"
 #include <assert.h>
@@ -124,7 +125,7 @@ BtrFindFirstClearBitBackward(
 
 	ASSERT(FromIndex < BitMap->SizeOfBitMap);
 
-	for (Index = FromIndex; Index != -1; Index -= 1) {
+	for (Index = FromIndex; Index != (ULONG)-1; Index -= 1) {
 		Status = BtrTestBit(BitMap, Index);
 		if (Status != TRUE) {
 			return Index; 

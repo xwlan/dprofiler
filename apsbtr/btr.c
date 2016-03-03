@@ -1,12 +1,12 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
+#include "apsbtr.h"
 #include "apsprofile.h"
 #include "btr.h"
-#include "global.h"
 #include "buildin.h"
 #include "cache.h"
 #include "heap.h"
@@ -17,9 +17,11 @@
 #include "mmgdi.h"
 #include "ioprof.h"
 #include "cpuprof.h"
+#include "ccrprof.h"
 #include "util.h"
 #include "stream.h"
 #include "message.h"
+#include "ccrprof.h"
 
 #define SECURITY_WIN32
 #include <security.h>
@@ -80,6 +82,19 @@ BtrOnThreadAttach(
 		return TRUE;
 	}
 
+	//
+	// If we're in process of stopping profile, skip the
+	// thread attach procedure, to avoid thread enter runtime
+	// capture routines, we set current thread's exemption cookie,
+	// no thread object created for current thread.
+	//
+
+	if (BtrIsStopped()) {
+		ULONG_PTR Value;
+		BtrSetExemptionCookie(GOLDEN_RATIO, &Value);
+		return TRUE;
+	}
+	
 	if (BtrProfileObject->ThreadAttach != NULL) {
 		(*BtrProfileObject->ThreadAttach)(BtrProfileObject);
 	}
@@ -93,6 +108,15 @@ BtrOnThreadDetach(
 	)
 {
 	if (!BtrIsStarted || !BtrProfileObject) {
+		return TRUE;
+	}
+
+	//
+	// If we're in process of stopping profile, skip the
+	// thread detach procedure
+	//
+
+	if (BtrIsStopped()) {
 		return TRUE;
 	}
 
@@ -262,11 +286,11 @@ BtrOnStart(
 			break;
 
 		case PROFILE_IO_TYPE:
-			ASSERT(0);
+			Status = IoValidateAttribute(Attr);
 			break;
 
 		case PROFILE_CCR_TYPE:
-			ASSERT(0);
+			Status = CcrValidateAttribute(Attr);
 			break;
 	}
 
@@ -306,6 +330,22 @@ BtrOnStart(
 		return BTR_E_INVALID_PARAMETER;
 	}
 
+	//
+	// Validate IO handles
+	//
+
+	if (Attr->Type == PROFILE_IO_TYPE) {
+		if (!BtrValidateHandle(Packet->IoObjectFile)) {
+			return BTR_E_INVALID_PARAMETER;
+		}
+		if (!BtrValidateHandle(Packet->IoIrpFile)) {
+			return BTR_E_INVALID_PARAMETER;
+		}
+		if (!BtrValidateHandle(Packet->IoNameFile)) {
+			return BTR_E_INVALID_PARAMETER;
+		}
+	}
+
 	if (Attr->Mode == RECORD_MODE) {
 
 		if (!BtrValidateHandle(Packet->IndexFile)) {
@@ -335,6 +375,9 @@ BtrOnStart(
 	BtrProfileObject->ExitProcessEvent = Packet->ExitEvent;
 	BtrProfileObject->ExitProcessAckEvent = Packet->ExitAckEvent;
 	BtrProfileObject->ControlEnd = Packet->ControlEnd;
+	BtrProfileObject->IoObjectFile = Packet->IoObjectFile;
+	BtrProfileObject->IoIrpFile = Packet->IoIrpFile;
+	BtrProfileObject->IoNameFile = Packet->IoNameFile;
 
 	//
 	// N.B. Other subsystems are initialized here, because some part depends
@@ -362,12 +405,14 @@ BtrOnStart(
 			break;
 
 		case PROFILE_IO_TYPE:
-			ASSERT(0);
+			Status = IoInitialize(BtrProfileObject);
 			break;
 		
 		case PROFILE_CCR_TYPE:
-			ASSERT(0);
+			Status = CcrInitialize(BtrProfileObject);
 			break;
+		default:
+			ASSERT(0);
 	}
 
 	if (Status != S_OK) {
@@ -389,7 +434,6 @@ BtrOnStop(
 
 	UNREFERENCED_PARAMETER(Packet);
 
-	ASSERT(BtrProfileObject->Stop != NULL);
 	Status = (*BtrProfileObject->Stop)(BtrProfileObject);
 	return Status;
 }

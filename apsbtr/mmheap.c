@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
@@ -114,11 +114,11 @@ RtlAllocateHeapEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(Size);
+	Callers[1] = (PVOID)(ULONG_PTR)(Size);
 	Callers[2] = (PVOID)1;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -183,11 +183,11 @@ RtlReAllocateHeapEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(Size);
+	Callers[1] = (PVOID)(ULONG_PTR)Size;
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (Ptr != NULL) {
@@ -304,7 +304,7 @@ RtlCreateHeapEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	//
@@ -369,7 +369,7 @@ RtlDestroyHeapEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 
@@ -436,7 +436,7 @@ HeapCreateEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	//
@@ -501,7 +501,7 @@ HeapDestroyEnter(
 	Callers[2] = 0;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	//
@@ -567,11 +567,11 @@ GlobalAllocEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(dwBytes);
+	Callers[1] = (PVOID)(ULONG_PTR)dwBytes;
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 
@@ -679,11 +679,11 @@ GlobalReAllocEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(dwBytes);
+	Callers[1] = (PVOID)(ULONG_PTR)dwBytes;
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (hMem != NULL) {
@@ -748,11 +748,11 @@ LocalAllocEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(dwBytes);
+	Callers[1] = (PVOID)(ULONG_PTR)(dwBytes);
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -859,11 +859,11 @@ LocalReAllocEnter(
 	QueryPerformanceCounter(&Exit);
 
 	Callers[0] = (PVOID)Caller;
-	Callers[1] = UlongToPtr(dwBytes);
+	Callers[1] = (PVOID)(ULONG_PTR)(dwBytes);
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (hMem != NULL) {
@@ -931,7 +931,7 @@ SysAllocStringEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	MmInsertHeapRecord(MmBstrHeap, Address, Size, Duration, Hash, (USHORT)Depth,
@@ -999,7 +999,7 @@ SysAllocStringLenEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	MmInsertHeapRecord(MmBstrHeap, Address, Size, Duration, Hash, (USHORT)Depth,
@@ -1064,7 +1064,7 @@ SysAllocStringByteLenEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Size = SysStringByteLen(Address);
@@ -1139,7 +1139,7 @@ SysReAllocStringEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (Old != NULL) {
@@ -1217,7 +1217,7 @@ SysReAllocStringLenEnter(
 	Callers[2] = (PVOID)1;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (Old != NULL) {
@@ -1324,7 +1324,7 @@ MallocEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1390,7 +1390,7 @@ CallocEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	Duration = (ULONG)(Exit.QuadPart - Enter.QuadPart);
@@ -1455,7 +1455,7 @@ ReallocEnter(
 	Callers[2] = (PVOID)1UL;
 
 	Frame = BtrGetFramePointer();
-	BtrCaptureStackTraceEx(Thread, Callers, MAX_STACK_DEPTH, Frame, 
+	BtrCaptureStackTraceEx(Callers, MAX_STACK_DEPTH, Frame, 
 		                   Callback->Address, &Hash, &Depth); 
 
 	if (ptr) {

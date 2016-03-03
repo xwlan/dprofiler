@@ -1,9 +1,10 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
+#include "apsbtr.h"
 #include "lock.h"
 #include "list.h"
 #include "hal.h"
@@ -63,7 +64,7 @@ BtrInitSpinLock(
 
 VOID
 BtrAcquireSpinLock(
-	IN PBTR_SPINLOCK Lock
+	IN volatile PBTR_SPINLOCK Lock
 	)
 {
 	ULONG Acquired;
@@ -106,7 +107,7 @@ BtrAcquireSpinLock(
 
 VOID
 BtrReleaseSpinLock(
-	IN PBTR_SPINLOCK Lock
+	IN volatile PBTR_SPINLOCK Lock
 	)
 {	
 	Lock->ThreadId = 0;

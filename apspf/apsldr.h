@@ -13,12 +13,7 @@ extern "C" {
 
 #pragma warning(disable : 4996)
 
-#include <windows.h>
-#include <tchar.h>
-#include <tlhelp32.h>
-#include <dbghelp.h>
-#include <assert.h>
-#include "list.h"
+#include "aps.h"
 
 //
 // APS_PREEXECUTE_CONTEXT is used to inject runtime

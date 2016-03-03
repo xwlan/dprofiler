@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _BITMAP_H_
@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#include <windows.h>
+#include "sdk.h"
 
 typedef struct _BTR_BITMAP {
     ULONG SizeOfBitMap;

@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "wizard.h"
@@ -36,7 +36,7 @@ IoWizard(
 	// I/O 
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwSize = sizeof(psp);
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszHeaderTitle = L"I/O Profiling";
@@ -50,7 +50,7 @@ IoWizard(
 	// Attach 
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszTemplate = MAKEINTRESOURCE(IDD_PROPPAGE_ATTACH);
     psp.pszHeaderTitle = L"I/O Profiling";
@@ -63,7 +63,7 @@ IoWizard(
 	// Run
 	//
 
-	psp.pszTitle = L"D Profile";
+	psp.pszTitle = APP_TITLE;
     psp.dwFlags = PSP_DEFAULT|PSP_USEHEADERTITLE|PSP_USEHEADERSUBTITLE|PSP_USETITLE;
     psp.pszTemplate = MAKEINTRESOURCE(IDD_PROPPAGE_RUN);
     psp.pszHeaderTitle = L"I/O Profiling";
@@ -303,7 +303,7 @@ IoTaskOnFinish(
 	index = ListViewGetFirstSelected(hWndCtrl);
 
 	if (index == -1) {
-		MessageBox(hWnd, L"No process is selected!", L"D Profile", MB_OK|MB_ICONWARNING);
+		MessageBox(hWnd, L"No process is selected!", APP_TITLE, MB_OK|MB_ICONWARNING);
 		SetWindowLongPtr(hWnd, DWL_MSGRESULT, TRUE);
 		return;
 	}
@@ -316,9 +316,10 @@ IoTaskOnFinish(
 		
 	hWndSheet = GetParent(hWnd);
 	hWndPage = PropSheet_IndexToHwnd(hWndSheet, 0);
-	hWndCtrl = GetDlgItem(hWndPage, IDC_COMBO_PERIOD);
-
-	IoDeleteTask(hWnd);
+	Context->Io.EnableFile = IsDlgButtonChecked(hWndPage, IDC_CHECK_FILE);
+	Context->Io.EnableNet = IsDlgButtonChecked(hWndPage, IDC_CHECK_SOCKET);
+	Context->Io.EnableDevice = IsDlgButtonChecked(hWndPage, IDC_CHECK_DEVICE);
+	
 }
 
 LRESULT
@@ -408,6 +409,8 @@ IoInsertTask(
 				ApsFreeProcess(Process);	
 				continue;
 			}
+            
+            CloseHandle(ProcessHandle);
 
 		} 
 
@@ -428,6 +431,8 @@ IoInsertTask(
 				ApsFreeProcess(Process);	
 				continue;
 			}
+
+            CloseHandle(ProcessHandle);
 		}
 		
 		lvi.iItem = i;
@@ -620,13 +625,23 @@ IoRunOnFinish(
 	}
 
 	if (!IoRunCheckPath(hWnd)) {
-		MessageBox(hWnd, L"Invalid image file path!", L"D Profile", MB_OK|MB_ICONERROR);
+		MessageBox(hWnd, L"Invalid image file path!", APP_TITLE, MB_OK|MB_ICONERROR);
 		SetWindowLongPtr(hWnd, DWL_MSGRESULT, TRUE);
 		return;
 	}
 
 	Context->Attach = FALSE;
 	Context->Process = NULL;
+
+	//
+	// Get first page of MM
+	//
+
+	hWndPage = PropSheet_IndexToHwnd(hWndSheet, 0);
+	Context->Io.EnableFile = IsDlgButtonChecked(hWndPage, IDC_CHECK_FILE);
+	Context->Io.EnableNet = IsDlgButtonChecked(hWndPage, IDC_CHECK_SOCKET);
+	Context->Io.EnableDevice = IsDlgButtonChecked(hWndPage, IDC_CHECK_DEVICE);
+	
 
 	//
 	// Get image path (mandatory)
@@ -694,6 +709,8 @@ IoRunOnPath(
 {
 	OPENFILENAME Ofn;
 	BOOL Status;
+	HWND hWndCtrl;
+	PWCHAR Ptr;
 	WCHAR Path[MAX_PATH];	
 
 	ZeroMemory(&Ofn, sizeof Ofn);
@@ -705,7 +722,7 @@ IoRunOnPath(
 	Ofn.lpstrFilter = L"Executable File (*.exe)\0*.exe\0All Files (*.*)\0*.*\0\0";
 	Ofn.lpstrFile = Path;
 	Ofn.nMaxFile = sizeof(Path); 
-	Ofn.lpstrTitle = L"D Profile";
+	Ofn.lpstrTitle = APP_TITLE;
 	Ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
 
 	Status = GetOpenFileName(&Ofn);
@@ -714,5 +731,20 @@ IoRunOnPath(
 	}
 
 	SetWindowText(GetDlgItem(hWnd, IDC_EDIT_IMAGEPATH), Ofn.lpstrFile);
+	
+	//
+	// Set its work path same as executable, most time it's true
+	//
+
+	hWndCtrl = GetDlgItem(hWnd, IDC_EDIT_WORKPATH);
+	Ptr = wcsrchr(Ofn.lpstrFile, L'\\');
+	*(Ptr + 1) = 0;
+	SetWindowText(hWndCtrl, Ofn.lpstrFile);
+	
+	//
+	// Set focus on argument
+	//
+
+	SetFocus(GetDlgItem(hWnd, IDC_EDIT_ARGUMENT));
 	return 0;
 }

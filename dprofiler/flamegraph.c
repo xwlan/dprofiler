@@ -123,7 +123,7 @@ FlameBuildFlameNode(
 	double Value;
 	LONG Left, Width, NodeWidth;
 
-	ParentNode = ParentFlame->Node;
+	ParentNode = (PCALL_NODE)ParentFlame->Node;
 	Stack = Object->Flame;
 
     //
@@ -134,15 +134,25 @@ FlameBuildFlameNode(
 	Width = ParentFlame->Rect.right - ParentFlame->Rect.left;
 	ASSERT(Width > 0);
 
-	if (Width < (LONG)Object->MinimumWidth)
+	if (Width < (LONG)Object->MinimumWidth) {
 		return;
+	}
 
     if (Type == PROFILE_CPU_TYPE) {
 		Inclusive = ParentNode->Cpu.Inclusive * 1.0;
     }
+    else if (Type == PROFILE_CCR_TYPE) {
+		Inclusive = ParentNode->Ccr.Inclusive * 1.0;
+    }
     else if (Type == PROFILE_MM_TYPE) {
 		Inclusive = ParentNode->Mm.InclusiveBytes * 1.0;
     }
+    else if (Type == PROFILE_IO_TYPE) {
+		Inclusive = ParentNode->Io.InclusiveBytes * 1.0;
+    }
+	else {
+		ASSERT(0);
+	}
 
 	ListHead = &ParentNode->ChildListHead;
     ListEntry = ListHead->Flink;
@@ -158,8 +168,14 @@ FlameBuildFlameNode(
         if (Type == PROFILE_CPU_TYPE) {
 			Value = ChildNode->Cpu.Inclusive * 1.0;
         }
+        else if (Type == PROFILE_CCR_TYPE) {
+			Value = ChildNode->Ccr.Inclusive * 1.0;
+        }
         else if (Type == PROFILE_MM_TYPE) {
             Value = ChildNode->Mm.InclusiveBytes * 1.0;
+        }
+        else if (Type == PROFILE_IO_TYPE) {
+            Value = ChildNode->Io.InclusiveBytes * 1.0;
         }
         else {
             ASSERT(0);
@@ -260,10 +276,10 @@ FlameBuildGraph(
 	Left = 0;
 	Width = Object->ViewHoriWidth;
 
-    if (Graph->Type == PROFILE_CPU_TYPE) {
+	if (Graph->Type == PROFILE_CPU_TYPE || Graph->Type == PROFILE_CCR_TYPE) {
         Inclusive = Graph->Inclusive * 1.0;
     }
-    else if (Graph->Type == PROFILE_MM_TYPE) {
+	else if (Graph->Type == PROFILE_MM_TYPE || Graph->Type == PROFILE_IO_TYPE) {
         Inclusive = Graph->InclusiveBytes * 1.0;
     }
 
@@ -290,11 +306,17 @@ FlameBuildGraph(
 		// Compute flame node width by percent
 		//
 
-        if (Graph->Type == PROFILE_CPU_TYPE) {
+		if (Graph->Type == PROFILE_CPU_TYPE) {
 			Value = Node->Cpu.Inclusive * 1.0;
         }
-        else if (Graph->Type == PROFILE_MM_TYPE) {
+		else if (Graph->Type == PROFILE_CCR_TYPE) {
+			Value = Node->Ccr.Inclusive * 1.0;
+		}
+		else if (Graph->Type == PROFILE_MM_TYPE) {
             Value = Node->Mm.InclusiveBytes * 1.0;
+        }
+		else if (Graph->Type == PROFILE_IO_TYPE) {
+            Value = Node->Io.InclusiveBytes * 1.0;
         }
         else {
             ASSERT(0);

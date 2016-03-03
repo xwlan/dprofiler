@@ -1,13 +1,15 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
 #include "heap.h"
 #include "hal.h"
 #include "util.h"
+#include "exempt.h"
+#include "thread.h"
 #include <dbghelp.h>
 #include <stdlib.h>
 
@@ -174,7 +176,7 @@ DebugTrace(
 
 	__try {
 		StringCchVPrintfA(format, 512, Format, arg);
-		StringCchPrintfA(buffer, 512, "[apsbtr]: %s\n", format);
+		StringCchPrintfA(buffer, 512, "[btr]: %s\n", format);
 		OutputDebugStringA(buffer);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER) {
@@ -188,7 +190,7 @@ DebugTrace(
 }
 
 VOID 
-DebugTrace2(
+BtrTrace(
 	__in PSTR Format,
 	...
 	)
@@ -201,7 +203,7 @@ DebugTrace2(
 
 	__try {
 		StringCchVPrintfA(format, 512, Format, arg);
-		StringCchPrintfA(buffer, 512, "[apsbtr]: %s\n", format);
+		StringCchPrintfA(buffer, 512, "[btr]: %s\n", format);
 		OutputDebugStringA(buffer);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER) {
@@ -209,6 +211,68 @@ DebugTrace2(
 	}
 	
 	va_end(arg);
+}
+
+VOID 
+BtrTrace2(
+	__in PSTR Format,
+	...
+	)
+{
+	va_list arg;
+	PBTR_THREAD_OBJECT Thread;
+	char format[512];
+	char buffer[512];
+	
+	return;
+
+	Thread = BtrGetCurrentThread();
+	BtrEnterExemptionRegion(Thread);
+	va_start(arg, Format);
+
+	__try {
+		StringCchVPrintfA(format, 512, Format, arg);
+		StringCchPrintfA(buffer, 512, "[winperf]: %s\n", format);
+		OutputDebugStringA(buffer);
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {
+
+	}
+	
+	va_end(arg);
+	BtrLeaveExemptionRegion(Thread);
+}
+
+VOID 
+DebugTrace2(
+	__in PSTR Format,
+	...
+	)
+{
+#ifdef _DEBUG
+	va_list arg;
+	PBTR_THREAD_OBJECT Thread;
+	char format[512];
+	char buffer[512];
+	
+	return;
+
+	Thread = BtrGetCurrentThread();
+	BtrEnterExemptionRegion(Thread);
+	va_start(arg, Format);
+
+	__try {
+		StringCchVPrintfA(format, 512, Format, arg);
+		StringCchPrintfA(buffer, 512, "[winperf]: %s\n", format);
+		OutputDebugStringA(buffer);
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {
+
+	}
+	
+	va_end(arg);
+	BtrLeaveExemptionRegion(Thread);
+#endif
 }
 
 ULONG 
@@ -373,7 +437,7 @@ BtrWriteMinidump(
 	ProcessId = GetCurrentProcessId();
 	ProcessHandle = GetCurrentProcess();
 
-	FileHandle = CreateFile(Path, GENERIC_READ | GENERIC_WRITE, 
+	FileHandle = CreateFileW(Path, GENERIC_READ | GENERIC_WRITE, 
 		                    FILE_SHARE_READ | FILE_SHARE_WRITE,
 	                        NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,NULL);
 
@@ -461,6 +525,49 @@ BtrCopySmallMemory(
 }
 
 BOOLEAN
+BtrProbePtrPtr(
+	_In_ PVOID Buffer
+	)
+{
+	ULONG i;
+	UCHAR Value[sizeof(PVOID)];
+
+	__try {
+		for(i = 0; i < sizeof(PVOID); i++) {
+			Value[i] = ((PUCHAR)Buffer)[i];		
+		}
+		for(i = 0; i < sizeof(PVOID); i++) {
+			((PUCHAR)Buffer)[i] = Value[i];
+		}
+		return TRUE;
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {
+		return FALSE;
+	}
+}
+
+BOOLEAN
+BtrProbeBuffer(
+	__in PVOID Buffer,
+	__in ULONG Size
+	)
+{
+	ULONG i;
+	UCHAR Value;
+	BOOLEAN Safe = TRUE;
+
+	__try {
+		for(i = 0; i < Size; i++) {
+			Value = ((PUCHAR)Buffer)[i];		
+		}
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {
+		Safe = FALSE;
+	}
+	return Safe;
+}
+
+BOOLEAN
 BtrValidateHandle(
 	__in HANDLE Handle
 	)
@@ -480,4 +587,21 @@ BtrCreateRandomNumber(
     
     Result = (ULONG)(((double)rand()/(double)RAND_MAX) * Maximum + Minimum);
     return Result;
+}
+
+ULONG64
+BtrInterlockedAdd64(
+	_In_ volatile ULONG64 *Destine,
+	_In_ ULONG Increment,
+	_In_ struct _BTR_SPINLOCK *Lock
+	)
+{
+	ULONG64 Result;
+
+	BtrAcquireSpinLock(Lock);
+	*Destine += Increment;
+	Result = *Destine;
+	BtrReleaseSpinLock(Lock);
+
+	return Result;
 }

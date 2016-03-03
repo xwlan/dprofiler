@@ -4,6 +4,7 @@
 // Copyright(C) 2009 - 2011
 //
 
+#include "apsbtr.h"
 #include "decode.h"
 #include "util.h"
 

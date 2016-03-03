@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
@@ -614,7 +614,7 @@ BtrWriteDllStream(
 		// Dll path
 		//
 
-		GetModuleFileName(Modules[i], Dll->Path, MAX_PATH);
+		GetModuleFileNameW(Modules[i], Dll->Path, MAX_PATH);
 		BtrGetImageInformation(Modules[i], &Dll->Timestamp, &Dll->CheckSum);
 
 		//
@@ -762,12 +762,12 @@ BtrWriteMinidumpStream(
 	ULONG Complete;
 	ULONG Size;
 
-	Length = GetTempPath(MAX_PATH, Path);
+	Length = GetTempPathW(MAX_PATH, Path);
 	if (!Length) {
 		return GetLastError();
 	}
 
-	StringCchCat(Path, MAX_PATH, L"dpf.dmp");
+	StringCchCatW(Path, MAX_PATH, L"dpf.dmp");
 	Status = BtrWriteMinidump(Path, FALSE, &DumpHandle);
 	if (Status != S_OK) {
 		return Status;
@@ -811,14 +811,14 @@ BtrWriteMinidumpStream(
 		}
 
 		CloseHandle(DumpHandle);
-		DeleteFile(Path);
+		DeleteFileW(Path);
 	}
 
 	return Status;
 }
 
 ULONG
-BtrWriteStackStream(
+BtrWriteStackEntryStream(
 	IN PPF_REPORT_HEAD Head,
 	IN HANDLE FileHandle,
 	IN LARGE_INTEGER Start,
@@ -964,6 +964,75 @@ BtrWriteStackFileStream(
 	return Status;
 }
 
+ULONG
+BtrWriteStackRecordStream(
+	IN PPF_REPORT_HEAD Head,
+	IN HANDLE FileHandle,
+	IN LARGE_INTEGER Start,
+	OUT PLARGE_INTEGER End
+	)
+{
+	ULONG Status;
+	SIZE_T MappedSize;
+	HANDLE MappingHandle;
+	PVOID MappedVa;
+	PBTR_STACK_RECORD Record;
+	PBTR_STACK_RECORD Base;
+	PLIST_ENTRY ListHead;
+	PLIST_ENTRY ListEntry;
+	ULONG Number;
+
+	//
+	// N.B. CreateFileMapping automatically increase file size according to the new size
+	//
+
+	MappedSize = BtrStackTable.Count * sizeof(BTR_STACK_RECORD);
+	End->QuadPart = Start.QuadPart + MappedSize;
+
+	SetFilePointer(FileHandle, (ULONG)End->QuadPart, NULL, FILE_BEGIN); 
+	SetEndOfFile(FileHandle);
+
+	MappingHandle = CreateFileMapping(FileHandle, NULL, PAGE_READWRITE, 0, 0, NULL);
+	if (!MappingHandle) {
+		return GetLastError();
+	}
+
+	MappedVa = MapViewOfFile(MappingHandle, FILE_MAP_READ|FILE_MAP_WRITE, 0, 0, 0);
+	if (!MappedVa) {
+		Status = GetLastError();
+		CloseHandle(MappingHandle);
+		return Status;
+	}
+
+	//
+	// Ok, it's supposed to be within 4G range
+	//
+
+	Base = (PBTR_STACK_RECORD)((PUCHAR)MappedVa + Start.LowPart); 
+
+	for(Number = 0; Number < STACK_RECORD_BUCKET; Number += 1) {
+		ListHead = &BtrStackTable.Hash[Number].ListHead;
+		while (IsListEmpty(ListHead) != TRUE) {
+			ListEntry = RemoveHeadList(ListHead);
+			Record = CONTAINING_RECORD(ListEntry, BTR_STACK_RECORD, ListEntry);
+			Record->Committed = 1;
+			Base[Record->StackId] = *Record;
+		}
+	}
+
+	FlushViewOfFile(MappedVa, 0);
+	UnmapViewOfFile(MappedVa);
+	CloseHandle(MappingHandle);
+
+	//
+	// Set file end of new size
+	//
+
+	Head->Streams[STREAM_STACK].Offset = Start.QuadPart;
+	Head->Streams[STREAM_STACK].Length = MappedSize;
+	return S_OK;
+}
+
 VOID
 BtrComputeStreamCheckSum(
 	IN PPF_REPORT_HEAD Head
@@ -1011,6 +1080,12 @@ BtrWriteProfileStream(
 	RtlZeroMemory(System, sizeof(*System));
 
 	//
+	// Track the time measure unit, ms per hardware tick
+	//
+
+	System->QpcFrequency = BtrHardwareFrequency;
+
+	//
 	// N.B. Profile attribute is written by runtime end
 	//
 
@@ -1049,7 +1124,7 @@ BtrWriteProfileStream(
 		Start.QuadPart = End.QuadPart;
 	}
 
-	if (BtrProfileObject->Attribute.Type == PROFILE_MM_TYPE) {
+	else if (BtrProfileObject->Attribute.Type == PROFILE_MM_TYPE) {
 
 		//
 		// Write heap stream
@@ -1072,7 +1147,7 @@ BtrWriteProfileStream(
 		// Write page stream
 		//
 
-		if (BtrProfileObject->Attribute.EnablePage) {
+		else if (BtrProfileObject->Attribute.EnablePage) {
 
 			Status = BtrWritePageStream(Head, Handle, Start, &End);
 			if (Status != S_OK) {
@@ -1122,6 +1197,47 @@ BtrWriteProfileStream(
 	}
 
 	//
+	// IO
+	//
+
+	else if (BtrProfileObject->Attribute.Type == PROFILE_IO_TYPE) {
+		Status = BtrWriteIoStream(Head, Handle, Start, &End);
+		if (Status != S_OK) {
+			SetFilePointerEx(Handle, Start, NULL, FILE_BEGIN);
+			return Status;
+		}
+		Start = End;
+
+	}
+	
+	//
+	// CCR
+	//
+
+	else if (BtrProfileObject->Attribute.Type == PROFILE_CCR_TYPE) {
+		Status = BtrWriteCcrStream(Head, Handle, Start, &End);
+		if (Status != S_OK) {
+			SetFilePointerEx(Handle, Start, NULL, FILE_BEGIN);
+			return Status;
+		}
+		Start = End;
+
+		//
+		// Write stack record stream
+		//
+
+		Status = BtrWriteStackRecordStream(Head, Handle, Start, &End);
+		if (Status != S_OK) {
+			SetFilePointerEx(Handle, Start, NULL, FILE_BEGIN);
+			return Status;
+		}
+		Start = End;
+	}
+	else {
+	}
+
+
+	//
 	// Write mark stream
 	//
 
@@ -1148,14 +1264,16 @@ BtrWriteProfileStream(
 	// after fill counters into each record.
 	//
 
-	Status = BtrWriteStackStream(Head, Handle, Start, &End);
-	if (Status != S_OK) {
-		return Status;
-	}
+	if (BtrProfileObject->Attribute.Type != PROFILE_CCR_TYPE) {
+		Status = BtrWriteStackEntryStream(Head, Handle, Start, &End);
+		if (Status != S_OK) {
+			return Status;
+		}
 
-	Head->Streams[STREAM_STACK].Offset = Start.QuadPart;
-	Head->Streams[STREAM_STACK].Length = End.QuadPart - Start.QuadPart;
-	Start.QuadPart = End.QuadPart;
+		Head->Streams[STREAM_STACK].Offset = Start.QuadPart;
+		Head->Streams[STREAM_STACK].Length = End.QuadPart - Start.QuadPart;
+		Start.QuadPart = End.QuadPart;
+	}
 
 	//
 	// Write report header
@@ -1180,6 +1298,8 @@ BtrWriteProfileStream(
 
 	else if (BtrProfileObject->Attribute.Type == PROFILE_CCR_TYPE) {
 		Head->IncludeCcr = 1;
+		Head->Complete = 1;
+		Head->Counters = 1;
 	}
 
 	else {
@@ -1249,13 +1369,13 @@ BtrWriteDllStreamEx(
 	ULONG i;
 	SYSTEMTIME Time;
 
-	Length = GetTempPath(MAX_PATH, Path);
+	Length = GetTempPathW(MAX_PATH, Path);
 	if (!Length) {
 		return GetLastError();
 	}
 
 	GetLocalTime(&Time);
-	StringCchPrintf(Path, MAX_PATH, L"%2d%2d%2d-dpf.dmp", 
+	StringCchPrintfW(Path, MAX_PATH, L"%2d%2d%2d-dpf.dmp", 
 					Time.wHour, Time.wMinute, Time.wSecond);
 
 	Status = BtrWriteMinidump(Path, FALSE, &DumpHandle);
@@ -1299,7 +1419,7 @@ BtrWriteDllStreamEx(
 			RtlCopyMemory(&Dll->VersionInfo, &Module->VersionInfo, sizeof(VS_FIXEDFILEINFO));
 
 			NameString = (PMINIDUMP_STRING)((PUCHAR)Buffer + Module->ModuleNameRva);
-			StringCchCopy(Dll->Path, MAX_PATH, NameString->Buffer);
+			StringCchCopyW(Dll->Path, MAX_PATH, NameString->Buffer);
 
 			//
 			// Copy CvRecord, note that the pdb name may contains a full path, we
@@ -1375,7 +1495,7 @@ BtrWriteDllStreamEx(
 			CloseHandle(DumpHandle);
 		}
 
-		DeleteFile(Path);
+		DeleteFileW(Path);
 
 		if (DllFile != NULL) {
 			BtrFree(DllFile);
@@ -1524,5 +1644,197 @@ BtrWriteCpuAddressStream(
 		Status = BTR_E_EXCEPTION;
 	}
 
+	return Status;
+}
+
+ULONG
+BtrWriteIoStream(
+	_In_ PPF_REPORT_HEAD Head,
+	_In_ HANDLE FileHandle,
+	_In_ LARGE_INTEGER Start,
+	_In_ PLARGE_INTEGER End
+	)
+{
+	ULONG Status;
+	HANDLE IoFile[3];
+	ULONG Stream[3];
+	ULONG Divide;
+	ULONG Remain;
+	ULONG i, j;
+	ULONG Unit;
+	ULONG Complete;
+	LARGE_INTEGER Size;
+	PVOID Buffer;
+
+	IoFile[0] = BtrProfileObject->IoObjectFile;
+	IoFile[1] = BtrProfileObject->IoNameFile;
+	IoFile[2] = BtrProfileObject->IoIrpFile;
+	Stream[0] = STREAM_IO_OBJECT;
+	Stream[1] = STREAM_IO_NAME;
+	Stream[2] = STREAM_IO_IRP;
+
+	Unit = 1024 * 1024; 
+	Buffer = BtrMalloc(Unit);
+
+	__try {
+
+		for(i = 0; i < 3; i += 1) {
+
+			SetEndOfFile(IoFile[i]); 
+			SetFilePointer(IoFile[i], 0, NULL, FILE_BEGIN);
+
+			GetFileSizeEx(IoFile[i], &Size);
+			Divide = (ULONG)((ULONG64)Size.QuadPart / Unit);
+			Remain = (ULONG)((ULONG64)Size.QuadPart % Unit);
+
+			for (j = 0; j < Divide; j += 1) {
+				Status = ReadFile(IoFile[i], Buffer, Unit, &Complete, NULL);
+				if (!Status) {
+					__leave;
+				}
+				Status = WriteFile(FileHandle, Buffer, Unit, &Complete, NULL);
+				if (!Status) {
+					__leave;
+				}
+			}
+
+			Status = ReadFile(IoFile[i], Buffer, Remain, &Complete, NULL);
+			if (!Status) {
+				__leave;
+			}
+			Status = WriteFile(FileHandle, Buffer, Remain, &Complete, NULL);
+			if (!Status) {
+				__leave;
+			}
+
+			Head->Streams[Stream[i]].Offset = Start.QuadPart;
+			Head->Streams[Stream[i]].Length = Size.QuadPart;
+			Start.QuadPart += Size.QuadPart;
+		}
+	}
+	__finally {
+
+		if (!Status) {
+			Status = GetLastError();
+		}
+		else {
+			Status = S_OK;
+			*End= Start;
+		}
+	}
+
+	BtrFree(Buffer);
+	return Status;
+}
+
+ULONG
+BtrWriteCcrStream(
+	_In_ PPF_REPORT_HEAD Head,
+	_In_ HANDLE FileHandle,
+	_In_ LARGE_INTEGER Start,
+	_In_ PLARGE_INTEGER End
+	)
+{
+	ULONG Status;
+	PBTR_THREAD_OBJECT Thread;
+	PCCR_LOCK_CACHE Cache;
+	PCCR_LOCK_TRACK Track;
+	PLIST_ENTRY ListHead;
+	PLIST_ENTRY ListEntry;
+	PLIST_ENTRY ListEntry2;
+	PUCHAR Buffer;
+	ULONG Number;
+	ULONG Complete;
+	ULONG RequiredSize;
+	ULONG TotalOffset;
+	ULONG Offset;
+	CCR_LOCK_INDEX LockIndex;
+
+	SetFilePointerEx(FileHandle, Start, NULL, FILE_BEGIN);
+	Buffer = (PUCHAR)BtrMalloc(1024 * 1024);
+	TotalOffset = 0;
+
+	__try {
+
+		ListEntry = BtrThreadObjectList.Flink;
+		while (ListEntry != &BtrThreadObjectList) {
+
+			Thread = CONTAINING_RECORD(ListEntry, BTR_THREAD_OBJECT, ListEntry);
+			if (!Thread->CcrLockCache) {
+				ListEntry = ListEntry->Flink;
+				continue;
+			} 
+
+			Cache = Thread->CcrLockCache;
+			RequiredSize = sizeof(CCR_LOCK_TRACK) * Cache->LockTrackCount + 
+				sizeof(CCR_STACKTRACE) * Cache->StackTraceCount + sizeof(CCR_LOCK_INDEX);
+
+			if (RequiredSize > 1024 * 1024) {
+
+				//
+				// this is absolutely rare case a thread can have more 
+				// than 1MB size lock track and associate stack trace,
+				// it should never happen in real world.
+				//
+
+				BtrFree(Buffer);
+				Buffer = (PUCHAR)BtrMalloc(RequiredSize); 
+			}
+
+			//
+			// Write lock index first
+			//
+
+			LockIndex.ThreadId = Thread->ThreadId;
+			LockIndex.Offset = TotalOffset;
+			LockIndex.Size = RequiredSize;
+			RtlCopyMemory(Buffer, &LockIndex, sizeof(LockIndex));
+			Offset = sizeof(LockIndex);
+
+			for(Number = 0; Number < CCR_LOCK_CACHE_BUCKET; Number += 1) {
+				ListHead = &Cache->LockList[Number];
+				while (!IsListEmpty(ListHead)) {
+
+					ListEntry2 = RemoveHeadList(ListHead);
+					Track = CONTAINING_RECORD(ListEntry2, CCR_LOCK_TRACK, ListEntry);
+					RtlCopyMemory(Buffer + Offset, Track, sizeof(*Track));
+					Offset += sizeof(CCR_LOCK_TRACK);
+
+					while (Track->StackTrace) {
+
+						//
+						// N.B. Simultaneously we pop up the trace entry from StackTrace
+						//
+
+						RtlCopyMemory(Buffer + Offset, Track->StackTrace, sizeof(CCR_STACKTRACE));
+						Track->StackTrace = Track->StackTrace->Next;
+						Offset += sizeof(CCR_STACKTRACE);
+					}
+				}
+			}
+
+			Status = WriteFile(FileHandle, Buffer, RequiredSize, &Complete, NULL);
+			if (!Status) {
+				__leave;
+			}
+			
+			TotalOffset += RequiredSize;
+			ListEntry = ListEntry->Flink;
+		}
+	}
+	__finally {
+
+		if (!Status) {
+			Status = GetLastError();
+		}
+		else {
+			Status = S_OK;
+			End->QuadPart = Start.QuadPart + TotalOffset;
+			Head->Streams[STREAM_CCR].Offset = Start.QuadPart;
+			Head->Streams[STREAM_CCR].Length = TotalOffset;
+		}
+	}
+
+	BtrFree(Buffer);
 	return Status;
 }

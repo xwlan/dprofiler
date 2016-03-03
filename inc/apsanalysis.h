@@ -108,6 +108,16 @@ ApsWriteMmCounterStreams(
 	__in PWSTR Path
 	);
 
+ULONG
+ApsWriteIoCounterStreams(
+	__in PWSTR Path
+	);
+
+ULONG
+ApsWriteCcrCounterStreams(
+	__in PWSTR Path
+	);
+
 #ifdef __cplusplus
 }
 #endif

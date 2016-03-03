@@ -1,13 +1,14 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
 #include "apsprofile.h"
 #include "btr.h"
 #include "heap.h"
+#include "ioprof.h"
 
 DECLSPEC_CACHEALIGN
 BTR_LOOKASIDE BtrLookaside[BTR_MAX_LOOKASIDE];
@@ -61,19 +62,28 @@ BtrInitializeLookaside(
 
 	if (BtrProfileObject->Attribute.Type == PROFILE_IO_TYPE) {
 
-		Lookaside = &BtrLookaside[LOOKASIDE_NET];
+		Lookaside = &BtrLookaside[LOOKASIDE_IO_IRP];
 		InitializeSListHead(&Lookaside->ListHead);
-		Lookaside->MaximumDepth = 64;
-		Lookaside->BlockSize = sizeof(PF_NET_RECORD);
+		Lookaside->MaximumDepth = 4096;
+		Lookaside->BlockSize = sizeof(IO_IRP);
 		Lookaside->TotalAllocates = 0;
 		Lookaside->AllocateMisses = 0;
 		Lookaside->TotalFrees = 0;
 		Lookaside->FreeMisses = 0;
 
-		Lookaside = &BtrLookaside[LOOKASIDE_FILE];
+		Lookaside = &BtrLookaside[LOOKASIDE_IO_IRP_TRACK];
 		InitializeSListHead(&Lookaside->ListHead);
-		Lookaside->MaximumDepth = 64;
-		Lookaside->BlockSize = sizeof(PF_FILE_RECORD);
+		Lookaside->MaximumDepth = 4096;
+		Lookaside->BlockSize = sizeof(IO_COMPLETION_PACKET);
+		Lookaside->TotalAllocates = 0;
+		Lookaside->AllocateMisses = 0;
+		Lookaside->TotalFrees = 0;
+		Lookaside->FreeMisses = 0;
+
+		Lookaside = &BtrLookaside[LOOKASIDE_IO_COMPLETION];
+		InitializeSListHead(&Lookaside->ListHead);
+		Lookaside->MaximumDepth = 4096;
+		Lookaside->BlockSize = sizeof(IO_COMPLETION_PACKET);
 		Lookaside->TotalAllocates = 0;
 		Lookaside->AllocateMisses = 0;
 		Lookaside->TotalFrees = 0;

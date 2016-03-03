@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _STREAM_H_
@@ -78,7 +78,15 @@ BtrWriteMinidumpStream(
 	);
 
 ULONG
-BtrWriteStackStream(
+BtrWriteStackEntryStream(
+	IN PPF_REPORT_HEAD Head,
+	IN HANDLE FileHandle,
+	IN LARGE_INTEGER Start,
+	OUT PLARGE_INTEGER End
+	);
+
+ULONG
+BtrWriteStackRecordStream(
 	IN PPF_REPORT_HEAD Head,
 	IN HANDLE FileHandle,
 	IN LARGE_INTEGER Start,
@@ -132,6 +140,22 @@ BtrCreateCvRecord(
 	__in ULONG Size,
 	__in ULONG Timestamp,
 	__out PBTR_CV_RECORD CvRecord
+	);
+
+ULONG
+BtrWriteIoStream(
+	_In_ PPF_REPORT_HEAD Head,
+	_In_ HANDLE FileHandle,
+	_In_ LARGE_INTEGER Start,
+	_In_ PLARGE_INTEGER End
+	);
+
+ULONG
+BtrWriteCcrStream(
+	_In_ PPF_REPORT_HEAD Head,
+	_In_ HANDLE FileHandle,
+	_In_ LARGE_INTEGER Start,
+	_In_ PLARGE_INTEGER End
 	);
 
 #ifdef __cplusplus

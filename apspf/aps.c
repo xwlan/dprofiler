@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "aps.h"
@@ -2809,6 +2809,30 @@ ApsDebugTrace(
 	va_end(arg);
 
 #endif
+}
+
+VOID __cdecl
+ApsTrace(
+	__in PSTR Format,
+	__in ...
+	)
+{
+	va_list arg;
+	char format[512];
+	char buffer[512];
+	
+	va_start(arg, Format);
+
+	__try {
+		StringCchVPrintfA(format, 512, Format, arg);
+		StringCchPrintfA(buffer, 512, "[apspf]: %s\n", format);
+		OutputDebugStringA(buffer);
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER) {
+
+	}
+	
+	va_end(arg);
 }
 
 BOOLEAN

@@ -17,6 +17,8 @@
 #include "apscpu.h"
 #include "cpuprof.h"
 #include "apsanalysis.h"
+#include "apsio.h"
+
 
 
 ULONG CALLBACK
@@ -47,8 +49,8 @@ ApsAnalysisProcedure(
 		Status = ApsWriteMmCounterStreams(Context->ReportPath);
     }
 
-    else {
-        ASSERT(0);
+	else if (Context->Type == PROFILE_IO_TYPE) {
+		Status = ApsWriteIoCounterStreams(Context->ReportPath);
     } 
     
 	if (Status != APS_STATUS_OK) {
@@ -496,10 +498,20 @@ ApsCheckStackRecords(
     ULONG i;
 
     for(Number = 0; Number < Count; Number += 1) {
+
         ASSERT(Record[Number].Committed == 1);
         ASSERT(Record[Number].Depth <= MAX_STACK_DEPTH);
+
+		//
+		// If there's any frame is null, reset record's
+		// frame depth
+		//
+
         for(i = 0; i < Record[Number].Depth; i++) {
-            ASSERT(Record[Number].Frame[i] != NULL);
+			if (Record[Number].Frame[i] == NULL) {
+				Record[Number].Depth = i;
+				break;
+			}
         }
     }
 }
@@ -567,7 +579,6 @@ ApsWriteAnalysisStreamsEx(
 		DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
 		Record = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
 		Count = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
-
         ApsCheckStackRecords(Record, Count);
 
 		ApsCreatePcTable(&PcTable);
@@ -1011,4 +1022,110 @@ ApsWriteMmCounterStreams(
 
 	DeleteFile(BackPath);
 	return APS_STATUS_OK;
+}
+
+ULONG
+ApsWriteIoCounterStreams(
+	__in PWSTR Path
+	)
+{
+	ULONG Status;
+	PPF_REPORT_HEAD Head;
+	HANDLE FileHandle;
+	HANDLE MappingHandle;
+	PBTR_PC_TABLE PcTable = NULL;
+	LARGE_INTEGER Start;
+	LARGE_INTEGER End;
+	WCHAR BackPath[MAX_PATH * 2];
+
+	//
+	// Map profile report file
+	//
+
+	Status = ApsMapReportFile(Path, &Head, &MappingHandle, &FileHandle);
+	if (Status != APS_STATUS_OK) {
+		return Status;
+	}
+	
+    //
+    // Check whether counters already created 
+    //
+
+    ASSERT(Head->Complete != 0);
+
+	if (!Head->Complete) {
+		ApsUnmapReportFile(Head, MappingHandle, FileHandle);
+		return APS_STATUS_BAD_FILE;
+	}
+
+    if (Head->Counters != 0) {
+		ApsUnmapReportFile(Head, MappingHandle, FileHandle);
+		return APS_STATUS_OK;
+	}
+
+	//
+	// Back report file, if it exists, force a overwrite
+	//
+
+	StringCchPrintf(BackPath, MAX_PATH * 2, L"%s.bak", Path);
+	CopyFile(Path, BackPath, FALSE);
+
+	__try {
+
+		//
+		// Set file pointer to its end
+		//
+
+		GetFileSizeEx(FileHandle, &Start);
+		SetFilePointerEx(FileHandle, Start, NULL, FILE_BEGIN);
+        End = Start;
+
+		//
+		// Normalize the records and generate counter streams.
+		//
+
+		ApsIoNormalizeRecords(Head, FileHandle);
+		Status = ApsIoCreateCounters(Head, FileHandle, Start, &End);
+		if (Status != S_OK) {
+			SetFilePointerEx(FileHandle, Start, NULL, FILE_BEGIN);
+			End = Start;
+			__leave;
+		}
+
+		Start = End;
+
+		//
+		// Mark counter bit and update checksum
+		// FileSize is indeed file size does not
+		// include symbol streams
+		//
+
+	    Head->Counters = 1;
+		Head->FileSize = End.QuadPart;
+	    ApsComputeStreamCheckSum(Head);
+		
+		SetEndOfFile(FileHandle);
+	}
+
+	__finally {
+
+	}
+
+	ApsUnmapReportFile(Head, MappingHandle, FileHandle);
+
+	if (Status != APS_STATUS_OK) {
+		DeleteFile(Path);
+		CopyFile(BackPath, Path, FALSE);
+	}
+
+	DeleteFile(BackPath);
+	return Status;
+}
+
+ULONG
+ApsWriteCcrCounterStreams(
+	__in PWSTR Path
+	)
+{
+	return S_OK;
 }

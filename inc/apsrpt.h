@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_RPT_H_
@@ -118,6 +118,12 @@ ULONG
 ApsCreatePcTableFromStream(
 	__in PPF_REPORT_HEAD Head,
 	__out PBTR_PC_TABLE *PcTable
+	);
+
+BOOLEAN
+ApsHasDuplicatedPc(
+	_In_ PLIST_ENTRY ListHead,
+	_In_ PVOID Address
 	);
 
 //

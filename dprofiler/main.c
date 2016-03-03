@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "sdk.h"
@@ -11,6 +11,8 @@
 
 HWND hWndMain;
 FRAME_OBJECT MainFrame = {0};
+
+LPCWSTR APP_TITLE = L"D Profile"; 
 
 BOOLEAN
 MainInitialize(

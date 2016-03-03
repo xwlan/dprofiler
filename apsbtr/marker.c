@@ -4,6 +4,7 @@
 // Copyright(C) 2009-2013
 //
 
+#include "apsbtr.h"
 #include "marker.h"
 #include "stream.h"
 #include "heap.h"

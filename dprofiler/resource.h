@@ -30,6 +30,7 @@
 #define IDI_ICON_FILTER_IMPORT          133
 #define IDD_DIALOG_CPU_ATTACH           134
 #define IDD_DIALOG_CTRL                 135
+#define IDD_PROPPAGE_CCR                138
 #define IDD_PROPPAGE_MM                 139
 #define IDD_PROPPAGE_IO                 140
 #define IDD_PROPPAGE_CPU                141
@@ -40,6 +41,7 @@
 #define IDI_ICON_APSARA                 147
 #define IDB_BITMAP_WIZARD               148
 #define IDD_FORMVIEW_IO                 150
+#define IDD_FORMVIEW_IO_FILE            150
 #define IDD_FORMVIEW_CPU_HISTORY        152
 #define IDD_FORMVIEW_CPU_SUMMARY        153
 #define IDD_FORMVIEW_CPU_PC             154
@@ -85,14 +87,25 @@
 #define IDR_ACCELERATOR                 187
 #define IDD_DIALOG_FULLSTACK            187
 #define IDD_DIALOG_FLAME_REPORT         188
+#define IDD_FORMVIEW_IO_SOCKET          189
 #define IDI_ICON_SAMPLELEFT             190
+#define IDD_FORMVIEW_IO_SUMMARY         190
 #define IDI_ICON_SAMPLERIGHT            191
 #define IDI_ICON_SAMPLEDOWN             192
 #define IDI_ICON_SAMPLEUP               193
+#define IDD_DIALOG_CCR_STACK            193
 #define IDI_ICON_SAMPLEBOTTOM           194
 #define IDI_ICON_SAMPLETOP              195
 #define IDI_ICON_SAMPLESTACK            196
 #define IDI_ICON_SAMPLEREPORT           197
+#define IDD_FORMVIEW_CCR_SUMMARY        198
+#define IDD_FORMVIEW_CCR_CONTENTION     199
+#define IDD_FORMVIEW3                   200
+#define IDD_FORMVIEW_CCR_FLAME          200
+#define IDD_FORMVIEW_CCR_STACK          201
+#define IDD_DIALOG_IO_STACK             202
+#define IDD_FORMVIEW4                   203
+#define IDD_FORMVIEW_IO_FLAME           203
 #define IDC_STATIC_BUILD                1000
 #define IDC_LIST_VERSION                1002
 #define IDC_LIST_TASK                   1004
@@ -156,6 +169,10 @@
 #define IDC_BUTTON_MARK                 1091
 #define IDC_BUTTON_CPU_SUMMARY          1091
 #define IDC_BUTTON_EXPAND               1091
+#define IDC_BUTTON_IO_SUMMARY           1091
+#define IDC_BUTTON_CCR_SUMMARY          1091
+#define IDC_BUTTON_CCR_EXPORT           1091
+#define IDC_BUTTON_IO_EXPORT            1091
 #define IDC_BUTTON2                     1092
 #define IDC_BUTTON_STOP                 1092
 #define IDC_BUTTON_COLLAPSE             1092
@@ -169,6 +186,7 @@
 #define IDC_CHECK1                      1097
 #define IDC_CHECK_AUTOANALYZE           1097
 #define IDC_CHECK_TRIMMING              1097
+#define IDC_CHECK_TRACK_SYSTEM_LOCK     1097
 #define IDC_LIST_CPU_HISTORY_STACK      1098
 #define IDC_STATIC_COPYRIGHT            1098
 #define IDC_CPU_HISTORY_GRAPH           1099
@@ -190,6 +208,18 @@
 #define IDC_FULLSTACK_SUMMARY           1116
 #define IDC_BUTTON3                     1117
 #define IDC_BUTTON_EXPORT               1117
+#define IDC_LIST_IO_SOCKET              1118
+#define IDC_LIST_IO_FILE                1119
+#define IDC_LIST1                       1120
+#define IDC_LIST_IO_SUMMARY             1120
+#define IDC_LIST_CCR_CONTENTION         1120
+#define IDC_LIST_CCR_SUMMARY            1121
+#define IDC_LIST_CCR_STACK_LOCK         1121
+#define IDC_CCR_FLAME                   1122
+#define IDC_LIST_CCR_STACK_PC           1122
+#define IDC_LIST_IO_STACK_PC            1123
+#define IDC_LIST_IO_STACK               1124
+#define IDC_IO_FLAME                    1125
 #define IDM_NEW                         32773
 #define IDM_STOP                        32774
 #define IDM_FILTER_EXECUTE              32775
@@ -216,9 +246,15 @@
 #define IDM_SAMPLE_FORWARD              32811
 #define IDM_SAMPLE_BACKWARD             32812
 #define IDM_SAMPLE_UPWARD               32813
+#define IDM_CCR                         32813
 #define IDM_SAMPLE_DOWNWARD             32814
+#define ID_STACKTRACE_STACKTRACE        32814
 #define IDM_SAMPLE_FULLSTACK            32815
+#define IDR_MENU_CCR                    32815
 #define IDM_SAMPLE_REPORT               32816
+#define ID_CCR_STACKTRACE               32817
+#define ID_IO_STACKTRACE                32818
+#define IDR_MENU_IO                     32819
 #define IDC_STATIC                      -1
 #define IDC_STATIC_PRODUCT              -1
 
@@ -227,9 +263,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        189
-#define _APS_NEXT_COMMAND_VALUE         32811
-#define _APS_NEXT_CONTROL_VALUE         1118
+#define _APS_NEXT_RESOURCE_VALUE        194
+#define _APS_NEXT_COMMAND_VALUE         32818
+#define _APS_NEXT_CONTROL_VALUE         1124
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif

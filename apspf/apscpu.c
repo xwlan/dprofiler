@@ -425,7 +425,7 @@ CpuScanThreadedPc(
 		// Set CPU usage of current record
 		//
 
-		History->Value[Number] = Record->CpuUsage;
+		History->Value[Number] = (float)Record->CpuUsage;
 		//ApsDebugTrace("#%d CPU %: %.2f", Number, Record->CpuUsage);
 
         //

@@ -11,15 +11,12 @@
 extern "C" {
 #endif
 
-#include <windows.h>
+#include "sdk.h"
 
 PWSTR
 UtilGetSymbolPath(
 	VOID
 	);
-
-extern PWSTR UtilSymbolPath;
-
 
 #ifdef __cplusplus
 }

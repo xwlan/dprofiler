@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsbtr.h"
@@ -11,6 +11,7 @@
 #include "apsanalysis.h"
 #include "apscpu.h"
 #include <stdlib.h>
+#include "list.h"
 
 #define HASH_BUCKET(_V, _C) \
 	((ULONG_PTR)_V % _C)
@@ -68,33 +69,48 @@ ApsWriteReport(
 	// Write stack record stream and delete stack record file
 	//
 
-	Profile->StackFileHandle = CreateFile(Profile->StackPath,
-		                                  GENERIC_READ|GENERIC_WRITE,
-									      0, NULL, OPEN_EXISTING,
-									      FILE_ATTRIBUTE_NORMAL, NULL);
+	if (Profile->Type != PROFILE_CCR_TYPE) {
 
-	if (Profile->StackFileHandle == INVALID_HANDLE_VALUE) {
-		Status = GetLastError();
-		CloseHandle(Profile->ReportFileHandle);
-		Profile->ReportFileHandle = NULL;
-		return Status;
+		Profile->StackFileHandle = CreateFile(Profile->StackPath,
+			GENERIC_READ|GENERIC_WRITE,
+			0, NULL, OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if (Profile->StackFileHandle == INVALID_HANDLE_VALUE) {
+			Status = GetLastError();
+			CloseHandle(Profile->ReportFileHandle);
+			Profile->ReportFileHandle = NULL;
+			return Status;
+		}
+
+		Start.QuadPart = Head->Streams[STREAM_STACK].Offset;
+		SetFilePointerEx(Profile->ReportFileHandle, Start, NULL, FILE_BEGIN);
+
+		Status = ApsWriteStackStream(Profile, Head, Profile->ReportFileHandle, 
+			Profile->StackFileHandle, Start, &End);
+		if (Status != APS_STATUS_OK) {
+			UnmapViewOfFile(Head);
+			CloseHandle(Profile->ReportFileHandle);
+			Profile->ReportFileHandle = NULL;
+			return Status;
+		}
+
+		Start.QuadPart = End.QuadPart;
+
+		CloseHandle(Profile->StackFileHandle);
+		Profile->StackFileHandle = NULL;
+	}
+	else {
+
+		//
+		// CCR profiling complete all in host side
+		//
+
+		Start.QuadPart = Head->Streams[STREAM_STACK].Offset;
+		Start.QuadPart += Head->Streams[STREAM_STACK].Length;
+		SetFilePointerEx(Profile->ReportFileHandle, Start, NULL, FILE_BEGIN);
 	}
 
-	Start.QuadPart = Head->Streams[STREAM_STACK].Offset;
-	SetFilePointerEx(Profile->ReportFileHandle, Start, NULL, FILE_BEGIN);
-
-	Status = ApsWriteStackStream(Profile, Head, Profile->ReportFileHandle, 
-		                         Profile->StackFileHandle, Start, &End);
-	if (Status != APS_STATUS_OK) {
-		CloseHandle(Profile->ReportFileHandle);
-		Profile->ReportFileHandle = NULL;
-		return Status;
-	}
-
-	Start.QuadPart = End.QuadPart;
-
-	CloseHandle(Profile->StackFileHandle);
-	Profile->StackFileHandle = NULL;
 	DeleteFile(Profile->StackPath);
 
 	//
@@ -956,11 +972,9 @@ ApsCreatePcTableFromStream(
 {
 	ULONG Status;
 	ULONG Bucket;
-	PLIST_ENTRY ListEntry;
 	PLIST_ENTRY ListHead;
 	PBTR_SPIN_HASH Hash;
 	PBTR_PC_ENTRY PcEntry;
-	PBTR_PC_ENTRY Pc;
 	PBTR_PC_TABLE Table;
 	PVOID Address;
 	ULONG Count;
@@ -984,20 +998,8 @@ ApsCreatePcTableFromStream(
 		Hash = &Table->Hash[Bucket];
 		ListHead = &Hash->ListHead;
 
-#ifdef _DEBUG
-		ListEntry = ListHead->Flink;
-		while (ListHead != ListEntry) {
-			Pc = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
-			if (Pc->Address == Address) {
-
-				//
-				// N.B. STREAM_PC address should not have duplicated entries
-				//
-
-				ASSERT(0);
-			}
-			ListEntry = ListEntry->Flink;
-		}
+#if defined(_DEBUG)
+		ApsHasDuplicatedPc(ListHead, Address);
 #endif
 
 		//
@@ -1014,6 +1016,32 @@ ApsCreatePcTableFromStream(
 	return Status;
 }
 
+BOOLEAN
+ApsHasDuplicatedPc(
+	_In_ PLIST_ENTRY ListHead,
+	_In_ PVOID Address
+	)
+{
+	PLIST_ENTRY ListEntry;
+	PBTR_PC_ENTRY Pc;
+
+	ListEntry = ListHead->Flink;
+	while (ListHead != ListEntry) {
+		Pc = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
+		if (Pc->Address == Address) {
+
+			//
+			// N.B. address should not have duplicated entries
+			//
+
+			ASSERT(0);
+			return TRUE;
+		}
+		ListEntry = ListEntry->Flink;
+	}
+	return FALSE;
+}
+
 ULONG
 ApsCreateCallerTableFromStream(
 	__in PPF_REPORT_HEAD Head,
@@ -1022,11 +1050,9 @@ ApsCreateCallerTableFromStream(
 {
 	ULONG Status;
 	ULONG Bucket;
-	PLIST_ENTRY ListEntry;
 	PLIST_ENTRY ListHead;
 	PBTR_SPIN_HASH Hash;
 	PBTR_PC_ENTRY PcEntry;
-	PBTR_PC_ENTRY Pc;
 	PBTR_PC_TABLE Table;
 	PVOID Address;
 	ULONG Count;
@@ -1053,20 +1079,8 @@ ApsCreateCallerTableFromStream(
 		Hash = &Table->Hash[Bucket];
 		ListHead = &Hash->ListHead;
 
-#ifdef _DEBUG
-		ListEntry = ListHead->Flink;
-		while (ListHead != ListEntry) {
-			Pc = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
-			if (Pc->Address == Address) {
-
-				//
-				// N.B. address should not have duplicated entries
-				//
-
-				ASSERT(0);
-			}
-			ListEntry = ListEntry->Flink;
-		}
+#if defined(_DEBUG)
+		ApsHasDuplicatedPc(ListHead, Address);
 #endif
 
 		//
@@ -2506,6 +2520,7 @@ ApsGetDllBaseNameById(
 
         DllEntry = (PBTR_DLL_ENTRY)&DllFile->Dll[Id]; 
         _wsplitpath(DllEntry->Path, NULL, NULL, Name, Ext);
+		_wcslwr(Name);
 
         if (Ext[0] != 0) {
             swprintf_s(Buffer, Length, L"%s%s", Name, Ext);

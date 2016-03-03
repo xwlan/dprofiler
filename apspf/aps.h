@@ -20,7 +20,14 @@ extern "C" {
 
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
+#if defined(_IPCTL_)
+#include <WinSock2.h>
+#include <MSWSock.h>
+#include <Ws2tcpip.h>
+#include <in6addr.h>
+#endif
+
+#include "apsbtr.h"
 #include <windows.h>
 #include <tchar.h>
 #include <tlhelp32.h>
@@ -28,7 +35,8 @@ extern "C" {
 #include <assert.h>
 #include "ntapi.h"
 #include "list.h"
-#include "apsbtr.h"
+#include <stdlib.h>
+
 
 //
 // Global Macros
@@ -687,6 +695,12 @@ ApsComputeClosestLong(
     __in FLOAT Value
     );
 
+double
+ApsComputeMicroseconds(
+	_In_ LONG64 Ticks,
+	_In_ LONG64 QpcFreqency
+	);
+
 VOID
 ApsNormalizeDuration(
 	__in ULONG Duration,
@@ -704,13 +718,47 @@ ApsFormatDuration(
 	__in ULONG Length
 	);
 
+#ifdef _IPCTL_
+
+PWSTR 
+ApsIpv4AddressToString(
+	_In_  const IN_ADDR *Addr,
+	_Out_       PWSTR   S
+	);
+
+PWSTR 
+ApsIpv6AddressToString(
+	_In_  const IN6_ADDR *Addr,
+	_Out_       PWSTR   S
+	);
+
+PWSTR 
+ApsSockaddrToString(
+	_In_  const SOCKADDR_STORAGE *Address,
+	_Out_       PWSTR   S
+	);
+PWSTR 
+ApsSockaddrToPort(
+	_In_  const SOCKADDR_STORAGE *Address,
+	_Out_       PWSTR   S,
+	_In_ ULONG Length
+	);
+
+#endif
+
 VOID
 ApsFailFast(
 	VOID
 	);
 
-VOID
+VOID __cdecl
 ApsDebugTrace(
+	__in PSTR Format,
+	__in ...
+	);
+
+VOID __cdecl
+ApsTrace(
 	__in PSTR Format,
 	__in ...
 	);
@@ -778,6 +826,18 @@ extern BOOLEAN ApsIsWow64;
 extern ULONG ApsPageSize;
 
 #endif
+
+//
+// User defined warning
+//
+
+#define __STR2__(x) #x
+#define __STR1__(x) __STR2__(x)
+#define __LOW__ __FILE__ "("__STR1__(__LINE__)") : warning: "
+
+//
+// #pragma message(__LOW__"text")
+//
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #include "apsctl.h"
@@ -65,6 +65,12 @@ ApsCreateProfile(
 	HANDLE SharedObject;
 	PBTR_SHARED_DATA SharedObjectPtr;
 	ULONG Length;
+	HANDLE IoObjectHandle;
+	HANDLE IoIrpHandle;
+	HANDLE IoNameHandle;
+	PWSTR IoObjectPath;
+	PWSTR IoIrpPath;
+	PWSTR IoNamePath;
 
 	Object = (PAPS_PROFILE_OBJECT)ApsMalloc(sizeof(APS_PROFILE_OBJECT));
 	RtlZeroMemory(Object, sizeof(*Object));
@@ -192,6 +198,51 @@ ApsCreateProfile(
 
 		Status = APS_STATUS_OK;
 
+		//
+		// Create IO data file and duplicate its handle
+		//
+
+		if (Type == PROFILE_IO_TYPE) {
+
+			IoObjectPath = IoIrpPath = IoNamePath = NULL;
+			IoObjectPath = (PWSTR)ApsMalloc(MAX_PATH * sizeof(WCHAR));
+
+			StringCchPrintf(IoObjectPath, MAX_PATH, L"%s\\{%s}.o", ApsLogPath, Uuid);
+			IoObjectHandle = CreateFile(IoObjectPath, GENERIC_READ|GENERIC_WRITE, 
+				FILE_SHARE_READ|FILE_SHARE_WRITE,
+				NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+			if (IoObjectHandle == INVALID_HANDLE_VALUE) {
+				Status = GetLastError();
+				__leave;
+			}
+
+			IoIrpPath = (PWSTR)ApsMalloc(MAX_PATH * sizeof(WCHAR));
+			StringCchPrintf(IoIrpPath, MAX_PATH, L"%s\\{%s}.r", ApsLogPath, Uuid);
+			IoIrpHandle = CreateFile(IoIrpPath, GENERIC_READ|GENERIC_WRITE, 
+				FILE_SHARE_READ|FILE_SHARE_WRITE,
+				NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+			if (IoIrpHandle == INVALID_HANDLE_VALUE) {
+				Status = GetLastError();
+				__leave;
+			}
+
+			IoNamePath = (PWSTR)ApsMalloc(MAX_PATH * sizeof(WCHAR));
+			StringCchPrintf(IoNamePath, MAX_PATH, L"%s\\{%s}.n", ApsLogPath, Uuid);
+			IoNameHandle = CreateFile(IoNamePath, GENERIC_READ|GENERIC_WRITE, 
+				FILE_SHARE_READ|FILE_SHARE_WRITE,
+				NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+			if (IoNameHandle == INVALID_HANDLE_VALUE) {
+				Status = GetLastError();
+				__leave;
+			}
+
+			ApsFree(IoObjectPath);
+			ApsFree(IoIrpPath);
+			ApsFree(IoNamePath);
+		}
 	}
 	
 	__finally {
@@ -237,6 +288,27 @@ ApsCreateProfile(
 			DeleteFile(DataPath);
 			DeleteFile(StackPath);
 			DeleteFile(ReportPath);
+
+			if (Type == PROFILE_IO_TYPE) {
+				if (IoObjectHandle) {
+					CloseHandle(IoObjectHandle);
+					DeleteFile(IoObjectPath);
+				}
+				if (IoIrpHandle) {
+					CloseHandle(IoIrpHandle);
+					DeleteFile(IoIrpPath);
+				}
+				if (IoNameHandle) {
+					CloseHandle(IoNameHandle);
+					DeleteFile(IoNamePath);
+				}
+				if (IoObjectPath)
+					ApsFree(IoObjectPath);
+				if (IoIrpPath)
+					ApsFree(IoIrpPath);
+				if (IoNamePath)
+					ApsFree(IoNamePath);
+			}
 		}
 	}
 
@@ -271,6 +343,12 @@ ApsCreateProfile(
 	Object->DataFileHandle = DataHandle;
 	Object->StackFileHandle = StackHandle;
 	Object->ReportFileHandle = ReportHandle;
+
+	if (Type == PROFILE_IO_TYPE) {
+		Object->IoObjectFile = IoObjectHandle;
+		Object->IoIrpFile = IoIrpHandle;
+		Object->IoNameFile = IoNameHandle;
+	}
 
 	ApsInitCriticalSection(&Object->Lock);
 
@@ -433,6 +511,34 @@ ApsStartProfile(
 	if (!Packet->Start.ExitProcessAckEvent) {
 		ApsLeaveCriticalSection(&Profile->Lock);
 		return APS_STATUS_DUPLICATEHANDLE;
+	}
+	
+	if (Profile->Type == PROFILE_IO_TYPE) {
+
+		Packet->Start.IoObjectFile = ApsDuplicateHandle(ProcessHandle, Profile->IoObjectFile);
+		if (!Packet->Start.IoObjectFile) {
+			ApsLeaveCriticalSection(&Profile->Lock);
+			return APS_STATUS_DUPLICATEHANDLE;
+		}
+		CloseHandle(Profile->IoObjectFile);
+		Profile->IoObjectFile = NULL;
+
+		Packet->Start.IoIrpFile = ApsDuplicateHandle(ProcessHandle, Profile->IoIrpFile);
+		if (!Packet->Start.IoIrpFile) {
+			ApsLeaveCriticalSection(&Profile->Lock);
+			return APS_STATUS_DUPLICATEHANDLE;
+		}
+		CloseHandle(Profile->IoIrpFile);
+		Profile->IoIrpFile = NULL;
+
+		Packet->Start.IoNameFile = ApsDuplicateHandle(ProcessHandle, Profile->IoNameFile);
+		if (!Packet->Start.IoNameFile) {
+			ApsLeaveCriticalSection(&Profile->Lock);
+			return APS_STATUS_DUPLICATEHANDLE;
+		}
+		CloseHandle(Profile->IoNameFile);
+		Profile->IoNameFile = NULL;
+
 	}
 
 	//
@@ -1001,6 +1107,10 @@ ApsOnStart(
 	Request->ExitEvent = Packet->Start.ExitProcessEvent;
 	Request->ExitAckEvent = Packet->Start.ExitProcessAckEvent;
 	Request->ControlEnd = Packet->Start.ControlEnd;
+
+	Request->IoObjectFile = Packet->Start.IoObjectFile;
+	Request->IoNameFile = Packet->Start.IoNameFile;
+	Request->IoIrpFile = Packet->Start.IoIrpFile;
 
 	RtlCopyMemory(&Request->Attribute, &Packet->Start.Attribute, 
 		          sizeof(BTR_PROFILE_ATTRIBUTE));

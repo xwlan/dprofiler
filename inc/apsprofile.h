@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _APS_PROFILE_H_
@@ -279,99 +279,74 @@ typedef struct _PF_GDI_RECORD {
 // I/O Profile
 //
 
-typedef enum _NET_CALLBACK_TYPE {
-	_SkSocket,
-	_SkWSASocket,
-	_SkCloseSocket,
-	_SkAccept,
-	_SkAcceptEx,
-	_SkWSAAccept,
-	_SkSend,
-	_SkRecv,
-	_SkWSASend,
-	_SkWSARecv,
-	_SkSendto,
-	_SkRecvfrom,
-	_SkWSASendTo,
-	_SkWSARecvFrom,
-	_SkCreateIoCompletionPort,
-	_SkGetQueuedCompletionStatus,
-} NET_CALLBACK_TYPE;
+typedef enum _IO_CALLBACK_TYPE {
+	_IoExitProcess,
+	_IoCreateFile,
+	_IoDuplicateHandle,
+	_IoCloseHandle,
+	_IoReadFile,
+	_IoWriteFile,
+	_IoReadFileEx,
+	_IoWriteFileEx,
+	_IoGetOverlappedResult,
+	_IoGetQueuedCompletionStatus,
+	_IoGetQueuedCompletionStatusEx,
+	_IoPostQueuedCompletionStatus,
+	_IoSocket,
+	//_IoBind,
+	_IoConnect,
+	_IoAccept,
+	_IoCtlSocket,
+	_IoClosesocket,
+	_IoWSASocket,
+	_IoWSAConnect,
+	_IoWSAAccept,
+	_IoWSAIoctl,
+	_IoWSAEventSelect,
+	_IoWSAAsyncSelect,
+	_IoWSAGetOverlappedResult,
+	_IoRecv,
+	_IoSend,
+	_IoRecvfrom,
+	_IoSendto,
+	_IoWSARecv,
+	_IoWSASend,
+	_IoWSARecvFrom,
+	_IoWSASendTo,
+	_IoCreateThreadPoolIo,
+	_IoCreateIoCompletionPort,
+	_IoSetFileCompletionNotificationModes,
 
-typedef enum _FILE_CALLBACK_TYPE {
-	_FsCreateFile,
-	_FsCloseHandle,
-	_FsReadFile,
-	_FsWriteFile,
-	_FsReadFileEx,
-	_FsWriteFileEx,
-	_FsCreateIoCompletionPort,
-	_FsGetQueuedCompletionStatus,
-} FILE_CALLBACK_TYPE;
+	//
+	// N.B. The following routines are dynamically queried from
+	// winsock, we need handle them specially when patching them
+	//
 
-typedef struct PF_NET_RECORD {
-	
-	LIST_ENTRY ListEntry;
+	_IoAcceptEx,
+	_IoConnectEx,
+	_IoTransmitFile,
+	_IoTransmitPackets,
+	_IoWSARecvMsg,
+	_IoWSASendMsg,
+} IO_CALLBACK_TYPE;
 
-	ULONG64 SizeOfRecv;
-	ULONG64 SizeOfSend;
-
-	ULONG NumberOfRecv;
-	ULONG NumberOfSend;
-
-	ULONG RecvDuration;
-	ULONG SendDuration;
-
-	ULONG MaxRecvPacketSize;
-	ULONG MaxSendPacketSize;
-	ULONG MinRecvPacketSize;
-	ULONG MinSendPacketSize;
-
-	ULONG MaxRecvDuration;
-	ULONG MaxSendDuration;
-	ULONG MinRecvDuration;
-	ULONG MinSendDuration;
-
-	union {
-		ULONG StackHash;
-		ULONG StackId;
-	};
-
-	USHORT StackDepth;
-
-} PF_NET_RECORD, *PPF_NET_RECORD;
-
-typedef struct _PF_FILE_RECORD {
-
-	LIST_ENTRY ListEntry;
-
-	ULONG64 SizeOfRead;
-	ULONG64 SizeOfWrite;
-
-	ULONG NumberOfRead;
-	ULONG NumberOfWrite;
-
-	ULONG ReadDuration;
-	ULONG WriteDuration;
-
-	ULONG MaxReadPacketSize;
-	ULONG MaxWritePacketSize;
-	ULONG MinReadPacketSize;
-	ULONG MinWritePacketSize;
-
-	ULONG MaxReadDuration;
-	ULONG MaxWriteDuration;
-	ULONG MinReadDuration;
-	ULONG MinWriteDuration;
-
-	union {
-		ULONG StackHash;
-		ULONG StackId;
-	};
-
-	USHORT StackDepth;
-
-} PF_FILE_RECORD, *PPF_FILE_RECORD;
+typedef enum _CCR_CALLBACK_TYPE {
+	_CcrExitProcess,
+	_CcrEnterCriticalSection,
+	_CcrTryEnterCriticalSection,
+	_CcrLeaveCriticalSection, 
+	_CcrAcquireSRWLockExclusive,
+	_CcrAcquireSRWLockShared,
+	_CcrTryAcquireSRWLockExclusive,
+	_CcrTryAcquireSRWLockShared,
+	_CcrReleaseSRWLockExclusive,
+	_CcrReleaseSRWLockShared,
+	_CcrSleepConditionVariableSRW,
+	_CcrNtWaitForSingleObject,
+	_CcrNtWaitForKeyedEvent,
+	_CcrRtlAllocateHeap, 
+	_CcrRtlFreeHeap, 
+} CCR_CALLBACK_TYPE;
 
 //
 // Profile Record
@@ -386,8 +361,6 @@ typedef struct _BTR_PROFILE_RECORD {
 		PF_PAGE_RECORD Page;
 		PF_HANDLE_RECORD Handle;
 		PF_GDI_RECORD Gdi;
-		PF_NET_RECORD Net;
-		PF_FILE_RECORD File;
 	};
 } BTR_PROFILE_RECORD, *PBTR_PROFILE_RECORD;
 
@@ -458,6 +431,14 @@ typedef struct _BTR_PROFILE_OBJECT {
 	HANDLE StackFileObject;
 	HANDLE ReportFileObject;
 
+	//
+	// IO record files
+	//
+
+	HANDLE IoObjectFile;
+	HANDLE IoIrpFile;
+	HANDLE IoNameFile;
+
 	HANDLE StartEvent;
 	HANDLE StopEvent;
 	HANDLE UnloadEvent;
@@ -501,7 +482,11 @@ typedef enum _PF_STREAM_TYPE {
 	STREAM_MM_PAGE,
 	STREAM_MM_HANDLE,
 	STREAM_MM_GDI,
-	STREAM_IO,
+	STREAM_IO_OBJECT,
+	STREAM_IO_NAME,
+	STREAM_IO_IRP,
+	STREAM_IO_THREAD,
+	STREAM_CCR,
 	STREAM_STACK,
 	STREAM_DLL,
 	STREAM_CALLER,
@@ -688,6 +673,11 @@ typedef struct _PF_STREAM_SYSTEM {
 	WCHAR WorkPath[MAX_PATH];
 	WCHAR UserName[MAX_PATH];
 	
+	//
+	// QueryPerformanceCounter resolution
+	//
+
+	LARGE_INTEGER QpcFrequency;
 	BTR_PROFILE_ATTRIBUTE Attr;
 	PF_PERFORMANCE_INFO Info;
 
@@ -829,6 +819,110 @@ typedef struct _PF_STREAM_HEAP_LEAK {
 typedef BTR_LEAK_FILE PF_STREAM_PAGE_LEAK, *PPF_STREAM_PAGE_LEAK;
 typedef BTR_LEAK_FILE PF_STREAM_HANDLE_LEAK, *PPF_STREAM_HANDLE_LEAK;
 typedef BTR_LEAK_FILE PF_STREAM_GDI_LEAK, *PPF_STREAM_GDI_LEAK;
+
+
+//
+// Define IO Stream
+//
+
+typedef struct _IO_COUNTER_METHOD {
+	ULONG RequestCount;
+	ULONG CompleteCount;
+	ULONG FailureCount;
+	ULONG SynchronousCount;
+	ULONG AsynchronousCount;
+	ULONG PendingCount; 
+	ULONG64 RequestSize;
+	ULONG64 CompleteSize;
+	ULONG64 FailureSize;
+	ULONG MinimumLatency;
+	ULONG MaximumLatency;
+	ULONG AverageLatency;
+	ULONG MinimumSize;
+	ULONG MaximumSize;
+	ULONG AverageSize;
+} IO_COUNTER_METHOD, *PIO_COUNTER_METHOD;
+
+#define IO_INVALID_IRP_INDEX  ((ULONG)-1)
+
+typedef struct _IO_OBJECT_ON_DISK {
+	ULONG ObjectId;
+	ULONG StackId; 
+	ULONG Flags;
+	ULONG NameOffset;
+	FILETIME Start;
+	FILETIME End;
+	ULONG IrpCount;
+	ULONG FirstIrp;
+	union {
+		PVOID Context;
+		struct _IO_STACKTRACE *Trace;
+		ULONG CurrentIrp;
+	};
+	IO_COUNTER_METHOD Counters[IO_OP_NUMBER];
+} IO_OBJECT_ON_DISK, *PIO_OBJECT_ON_DISK;
+
+
+#define IoIsFileObject(_O)\
+	(_O->Flags & OF_FILE) 
+
+#define IoIsSocketObject(_O)\
+	(_O->Flags & (OF_SKIPV4|OF_SKIPV6))
+
+#define IoIsSocketIpv4(_O)\
+	(_O->Flags & OF_SKIPV4)
+
+#define IoIsSocketIpv6(_O)\
+	(_O->Flags & OF_SKIPV6)
+
+#define IoIsSocketTcp(_O)\
+	(_O->Flags & OF_SKTCP)
+
+#define IoIsSocketUdp(_O)\
+	(_O->Flags & OF_SKUDP)
+
+
+typedef struct _IO_IRP_ON_DISK {
+	ULONG RequestId;
+	ULONG ObjectId;
+	ULONG StackId;
+	ULONG Operation        : 4;
+	ULONG Asynchronous     : 1;
+	ULONG IoCompletionPort : 1;
+	ULONG UserApc          : 1;
+	ULONG Aborted          : 1;
+	ULONG Orphaned         : 1;
+	ULONG Complete         : 1;
+	ULONG RequestBytes;
+	ULONG CompletionBytes;
+	ULONG IoStatus;
+	ULONG RequestThreadId;
+	ULONG CompleteThreadId;
+	ULONG NextIrp;
+	ULONG ThreadedNextIrp;
+	FILETIME Time;
+	union {
+		LARGE_INTEGER Duration;
+		double LatencyMs;
+	};
+} IO_IRP_ON_DISK, *PIO_IRP_ON_DISK;
+
+//
+// STREAM_IO_OBJECT
+// 
+
+typedef struct _PF_STREAM_IO_OBJECT { 
+	IO_OBJECT_ON_DISK Object[ANYSIZE_ARRAY];	
+} PF_STREAM_IO_OBJECT, *PPF_STREAM_IO_OBJECT;
+
+//
+// STREAM_IO_IRP
+//
+
+typedef struct _PF_STREAM_IO_IRP {
+	IO_IRP_ON_DISK Irp[ANYSIZE_ARRAY];
+} PF_STREAM_IO_IRP, *PPF_STREAM_IO_IRP;
+
 
 #pragma pack(pop)
 

@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
 #ifndef _MM_HANDLE_H_
@@ -12,8 +12,6 @@ extern "C" {
 #endif
 
 #include "mmprof.h"
-#include <winsock2.h>
-
 
 //
 // Process

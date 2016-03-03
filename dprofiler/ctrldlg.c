@@ -1,7 +1,7 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 // 
 
 #include "ctrldlg.h"
@@ -10,6 +10,7 @@
 #include "listview.h"
 #include "split.h"
 #include "apscpu.h"
+#include "main.h"
 
 #define WM_USER_PROFILE     (WM_USER + 1)
 #define WM_USER_TERMINATE   (WM_USER + 2)
@@ -170,7 +171,7 @@ CtrlOnInitDialog(
 	hWndCtrl = GetDlgItem(hWnd, IDC_STATIC);
 	SetWindowText(hWndCtrl, Buffer);
 
-	SetWindowText(hWnd, L"D Profile");
+	SetWindowText(hWnd, APP_TITLE);
 	SdkSetMainIcon(hWnd);
 	SdkCenterWindow(hWnd);
 

@@ -4,6 +4,7 @@
 // Copyright(C) 2009-2013
 //
 
+#include "apsbtr.h"
 #include "perf.h"
 #include "ntapi.h"
 #include "heap.h"

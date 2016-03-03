@@ -1,9 +1,10 @@
 //
 // lan.john@gmail.com
 // Apsara Labs
-// Copyright(C) 2009-2012
+// Copyright(C) 2009-2016
 //
 
+#include "apsbtr.h"
 #include "port.h"
 #include "util.h"
 
@@ -29,10 +30,10 @@ BtrCreatePort(
 	HANDLE CompleteEventObject;
 	WCHAR NameBuffer[MAX_PATH];
 
-	StringCchPrintf(NameBuffer, MAX_PATH, L"\\\\.\\pipe\\dpf\\%u", GetCurrentProcessId());
-	StringCchCopy(Port->Name, 64, NameBuffer);
+	StringCchPrintfW(NameBuffer, MAX_PATH, L"\\\\.\\pipe\\dpf\\%u", GetCurrentProcessId());
+	StringCchCopyW(Port->Name, 64, NameBuffer);
 
-	PortObject = CreateNamedPipe(NameBuffer,
+	PortObject = CreateNamedPipeW(NameBuffer,
 							     PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, 
 				                 PIPE_READMODE_MESSAGE | PIPE_TYPE_MESSAGE | PIPE_WAIT,
 							     PIPE_UNLIMITED_INSTANCES,
