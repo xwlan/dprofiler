@@ -746,6 +746,7 @@ ApsQueryProcessList(
 			break;
 		}
 
+		ZeroMemory(Process, sizeof(APS_PROCESS));
 		Process->Name = ApsMalloc(Entry->ImageName.Length + sizeof(WCHAR));
 		wcscpy(Process->Name, Entry->ImageName.Buffer);
 
@@ -766,8 +767,8 @@ ApsQueryProcessList(
 		Process->GdiHandleCount = GetGuiResources(ProcessHandle, GR_GDIOBJECTS);
 		Process->UserHandleCount = GetGuiResources(ProcessHandle, GR_USEROBJECTS);
 
-		Process->FullPath = ApsMalloc(MAX_PATH + sizeof(WCHAR));
-		GetModuleFileNameEx(ProcessHandle, NULL, Process->FullPath, MAX_PATH - 1);
+		Process->FullPath = ApsMalloc(MAX_PATH * 2 + sizeof(WCHAR));
+		GetModuleFileNameEx(ProcessHandle, NULL, Process->FullPath, MAX_PATH * 2 - 1);
 
 		//
 		// Special case for smss.exe
