@@ -5,10 +5,10 @@ a lightweight, low overhead CPU Memory IO and Lock profiler for Windows x86/x64
 in cmd.exe, run command as: msbuild dprofiler.sln
 
 CPU Example
-[![CPU Example](cpusample.png)](cpusample.png)
+[![CPU Example](cpu.svg)](cpu.svg)
 
 Heap Example
-[![Heap Example](heapsample.png)](heapsample.png)
+[![Heap Example](heap.svg)](heap.svg)
 
 
 
