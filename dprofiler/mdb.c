@@ -8,6 +8,7 @@
 #include "sql.h"
 #include <stdlib.h>
 #include "sdk.h"
+#include "aps.h"
 
 PCSTR MdbName = "dprofile.mdb";
 CHAR MdbPath[MAX_PATH];
@@ -125,10 +126,15 @@ MdbInitialize(
 	)
 {
 	ULONG Status;
+	USHORT Length = 0;
 
     UNREFERENCED_PARAMETER(Flag);
 
-	GetCurrentDirectoryA(MAX_PATH, MdbPath);
+	if (!ApsCurrentPathA[0]) {
+		ApsGetProcessPathA(ApsCurrentPathA, MAX_PATH, &Length);
+	}
+
+	StringCchCopyA(MdbPath, MAX_PATH, ApsCurrentPathA);
 	StringCchCatA(MdbPath, MAX_PATH, "\\"); 
 	StringCchCatA(MdbPath, MAX_PATH, MdbName); 
 
