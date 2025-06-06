@@ -321,6 +321,13 @@ ApsGetProcessPath(
 	__out PUSHORT ActualLength
 	);
 
+ULONG
+ApsGetProcessPathA(
+	__in PCHAR Buffer,
+	__in USHORT Length,
+	__out PUSHORT ActualLength
+);
+
 BOOLEAN
 ApsGetSystemRoutine(
 	VOID
@@ -824,6 +831,8 @@ extern ULONG ApsPageSize;
 extern BOOLEAN ApsIs64Bits;
 extern BOOLEAN ApsIsWow64;
 extern ULONG ApsPageSize;
+extern CHAR ApsCurrentPathA[];
+extern WCHAR ApsCurrentPath[];
 
 #endif
 

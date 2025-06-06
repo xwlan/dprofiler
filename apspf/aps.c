@@ -21,6 +21,7 @@
 
 BOOLEAN ApsIsInitialized = FALSE;
 WCHAR ApsCurrentPath[MAX_PATH];
+CHAR ApsCurrentPathA[MAX_PATH];
 
 //
 // System Information
@@ -194,24 +195,11 @@ ApsInitialize(
 		return APS_STATUS_ERROR;
 	}
 
-    //
-    // N.B. Load dbghelp.dll, we always the copy in our own directory
-    // somes system32 version does not work as expected 
-    //
-
-	ApsGetProcessPath(ApsCurrentPath, MAX_PATH, &Length);
-
-    StringCchCopy(Path, MAX_PATH, ApsCurrentPath);
-	StringCchCat(Path, MAX_PATH, L"\\dbghelp.dll");
-	DllHandle = LoadLibrary(Path);
-    if (!DllHandle) {
-        return APS_STATUS_LOADLIBRARY;
-    }
-
 	//
 	// Get runtime dll path
 	//
 
+	ApsGetProcessPath(ApsCurrentPath, MAX_PATH, &Length);
     StringCchCopy(Path, MAX_PATH, ApsCurrentPath);
 	StringCchPrintf(ApsDllPath, MAX_PATH, L"%s\\apsbtr.dll", Path);
 
@@ -1899,6 +1887,26 @@ ApsGetProcessPath(
 	Slash[0] = 0;
 
 	*ActualLength = (USHORT)(((ULONG_PTR)Slash - (ULONG_PTR)Buffer) / sizeof(WCHAR));
+	return APS_STATUS_OK;
+}
+
+ULONG
+ApsGetProcessPathA(
+	__in PCHAR Buffer,
+	__in USHORT Length,
+	__out PUSHORT ActualLength
+)
+{
+	HMODULE ModuleHandle;
+	PCHAR Slash;
+
+	ModuleHandle = GetModuleHandle(NULL);
+	GetModuleFileNameA(ModuleHandle, Buffer, Length);
+
+	Slash = strrchr(Buffer, '\\');
+	Slash[0] = 0;
+
+	*ActualLength = (USHORT)(((ULONG_PTR)Slash - (ULONG_PTR)Buffer) / sizeof(CHAR));
 	return APS_STATUS_OK;
 }
 
