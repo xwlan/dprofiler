@@ -98,7 +98,7 @@
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <ExceptionHandling />
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -133,14 +133,8 @@
       <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
-copy /Y $(ProjectDir)\list.h   ..\inc
-copy /Y $(ProjectDir)\bitmap.h   ..\inc
-copy /Y $(ProjectDir)\lock.h   ..\inc
-copy /Y $(ProjectDir)\apsbtr.h   ..\inc
-copy /Y $(ProjectDir)\apsprofile.h   ..\inc
-copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -152,7 +146,7 @@ copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;_IPCORE_</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
@@ -186,14 +180,8 @@ copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
       <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
-copy /Y $(ProjectDir)\list.h   ..\inc
-copy /Y $(ProjectDir)\bitmap.h   ..\inc
-copy /Y $(ProjectDir)\lock.h   ..\inc
-copy /Y $(ProjectDir)\apsbtr.h   ..\inc
-copy /Y $(ProjectDir)\apsprofile.h   ..\inc
-copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -235,14 +223,8 @@ copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
       <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
-copy /Y $(ProjectDir)\list.h   ..\inc
-copy /Y $(ProjectDir)\bitmap.h   ..\inc
-copy /Y $(ProjectDir)\lock.h   ..\inc
-copy /Y $(ProjectDir)\apsbtr.h   ..\inc
-copy /Y $(ProjectDir)\apsprofile.h   ..\inc
-copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -282,14 +264,8 @@ copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
       <ImportLibrary>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\$(TargetName).lib</ImportLibrary>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y $(ProjectDir)\status.h   ..\inc
-copy /Y $(ProjectDir)\list.h   ..\inc
-copy /Y $(ProjectDir)\bitmap.h   ..\inc
-copy /Y $(ProjectDir)\lock.h   ..\inc
-copy /Y $(ProjectDir)\apsbtr.h   ..\inc
-copy /Y $(ProjectDir)\apsprofile.h   ..\inc
-copy /Y $(ProjectDir)\cpuprof.h   ..\inc
-copy /Y $(ProjectDir)\ioprof.h   ..\inc</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

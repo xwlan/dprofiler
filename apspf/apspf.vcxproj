@@ -85,9 +85,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../apsbtr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_IPCTL_;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
@@ -98,20 +98,7 @@
     </ClCompile>
     <PostBuildEvent>
       <Command>
-copy /Y $(ProjectDir)\aps.h          ..\inc
-copy /Y $(ProjectDir)\apsdefs.h   ..\inc
-copy /Y $(ProjectDir)\apsctl.h      ..\inc
-copy /Y $(ProjectDir)\apsrpt.h     ..\inc
-copy /Y $(ProjectDir)\apscpu.h    ..\inc
-
-copy /Y $(ProjectDir)\apsfile.h        ..\inc
-copy /Y $(ProjectDir)\apsqueue.h   ..\inc
-copy /Y $(ProjectDir)\apsport.h   ..\inc
-copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
-copy /Y $(ProjectDir)\apspdb.h   ..\inc
-copy /Y $(ProjectDir)\calltree.h   ..\inc
-copy /Y $(ProjectDir)\apslog.h   ..\inc
-copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -120,9 +107,9 @@ copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </Midl>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../apsbtr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_IPCTL_;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
+      <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader />
@@ -133,27 +120,14 @@ copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </ClCompile>
     <PostBuildEvent>
       <Command>
-copy /Y $(ProjectDir)\aps.h          ..\inc
-copy /Y $(ProjectDir)\apsdefs.h   ..\inc
-copy /Y $(ProjectDir)\apsctl.h      ..\inc
-copy /Y $(ProjectDir)\apsrpt.h     ..\inc
-copy /Y $(ProjectDir)\apscpu.h    ..\inc
-
-copy /Y $(ProjectDir)\apsfile.h        ..\inc
-copy /Y $(ProjectDir)\apsqueue.h   ..\inc
-copy /Y $(ProjectDir)\apsport.h   ..\inc
-copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
-copy /Y $(ProjectDir)\apspdb.h   ..\inc
-copy /Y $(ProjectDir)\calltree.h   ..\inc
-copy /Y $(ProjectDir)\apslog.h   ..\inc
-copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../apsbtr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_IPCTL_;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -163,20 +137,7 @@ copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </ClCompile>
     <PostBuildEvent>
       <Command>
-copy /Y $(ProjectDir)\aps.h          ..\inc
-copy /Y $(ProjectDir)\apsdefs.h   ..\inc
-copy /Y $(ProjectDir)\apsctl.h      ..\inc
-copy /Y $(ProjectDir)\apsrpt.h     ..\inc
-copy /Y $(ProjectDir)\apscpu.h    ..\inc
-
-copy /Y $(ProjectDir)\apsfile.h        ..\inc
-copy /Y $(ProjectDir)\apsqueue.h   ..\inc
-copy /Y $(ProjectDir)\apsport.h   ..\inc
-copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
-copy /Y $(ProjectDir)\apspdb.h   ..\inc
-copy /Y $(ProjectDir)\calltree.h   ..\inc
-copy /Y $(ProjectDir)\apslog.h   ..\inc
-copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -186,7 +147,7 @@ copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../apsbtr;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_IPCTL_;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -198,20 +159,7 @@ copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
     </ClCompile>
     <PostBuildEvent>
       <Command>
-copy /Y $(ProjectDir)\aps.h          ..\inc
-copy /Y $(ProjectDir)\apsdefs.h   ..\inc
-copy /Y $(ProjectDir)\apsctl.h      ..\inc
-copy /Y $(ProjectDir)\apsrpt.h     ..\inc
-copy /Y $(ProjectDir)\apscpu.h    ..\inc
-
-copy /Y $(ProjectDir)\apsfile.h        ..\inc
-copy /Y $(ProjectDir)\apsqueue.h   ..\inc
-copy /Y $(ProjectDir)\apsport.h   ..\inc
-copy /Y $(ProjectDir)\apsanalysis.h   ..\inc
-copy /Y $(ProjectDir)\apspdb.h   ..\inc
-copy /Y $(ProjectDir)\calltree.h   ..\inc
-copy /Y $(ProjectDir)\apslog.h   ..\inc
-copy /Y $(ProjectDir)\apsio.h   ..\inc</Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
