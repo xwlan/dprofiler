@@ -130,6 +130,10 @@ MdbInitialize(
 
     UNREFERENCED_PARAMETER(Flag);
 
+	//
+	// Open dprofiler.mdb in executable path
+	//
+
 	if (!ApsCurrentPathA[0]) {
 		ApsGetProcessPathA(ApsCurrentPathA, MAX_PATH, &Length);
 	}
@@ -164,6 +168,8 @@ MdbClose(
 	DeleteCriticalSection(&MdbLock);
 }
 
+#include <sys/stat.h>
+
 ULONG
 MdbLoadMetaData(
 	__in PSQL_DATABASE SqlObject
@@ -174,6 +180,27 @@ MdbLoadMetaData(
 	PSTR *Value;
 	PSQL_TABLE Table; 
     SIZE_T Length;
+
+	//SqlExecute(SqlObject, "SELECT count(*) FROM sqlite_master");
+	struct _stat Stat;
+	if (_stat(SqlObject->Name, &Stat) != 0) {
+		return GetLastError();
+	}
+
+	//
+	// If dprofiler.mdb is empty, create table and set default values
+	//
+
+	if (Stat.st_size == 0) {
+		Status = SqlExecute(SqlObject, "CREATE TABLE MetaData (Key text PRIMARY KEY, Value text)");
+		if (Status != SQLITE_OK) {
+			return Status;
+		}
+		Status = MdbSetDefaultValues(SqlObject->Name);
+		if (Status != S_OK) {
+			return Status;
+		}
+	}
 
 	Status = SqlGetTable(SqlObject, "SELECT Value FROM MetaData", &Table);
 	if (Status != SQLITE_OK) {
