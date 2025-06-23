@@ -164,7 +164,7 @@ ApsInitDbghelp(
     //
 
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEBUG | SYMOPT_LOAD_LINES | 
-                  SYMOPT_OMAP_FIND_NEAREST | SYMOPT_DEFERRED_LOADS);
+                  SYMOPT_OMAP_FIND_NEAREST);
 
     SymSetSearchPathW(ProcessHandle, SymbolPath);
 
