@@ -19,29 +19,6 @@
 #include "calltree.h"
 
 
-PCALL_TREE
-ApsCreateCallTree(
-    __in BTR_PROFILE_TYPE Type,
-    __in BOOLEAN Parallel 
-    )
-{
-    PCALL_TREE Tree;
-
-    Tree = (PCALL_TREE)ApsMalloc(sizeof(CALL_TREE));
-
-    Tree->Type = Type;
-    Tree->Parallel = Parallel;
-    Tree->Stream = FALSE;
-    Tree->MaximumDepth = 0;
-    Tree->Count = 0; 
-    Tree->Inclusive = 0;
-    Tree->Exclusive = 0;
-    Tree->InclusiveBytes = 0;
-    Tree->ExclusiveBytes = 0;
-
-    return Tree;
-}
-
 PCALL_NODE
 ApsLookupCallNodeByPc(
     __in PCALL_NODE Node,
@@ -71,7 +48,7 @@ ApsInitCallGraph(
 
 PCALL_NODE
 ApsAllocateCallNode(
-    VOID
+    IN BTR_PROFILE_TYPE ProfileType
     )
 {
     PCALL_NODE Node;
@@ -79,6 +56,7 @@ ApsAllocateCallNode(
     Node = (PCALL_NODE)ApsMalloc(sizeof(CALL_NODE));
     InitializeListHead(&Node->ChildListHead);
 
+    Node->ProfileType = (UCHAR)ProfileType;
     return Node;
 }
 
@@ -106,7 +84,7 @@ ApsPcToCallNode(
     PBTR_FUNCTION_ENTRY FuncEntry;
 	PBTR_TEXT_ENTRY TextEntry;
 	
-    Node = ApsAllocateCallNode();
+    Node = ApsAllocateCallNode(Type);
     Node->FunctionId = PcEntry->FunctionId;
     Node->DllId = PcEntry->DllId;
 
@@ -138,10 +116,12 @@ ApsPcToCallNode(
             //Node->Mm.InclusiveBytes = PcEntry->SizeOfAllocs;
             Node->Mm.InclusiveBytes = Size;
             Node->Mm.ExclusiveBytes = 0;
+            Node->Mm.Count = Count;
         }
         if (Type == PROFILE_IO_TYPE) {
             Node->Io.InclusiveBytes = Size;
             Node->Io.ExclusiveBytes = 0;
+            Node->Io.Count = Count;
         }
         if (Type == PROFILE_CCR_TYPE) {
             Node->Ccr.Inclusive = Count;
@@ -155,11 +135,9 @@ ApsPcToCallNode(
             Node->Cpu.Exclusive = Count;
         }
         if (Type == PROFILE_MM_TYPE) {
-            //Node->Mm.InclusiveBytes = PcEntry->SizeOfAllocs;
-            //Node->Mm.ExclusiveBytes = PcEntry->SizeOfAllocs;
             Node->Mm.InclusiveBytes = Size;
             Node->Mm.ExclusiveBytes = Size;
-            Node->Mm.Count = PcEntry->Count;
+            Node->Mm.Count = Count;
         }
         if (Type == PROFILE_CCR_TYPE) {
             Node->Ccr.Inclusive = Count;
@@ -168,7 +146,7 @@ ApsPcToCallNode(
         if (Type == PROFILE_IO_TYPE) {
             Node->Io.InclusiveBytes = Size;
             Node->Io.ExclusiveBytes = Size;
-            Node->Io.Count = PcEntry->Count;
+            Node->Io.Count = Count;
 		}
     }
 
@@ -190,10 +168,6 @@ ApsAllocateCallTree(
     Tree->Stream = FALSE;
     Tree->Parallel = FALSE;
     Tree->Count = 1;
-    Tree->Inclusive = Node->Cpu.Inclusive;
-    Tree->Exclusive = 0;
-    Tree->InclusiveBytes = Node->Mm.InclusiveBytes;
-    Tree->ExclusiveBytes = 0;
     Tree->RootNode = Node;
 
     //
@@ -431,9 +405,11 @@ ApsCreateCallGraph(
             }
             if (Type == PROFILE_MM_TYPE) {
                 Tree->RootNode->Mm.InclusiveBytes += Node->Mm.InclusiveBytes;
+                Tree->RootNode->Mm.Count += Node->Mm.Count;
             }
             if (Type == PROFILE_IO_TYPE) {
                 Tree->RootNode->Io.InclusiveBytes += Node->Io.InclusiveBytes;
+                Tree->RootNode->Io.Count += Node->Io.Count;
             }
             if (Type == PROFILE_CCR_TYPE) {
                 Tree->RootNode->Ccr.Inclusive += Node->Ccr.Inclusive;
@@ -763,12 +739,14 @@ ApsInsertCallNode(
                 }
                 if (Type == PROFILE_MM_TYPE) {
                     Child->Mm.ExclusiveBytes += Node->Mm.ExclusiveBytes;
+                    Child->Mm.Count += Node->Mm.Count;
                 }
                 if (Type == PROFILE_CCR_TYPE) {
                     Child->Ccr.Exclusive += Node->Ccr.Exclusive;
                 }
                 if (Type == PROFILE_IO_TYPE) {
                     Child->Io.ExclusiveBytes += Node->Io.ExclusiveBytes;
+                    Child->Io.Count += Node->Io.Count;
                 }
                 
                 ApsFreeCallNode(Node);
@@ -782,12 +760,14 @@ ApsInsertCallNode(
                 }
                 if (Type == PROFILE_MM_TYPE) {
                     Child->Mm.InclusiveBytes += Node->Mm.InclusiveBytes;
+                    Child->Mm.Count += Node->Mm.Count;
                 }
                 if (Type == PROFILE_CCR_TYPE) {
                     Child->Ccr.Inclusive += Node->Ccr.Inclusive;
                 }
                 if (Type == PROFILE_IO_TYPE) {
                     Child->Io.InclusiveBytes += Node->Io.InclusiveBytes;
+                    Child->Io.Count += Node->Io.Count;
                 }
                 
                 ApsFreeCallNode(Node);
@@ -805,12 +785,14 @@ ApsInsertCallNode(
                 }
                 if (Type == PROFILE_MM_TYPE) {
                     Child->Mm.InclusiveBytes += Node->Mm.InclusiveBytes;
+                    Child->Mm.Count += Node->Mm.Count;
                 }
                 if (Type == PROFILE_CCR_TYPE) {
                     Child->Ccr.Inclusive += Node->Ccr.Inclusive;
                 }
                 if (Type == PROFILE_IO_TYPE) {
                     Child->Io.InclusiveBytes += Node->Io.InclusiveBytes;
+                    Child->Io.Count += Node->Io.Count;
                 }
                 ApsFreeCallNode(Node);
                 return Child;
@@ -824,6 +806,7 @@ ApsInsertCallNode(
                 if (Type == PROFILE_MM_TYPE) {
                     Child->Mm.InclusiveBytes += Node->Mm.InclusiveBytes;
                     Child->Mm.ExclusiveBytes += Node->Mm.ExclusiveBytes;
+                    Child->Mm.Count += Node->Mm.Count;
                 }
                 if (Type == PROFILE_CCR_TYPE) {
                     Child->Ccr.Inclusive += Node->Ccr.Inclusive;
@@ -832,6 +815,7 @@ ApsInsertCallNode(
                 if (Type == PROFILE_IO_TYPE) {
                     Child->Io.InclusiveBytes += Node->Io.InclusiveBytes;
                     Child->Io.ExclusiveBytes += Node->Io.ExclusiveBytes;
+                    Child->Io.Count += Node->Io.Count;
                 }
                 ApsFreeCallNode(Node);
                 return Child;

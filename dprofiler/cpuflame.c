@@ -310,63 +310,22 @@ CpuFlameOnQueryNode(
     PDIALOG_OBJECT Object;
     PCPU_FORM_CONTEXT Context;
     PCPU_FLAME_CONTEXT FlameContext;
-    PBTR_DLL_ENTRY DllEntry;
-    PBTR_TEXT_ENTRY TextEntry;
-    PBTR_TEXT_TABLE TextTable;
-    PCALL_GRAPH Graph;
     PNM_FLAME_QUERYNODE QueryNode;
-    PCALL_NODE Node;
-    WCHAR Module[64];
-    WCHAR Symbol[MAX_PATH];
-    double Percent;
      
     QueryNode = (PNM_FLAME_QUERYNODE)lp;
     if (!QueryNode) {
         return FALSE;
     }
 
-    Node = QueryNode->Node;
     ASSERT(FlagOn(QueryNode->Flags, FLAME_QUERY_SYMBOL));
 
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;
     FlameContext = (PCPU_FLAME_CONTEXT)Context->Context;
 
-    //
-    // Lookup symbol name for specified call node
-    //
-
-    TextTable = FlameContext->TextTable;
-    TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Node->Address);
-    if (!TextEntry) {
-        StringCchPrintf(Symbol, MAX_PATH, L"0x%x", (PVOID)Node->Address);
-    } else {
-        StringCchPrintf(Symbol, MAX_PATH, L"%S", TextEntry->Text); 
-    } 
-
-    //
-    // Lookup module name
-    //
-
-    DllEntry = FlameContext->DllEntry;
-    if (Node->DllId != -1) {
-        _wsplitpath(DllEntry[Node->DllId].Path, NULL, NULL, Module, NULL);
-    } else {
-        wcscpy_s(Module, 64, L"??");
-    }
-
-    //
-    // Compute the percent of inclusive samples, and format the output string
-    //
-
-    if (!FlagOn(QueryNode->Flags, FLAME_QUERY_PERCENT)) {
-        StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s", Module, Symbol);
-    } else {
-        Graph = FlameContext->Graph;
-        Percent = (Node->Cpu.Inclusive * 100.0) / Graph->Inclusive;
-        StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %u samples, %.2f %%", 
-                        Module, Symbol, Node->Cpu.Inclusive, Percent);
-    }
-
+	FlameQueryNodeFormatTooltip(QueryNode,
+								FlameContext->DllEntry,
+								FlameContext->TextTable,
+								FlameContext->Graph);
 	return TRUE;
 }

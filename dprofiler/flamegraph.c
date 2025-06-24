@@ -1382,3 +1382,101 @@ FlameDrawNodes(
 
 	SdkDebugOutputBitmap(Object->hbmpFlame, L"flame.bmp", 32);
 }
+
+VOID
+FlameQueryNodeFormatTooltip(
+	IN PNM_FLAME_QUERYNODE QueryNode, 
+	IN PBTR_DLL_ENTRY DllEntry,
+	IN PBTR_TEXT_TABLE TextTable,
+	IN PCALL_GRAPH Graph
+	)
+{
+	PCALL_NODE Node;
+	PBTR_TEXT_ENTRY TextEntry;
+	WCHAR Symbol[MAX_PATH];
+	WCHAR Module[64];
+	ULONG SampleCount;
+	ULONG64 SampleBytes;
+	double Percent;
+
+	Node = QueryNode->Node;
+	ASSERT(Node != NULL);
+	ASSERT(Graph != NULL);
+	ASSERT(TextTable != NULL);
+	ASSERT(DllEntry != NULL);
+
+	//
+	// Build module name by its Id
+	//
+
+	if (Node->DllId != -1) {
+		_wsplitpath(DllEntry[Node->DllId].Path, NULL, NULL, Module, NULL);
+	}
+	else {
+		wcscpy_s(Module, 64, L"??");
+	}
+
+	//
+	// Build symbol name by address
+	//
+
+	TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Node->Address);
+	if (!TextEntry) {
+		StringCchPrintf(Symbol, MAX_PATH, L"0x%x", Node->Address);
+	}
+	else {
+		StringCchPrintf(Symbol, MAX_PATH, L"%S", TextEntry->Text);
+	}
+
+	//
+	// Compute the percent of inclusive samples, and format the output string
+	//
+
+	if (!FlagOn(QueryNode->Flags, FLAME_QUERY_PERCENT)) {
+		StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s", Module, Symbol);
+	}
+	else {
+		switch (Graph->Type) {
+		case PROFILE_CPU_TYPE:
+			Percent = (Node->Ccr.Inclusive * 100.0) / Graph->Inclusive;
+			SampleCount = Node->Cpu.Inclusive;
+			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples",
+				Module, Symbol, Percent, SampleCount);
+			break;
+		case PROFILE_MM_TYPE:
+			Percent = (Node->Mm.InclusiveBytes * 100.0) / Graph->InclusiveBytes;
+			SampleCount = Node->Mm.Count;
+			SampleBytes = Node->Mm.InclusiveBytes;
+			if (SampleBytes > 1024) {
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %I64u KB",
+					Module, Symbol, Percent, SampleCount, SampleBytes / 1024);
+			}
+			else {
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %u bytes",
+					Module, Symbol, Percent, SampleCount, SampleBytes);
+			}
+			break;
+		case PROFILE_IO_TYPE:
+			Percent = (Node->Io.InclusiveBytes * 100.0) / Graph->InclusiveBytes;
+			SampleCount = Node->Io.Count;
+			SampleBytes = Node->Io.InclusiveBytes;
+			if (SampleBytes > 1024) {
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %I64u KB",
+					Module, Symbol, Percent, SampleCount, SampleBytes / 1024);
+			}
+			else {
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %u bytes",
+					Module, Symbol, Percent, SampleCount, SampleBytes);
+			}
+			break;
+		case PROFILE_CCR_TYPE:
+			Percent = (Node->Ccr.Inclusive * 100.0) / Graph->Inclusive;
+			SampleCount = Node->Ccr.Inclusive;
+			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples",
+				Module, Symbol, Percent, SampleCount);
+			break;
+		case PROFILE_NONE_TYPE:
+			ASSERT(0);
+		}
+	}
+}

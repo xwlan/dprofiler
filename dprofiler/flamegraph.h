@@ -322,6 +322,14 @@ FlameDebugPrintNode(
 	__in PFLAME_NODE FlameNode
 	);
 
+VOID
+FlameQueryNodeFormatTooltip(
+	IN PNM_FLAME_QUERYNODE QueryNode,
+	IN PBTR_DLL_ENTRY DllEntry,
+	IN PBTR_TEXT_TABLE TextTable,
+	IN PCALL_GRAPH Graph
+	);
+
 #ifdef __cplusplus
 }
 #endif

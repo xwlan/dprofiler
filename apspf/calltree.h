@@ -32,6 +32,7 @@ typedef struct _CALL_NODE {
 	ULONG LineId;
     BOOLEAN Root;
     BOOLEAN Spare;
+    UCHAR ProfileType;
 
     union {
 
@@ -83,12 +84,7 @@ typedef struct _CALL_TREE {
     USHORT MaximumDepth;
 
     ULONG Count;
-    ULONG Inclusive;
-    ULONG Exclusive;
 	ULONG Number;
-
-    ULONG64 InclusiveBytes;
-    ULONG64 ExclusiveBytes;
 
     PCALL_NODE RootNode;
     LIST_ENTRY ListEntry;
@@ -122,10 +118,11 @@ typedef struct _CALL_GRAPH {
 // Routines
 //
 
+
 PCALL_NODE
 ApsAllocateCallNode(
-    VOID
-    );
+    IN BTR_PROFILE_TYPE ProfileType
+);
 
 VOID
 ApsFreeCallNode(
@@ -147,12 +144,6 @@ VOID
 ApsInitCallGraph(
     __in BTR_PROFILE_TYPE Type,
     __out PCALL_GRAPH *CallGraph
-    );
-
-PCALL_TREE
-ApsCreateCallTree(
-    __in BTR_PROFILE_TYPE Type,
-    __in BOOLEAN Parallel
     );
 
 PCALL_TREE
