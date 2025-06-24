@@ -588,9 +588,7 @@ TrackDrawBitmap(
     SelectObject(hdc, hPenOld);
     DeleteObject(hPen);
 
-#if defined(_DEBUG)
-	SdkSaveBitmap(Object->hbmpTrack, L"trackbar.bmp", 8);
-#endif
+	SdkDebugOutputBitmap(Object->hbmpTrack, L"trackbar.bmp", 8);
 }
 
 BOOLEAN

@@ -579,6 +579,17 @@ SdkSaveBitmap(
 } 
 
 VOID
+SdkDebugOutputBitmap(HBITMAP Bitmap, PCWSTR Name, int Bits)
+{
+#ifdef _DEBUG
+	WCHAR OutputPath[MAX_PATH];
+	ASSERT(wcslen(ApsCurrentPath) != 0);
+	StringCchPrintfW(OutputPath, MAX_PATH, L"%ws\\%ws", ApsCurrentPath, Name);
+	SdkSaveBitmap(Bitmap, OutputPath, Bits);
+#endif
+}
+
+VOID
 DebugTrace(
 	__in PSTR Format,
 	...

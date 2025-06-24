@@ -1380,11 +1380,5 @@ FlameDrawNodes(
 	Object->ValidRect.top = top;
 	Object->ValidRect.bottom = Object->bmpRect.bottom;
 
-#if defined(_DEBUG)
-	WCHAR OutputPath[MAX_PATH];
-	ASSERT(wcslen(ApsCurrentPath) != 0);
-	StringCchPrintfW(OutputPath, MAX_PATH, L"%ws\\%ws", ApsCurrentPath, L"flame.bmp");
-	SdkSaveBitmap(Object->hbmpFlame, L"flame.bmp", 32);
-#endif
-
+	SdkDebugOutputBitmap(Object->hbmpFlame, L"flame.bmp", 32);
 }

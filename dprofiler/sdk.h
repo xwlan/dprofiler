@@ -217,6 +217,13 @@ SdkSaveBitmap(
 	);
 
 VOID
+SdkDebugOutputBitmap(
+	IN HBITMAP Bitmap,
+	IN PCWSTR Name,
+	int Bits
+	);
+
+VOID
 SdkGetSymbolPath(
     __in PWCHAR Buffer,
     __in ULONG Length
