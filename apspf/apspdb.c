@@ -276,9 +276,10 @@ ApsGetReportPath(
         return ApsReportPath;
     }
 
-    GetCurrentDirectory(MAX_PATH, Path);
+    //GetCurrentDirectory(MAX_PATH, Path);
+    ASSERT(wcslen(ApsCurrentPath) != 0);
     ApsReportPath = (PWSTR)ApsMalloc(MAX_PATH);
-    StringCchPrintf(ApsReportPath, MAX_PATH, L"%s\\log", Path);
+    StringCchPrintf(ApsReportPath, MAX_PATH, L"%s\\log", ApsCurrentPath);
 
     return ApsReportPath;
 }
