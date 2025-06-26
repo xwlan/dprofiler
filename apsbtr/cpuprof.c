@@ -671,7 +671,7 @@ CpuProfileProcedure(
 			//
 
 			if (Status == WAIT_OBJECT_0) {
-				CpuGenerateSample(TRUE);
+				CpuCollectSample(TRUE);
 				BtrProfileObject->Attribute.SamplesDepth += 1;
 			}
 
@@ -727,7 +727,7 @@ CpuSetThreadAffinity(
 }
 
 ULONG
-CpuGenerateSample(
+CpuCollectSample(
 	__in BOOLEAN Extended	
 	)
 {
@@ -777,13 +777,6 @@ CpuGenerateSample(
 
 	GetSystemTimeAsFileTime(&Record->Timestamp);
     Record->Flag = BTR_FLAG_CPU_SAMPLE;
-
-	//
-	// N.B. Get pagefault here to avoid our sampling incur more pagefaults
-	//
-
-    CpuUpdateProcessPageFault(CpuProcess);
-    Record->PageFault = CpuProcess->PageFault[CV_CURRENT] - CpuProcess->PageFault[CV_LAST];
 
 	//
 	// Walk each active thread to collect stack records
@@ -920,6 +913,7 @@ CpuGenerateSample(
 				// after sampling, the thread may be terminating or terminated
 				//
 
+				Thread->GetContextFailed = TRUE;
 				ListEntry = ListEntry->Flink;
 				RemoveEntryList(&Thread->ListEntry);
 				InsertTailList(&FailedThreadList, &Thread->ListEntry);
@@ -935,6 +929,7 @@ CpuGenerateSample(
 			// after sampling, the thread may be terminating or terminated
 			//
 			
+			Thread->SuspendFailed = TRUE;
 			ListEntry = ListEntry->Flink;
 			RemoveEntryList(&Thread->ListEntry);
 			InsertTailList(&FailedThreadList, &Thread->ListEntry);
@@ -992,6 +987,24 @@ CpuGenerateSample(
 		else {
 
 			//
+			// The thread is still active, check its failure status and decrease
+			// its suspend count is necessary and reset thread failure state
+			// 
+			
+			if (Thread->GetContextFailed == TRUE) {
+				ASSERT(Thread->SuspendFailed == FALSE);
+				ResumeThread(Thread->ThreadHandle);
+				BtrTrace("failed to GetThreadContext for TID %u", Thread->ThreadId);
+			}
+			else if (Thread->SuspendFailed == TRUE) {
+				ASSERT(Thread->GetContextFailed == FALSE);
+				BtrTrace("failed to SuspendThread for TID %u", Thread->ThreadId);
+			}
+
+			Thread->SuspendFailed = FALSE;
+			Thread->GetContextFailed = FALSE;
+
+			//
 			// Insert into tail of active thread list
 			//
 
@@ -1004,6 +1017,7 @@ CpuGenerateSample(
 	//
 
 	Record->CpuUsage = CpuComputeUsage(TRUE);
+    Record->PageFault = CpuProcess->PageFault[CV_CURRENT] - CpuProcess->PageFault[CV_LAST];
 
 	//
 	// Track profiling cost by ticks
@@ -1390,7 +1404,6 @@ CpuInitializeProcess(
     __in PBTR_CPU_PROCESS Object 
     )
 {
-    PROCESS_MEMORY_COUNTERS Counters;
     ULONG ProcessId;
     HANDLE ProcessHandle;
 
@@ -1399,11 +1412,6 @@ CpuInitializeProcess(
     if (!ProcessHandle){
         return GetLastError();
     }
-
-    GetProcessMemoryInfo(ProcessHandle, &Counters, sizeof(Counters));
-    Object->PageFault[CV_ENTER] = Counters.PageFaultCount;
-    Object->PageFault[CV_LAST] = Counters.PageFaultCount;
-    Object->PageFault[CV_CURRENT] = Counters.PageFaultCount;
 
     Object->ProcessId = ProcessId;
     Object->ProcessHandle = ProcessHandle;
@@ -1464,6 +1472,98 @@ LARGE_INTEGER CpuProfileKernelDelta;
 LARGE_INTEGER CpuProfileUserDelta;
 
 VOID
+CpuInitializeSystemCounters(
+	VOID
+)
+{
+	FILETIME Idle, Kernel, User;
+
+	//
+	// From MSDN:
+	// lpKernelTime value also includes the amount of time the system has been idle
+	// On a multiprocessor system(with 64 processors or fewer), the value returned 
+	// is the sum of the designated times across all processors.
+	// On systems with more than 64 processors, the value returned is the sum of the 
+	// designated times for the primary processor group that the calling thread belongs to
+	//
+
+	GetSystemTimes(&Idle, &Kernel, &User);
+	CpuTotalIdleTime[CV_ENTER] = Idle;
+	CpuTotalIdleTime[CV_LAST] = Idle;
+	CpuTotalIdleTime[CV_CURRENT] = Idle;
+	CpuTotalKernelTime[CV_ENTER] = Kernel;
+	CpuTotalKernelTime[CV_LAST] = Kernel;
+	CpuTotalKernelTime[CV_CURRENT] = Kernel;
+	CpuTotalUserTime[CV_ENTER] = User;
+	CpuTotalUserTime[CV_LAST] = User;
+	CpuTotalUserTime[CV_CURRENT] = User;
+}
+
+VOID
+CpuInitializeProcessCounters(
+	IN PBTR_CPU_PROCESS Object
+)
+{
+	FILETIME Create, Exit, Kernel, User;
+	PROCESS_MEMORY_COUNTERS Counters;
+
+	GetProcessTimes(Object->ProcessHandle, &Create, &Exit, &Kernel, &User);
+	CpuProcessKernelTime[CV_ENTER] = Kernel;
+	CpuProcessKernelTime[CV_LAST] = Kernel;
+	CpuProcessKernelTime[CV_CURRENT] = Kernel;
+	CpuProcessUserTime[CV_ENTER] = User;
+	CpuProcessUserTime[CV_LAST] = User;
+	CpuProcessUserTime[CV_CURRENT] = User;
+
+	GetProcessMemoryInfo(Object->ProcessHandle, &Counters, sizeof(Counters));
+	Object->PageFault[CV_ENTER] = Counters.PageFaultCount;
+	Object->PageFault[CV_CURRENT] = Counters.PageFaultCount;
+	Object->PageFault[CV_LAST] = Counters.PageFaultCount;
+}
+
+VOID
+CpuInitializeThreadCounters(
+	IN PBTR_CPU_THREAD Object
+)
+{
+	FILETIME Create;
+	FILETIME Exit;
+	FILETIME Kernel;
+	FILETIME User;
+	ULONG64 Cycles;
+
+	GetThreadTimes(Object->ThreadHandle, &Create, &Exit, &Kernel, &User);
+
+	Object->KernelTime[CV_ENTER] = Kernel;
+	Object->KernelTime[CV_LAST] = Kernel;
+	Object->KernelTime[CV_CURRENT] = Kernel;
+	Object->UserTime[CV_ENTER] = User;
+	Object->UserTime[CV_LAST] = User;
+	Object->UserTime[CV_CURRENT] = User;
+
+	CpuQueryThreadCycles(Object, &Cycles);
+	Object->Cycles[CV_ENTER] = Cycles;
+	Object->Cycles[CV_LAST] = Cycles;
+	Object->Cycles[CV_CURRENT] = Cycles;
+}
+
+VOID
+CpuInitializeProfileCounters(
+	VOID
+)
+{
+	FILETIME Create, Exit, Kernel, User;
+
+	GetThreadTimes(GetCurrentThread(), &Create, &Exit, &Kernel, &User);
+	CpuProfileKernelTime[CV_ENTER] = Kernel;
+	CpuProfileKernelTime[CV_LAST] = Kernel;
+	CpuProfileKernelTime[CV_CURRENT] = Kernel;
+	CpuProfileUserTime[CV_ENTER] = User;
+	CpuProfileUserTime[CV_LAST] = User;
+	CpuProfileUserTime[CV_CURRENT] = User;
+}
+
+VOID
 CpuInitializeCounters(
 	VOID
 	)
@@ -1475,18 +1575,17 @@ CpuInitializeCounters(
 	// Fill each thread's initial time value
 	//
 
-	CpuUpdateProcessPageFault(CpuProcess);
-	CpuUpdateSystemCounters();
-	CpuUpdateProcessCounters(CpuProcess);
+	CpuInitializeSystemCounters();
+	CpuInitializeProcessCounters(CpuProcess);
 
 	ListEntry = CpuActiveList.Flink;
 	while (ListEntry != &CpuActiveList) {
 		Thread = CONTAINING_RECORD(ListEntry, BTR_CPU_THREAD, ListEntry);
-		CpuUpdateThreadCounters(Thread);
+		CpuInitializeThreadCounters(Thread);
 		ListEntry = ListEntry->Flink;
 	}
 
-	CpuUpdateProfileCounters();
+	CpuInitializeProfileCounters();
 }
 
 VOID 
@@ -1552,34 +1651,22 @@ CpuGetThreadCounters(
 }
 
 VOID
-CpuUpdateProcessPageFault(
-    __in PBTR_CPU_PROCESS Object 
-    )
-{
-    PROCESS_MEMORY_COUNTERS Counters;
-
-    //
-    // PageFault[CV_CURRENT] - PageFault[CV_LAST] is the pagefault delta
-    // in last sampling period
-    //
-
-    GetProcessMemoryInfo(Object->ProcessHandle, &Counters, sizeof(Counters));
-    Object->PageFault[CV_LAST] = Object->PageFault[CV_CURRENT];
-    Object->PageFault[CV_CURRENT] = Counters.PageFaultCount;
-}
-
-VOID
 CpuUpdateProcessCounters(
     __in PBTR_CPU_PROCESS Object 
     )
 {
 	FILETIME Create, Exit, Kernel, User;
+    PROCESS_MEMORY_COUNTERS Counters;
 
 	GetProcessTimes(Object->ProcessHandle, &Create, &Exit, &Kernel, &User);
 	CpuProcessKernelTime[CV_LAST] = CpuProcessKernelTime[CV_CURRENT];
 	CpuProcessKernelTime[CV_CURRENT] = Kernel;
 	CpuProcessUserTime[CV_LAST] = CpuProcessUserTime[CV_CURRENT];
 	CpuProcessUserTime[CV_CURRENT] = User;
+    
+	GetProcessMemoryInfo(Object->ProcessHandle, &Counters, sizeof(Counters));
+    Object->PageFault[CV_LAST] = Object->PageFault[CV_CURRENT];
+    Object->PageFault[CV_CURRENT] = Counters.PageFaultCount;
 }
 
 VOID
@@ -1588,6 +1675,15 @@ CpuUpdateSystemCounters(
     )
 {
 	FILETIME Idle, Kernel, User;
+
+	//
+	// From MSDN:
+	// lpKernelTime value also includes the amount of time the system has been idle
+	// On a multiprocessor system(with 64 processors or fewer), the value returned 
+	// is the sum of the designated times across all processors.
+	// On systems with more than 64 processors, the value returned is the sum of the 
+	// designated times for the primary processor group that the calling thread belongs to
+	//
 
 	GetSystemTimes(&Idle, &Kernel, &User);
 	CpuTotalIdleTime[CV_LAST] = CpuTotalIdleTime[CV_CURRENT];
@@ -1620,6 +1716,9 @@ CpuComputeUsage(
 	DOUBLE Percent;
 	LONGLONG TotalDelta;
 	LONGLONG ProcessDelta;
+	static LONG CurrentIndex = 0;
+	static ULONG64 ProcessUsage = 0;
+	static ULONG64 TotalUsage = 0;
 
 	//
 	// Compute system delta time
@@ -1663,14 +1762,37 @@ CpuComputeUsage(
 		ProcessDelta = CpuProcessDelta.QuadPart - CpuProfileDelta.QuadPart;
 	}
 
+	ProcessUsage += ProcessDelta;
+	TotalUsage += TotalDelta;
+
+	CurrentIndex += 1;
+	if (CurrentIndex < 9) {
+
+		//
+		// Ensure no divide by zero
+		//
+
+		TotalDelta = max(TotalDelta, 1);
+		Percent = ProcessDelta * 100.0 / TotalDelta;
+		return Percent;
+	}
+
+
+	TotalUsage = max(TotalUsage, 1);
+	Percent = ProcessUsage * 100.0 / TotalUsage;
+
+	if (Percent > 0.0) {
+		DebugTrace("CPU usage: %.2f, ProcessUsage: %u, TotalUsage: %u", Percent, ProcessUsage, TotalUsage);
+	}
+
 	//
-	// Ensure no divide by zero
+	// Reset to start next round usage compute
 	//
 
-	TotalDelta = max(TotalDelta, 1);
-	Percent = ProcessDelta * 100.0 / TotalDelta;
+	CurrentIndex = 0;
+	TotalUsage = 0;
+	ProcessUsage = 0;
 
-    DebugTrace("CPU usage: %.2f", Percent);
 	return Percent;
 }
 

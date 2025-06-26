@@ -62,7 +62,8 @@ typedef struct _BTR_CPU_THREAD {
 
 	BOOLEAN FirstRun;
 	BOOLEAN Retired;
-	BOOLEAN Spare[2];
+	BOOLEAN SuspendFailed;
+	BOOLEAN GetContextFailed;
 
 	ULONG NumberOfSamples;
 	ULONG FirstSample;
@@ -207,7 +208,7 @@ CpuDllCanUnload(
 	);
 
 ULONG
-CpuGenerateSample(
+CpuCollectSample(
 	__in BOOLEAN Extended	
 	);
 
