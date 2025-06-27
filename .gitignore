@@ -11,6 +11,8 @@
 *.sdf
 *.opensdf
 *.suo
+*.aps
+*.dmp
 
 # folders
 bin
