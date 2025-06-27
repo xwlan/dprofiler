@@ -389,6 +389,7 @@ CcrContentionSortCallback(
 	ListView_GetItemText(hWndList, First,  ListView->LastClickedColumn, FirstData,  MAX_PATH);
 	ListView_GetItemText(hWndList, Second, ListView->LastClickedColumn, SecondData, MAX_PATH);
 
+	Result = 0;
 	switch(ListView->LastClickedColumn) {
 
 	case CcrUiAddress:
