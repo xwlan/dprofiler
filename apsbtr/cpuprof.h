@@ -92,7 +92,6 @@ typedef struct _BTR_CPU_RECORD {
 
 	BTR_CPU_FLAG Flag;
 	BTR_CPU_SAMPLE Sample[ANYSIZE_ARRAY];
-
 } BTR_CPU_RECORD, *PBTR_CPU_RECORD;
 
 //
@@ -265,6 +264,11 @@ CpuAllocateRecord(
 	__in ULONG Length 
 	);
 
+VOID
+CpuReleaseBuffer(
+	VOID
+	);
+
 ULONG
 CpuWriteRecord(
 	__in PBTR_CPU_RECORD Record
@@ -314,9 +318,10 @@ CpuGetThreadCounters(
 	);
 
 VOID
-CpuUpdateProcessPageFault(
-    __in PBTR_CPU_PROCESS Object 
-    );
+CpuBuildMarkRecord(
+	IN BOOLEAN IncludeOverhead,
+	OUT PBTR_CPU_RECORD Record
+	);
 
 VOID
 CpuUpdateProcessCounters(
@@ -332,11 +337,6 @@ VOID
 CpuUpdateProfileCounters(
 	VOID
     );
-
-double
-CpuComputeUsage(
-	__in BOOLEAN IncludeOverhead
-	);
 
 ULONG
 CpuFillAddressTable(

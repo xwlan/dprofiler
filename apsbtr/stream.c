@@ -599,7 +599,7 @@ BtrWriteDllStream(
 	for(i = 0; i < Count; i++) {
 
 		Dll = &Dlls->Dll[i];
-		Dll->DllId = i;
+		Dll->DllId = (USHORT)i;
 		Dll->Count = 0;
 
 		//
@@ -1412,7 +1412,7 @@ BtrWriteDllStreamEx(
 
 			Dll->BaseVa = (ULONG_PTR)Module->BaseOfImage;
 			Dll->Size = Module->SizeOfImage;
-			Dll->DllId = i;
+			Dll->DllId = (USHORT)i;
 			Dll->Count = 0;
 			Dll->Timestamp = Module->TimeDateStamp;
 			Dll->CheckSum = Module->CheckSum;

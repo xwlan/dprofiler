@@ -1253,6 +1253,51 @@ ApsFreeModule(
 	}
 }
 
+BOOLEAN
+ApsIsClrImageFile(
+	IN PCWSTR ModuleName
+	)
+{
+	PUCHAR Base;
+	HANDLE FileHandle;
+	HANDLE ViewHandle;
+	PIMAGE_DATA_DIRECTORY Directory;
+	PIMAGE_NT_HEADERS NtHeader;
+	BOOLEAN IsClrImage = FALSE;
+
+	Base = ApsMapImageFile(ModuleName, &FileHandle, &ViewHandle);
+	if (!Base) {
+		return FALSE;
+	}
+	NtHeader = (PIMAGE_NT_HEADERS)((ULONG_PTR)Base + ((PIMAGE_DOS_HEADER)Base)->e_lfanew);
+
+#if defined (_M_IX86)
+
+	if (NtHeader->FileHeader.Machine != IMAGE_FILE_MACHINE_I386) {
+		ApsUnmapImageFile(Base, FileHandle, ViewHandle);
+		return FALSE;
+	}
+
+#elif defined (_M_X64)
+
+	if (NtHeader->FileHeader.Machine != IMAGE_FILE_MACHINE_AMD64) {
+		ApsUnmapImageFile(Base, FileHandle, ViewHandle);
+		return FALSE;
+	}
+
+#endif
+
+	Directory = &NtHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR];
+	if (!Directory->VirtualAddress) {
+		IsClrImage = FALSE;
+	}
+	else {
+		IsClrImage = TRUE;
+	}
+	ApsUnmapImageFile(Base, FileHandle, ViewHandle);
+	return IsClrImage;
+}
+
 ULONG
 ApsEnumerateDllExport(
 	__in PWSTR ModuleName,

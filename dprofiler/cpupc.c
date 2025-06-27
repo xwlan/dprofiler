@@ -11,6 +11,7 @@
 #include "apsrpt.h"
 #include "frame.h"
 #include "sdk.h"
+#include "apscpu.h"
 
 DIALOG_SCALER_CHILD CpuPcChildren[] = {
 	{ IDC_LIST_PC, AlignRight, AlignBottom }
@@ -24,7 +25,7 @@ LISTVIEW_COLUMN CpuPcColumn[] = {
 	{ 160, L"Name",    LVCFMT_LEFT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 120, L"Module",  LVCFMT_LEFT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 80,  L"Sample",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 200, L"Sample %",LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 200, L"Time %",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 240, L"Line",    LVCFMT_LEFT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 };
 
@@ -72,6 +73,7 @@ CpuPcCreate(
 	PcContext = (PCPU_PC_CONTEXT)SdkMalloc(sizeof(CPU_PC_CONTEXT));
 	PcContext->PercentSpace = 0;
 	PcContext->PercentMinimum = CpuPcColumn[CpuPcPercentColumn].Width;
+	PcContext->OnCpu = NULL;
 
 	Context = (PCPU_FORM_CONTEXT)SdkMalloc(sizeof(CPU_FORM_CONTEXT));
 	Context->CtrlId = CtrlId;
@@ -199,6 +201,16 @@ CpuPcOnClose(
 	__in LPARAM lp
 	)
 {
+	PDIALOG_OBJECT Object;
+	PCPU_FORM_CONTEXT Context;
+	PCPU_PC_CONTEXT PcContext;
+
+	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
+	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
+	PcContext = (PCPU_PC_CONTEXT)Context->Context;
+	ASSERT(PcContext->OnCpu != NULL);
+	ApsFree(PcContext->OnCpu);
+
 	EndDialog(hWnd, IDOK);
 	return TRUE;
 }
@@ -406,7 +418,7 @@ CpuPcSortCallback(
 {
     WCHAR FirstData[MAX_PATH + 1];
     WCHAR SecondData[MAX_PATH + 1];
-	PBTR_PC_ENTRY Pc1, Pc2;
+	PCPU_PC_ENTRY Pc1, Pc2;
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
 	LISTVIEW_OBJECT *ListView;
@@ -436,9 +448,17 @@ CpuPcSortCallback(
 		Result = wcsicmp(FirstData, SecondData);
 	}
 	
-	if (ListView->LastClickedColumn == CpuPcSampleColumn || 
-		ListView->LastClickedColumn == CpuPcPercentColumn ) {
-		Result = Pc1->Exclusive - Pc2->Exclusive;
+	if (ListView->LastClickedColumn == CpuPcSampleColumn) {
+		Result = Pc1->Count - Pc2->Count;
+	}
+
+	if (ListView->LastClickedColumn == CpuPcPercentColumn) {
+		float Percent1, Percent2;
+	    ListView_GetItemText(hWndList, First,  ListView->LastClickedColumn, FirstData,  MAX_PATH);
+	    ListView_GetItemText(hWndList, Second, ListView->LastClickedColumn, SecondData, MAX_PATH);
+		Percent1 = _wtof(FirstData);
+		Percent2 = _wtof(SecondData);
+		Result = Percent1 < Percent2 ? -1 : 1;
 	}
 	
 	return ListView->SortOrder ? Result : -Result;
@@ -459,20 +479,16 @@ CpuPcInsertData(
 	PBTR_TEXT_TABLE TextTable;
 	PBTR_TEXT_FILE TextFile;
 	PBTR_TEXT_ENTRY TextEntry;
-	PBTR_PC_ENTRY PcEntry;
 	PBTR_LINE_ENTRY LineEntry;
 	PBTR_LINE_ENTRY Line;
-	ULONG Exclusive;
-	ULONG Inclusive;
 	PWSTR Unicode;
-	double Percent;
+	PCPU_ONCPU_STATISTICS OnCpu = NULL;
+	PCPU_PC_ENTRY Pc;
+	PDIALOG_OBJECT Object;
+	PCPU_FORM_CONTEXT Context;
+	PCPU_PC_CONTEXT PcContext;
 
 	hWndCtrl = GetDlgItem(hWnd, IDC_LIST_PC);
-
-	Count = (ULONG)(Head->Streams[STREAM_PC].Length / sizeof(BTR_PC_ENTRY));
-	PcEntry = (PBTR_PC_ENTRY)((PUCHAR)Head + Head->Streams[STREAM_PC].Offset);
-	
-	ApsGetCpuSampleCounters(Head, &Inclusive, &Exclusive);
 
 	TextFile = (PBTR_TEXT_FILE)((PUCHAR)Head + Head->Streams[STREAM_SYMBOL].Offset);
 
@@ -482,21 +498,24 @@ CpuPcInsertData(
 		Line = NULL;
 	}
 
+	CpuBuildOnCpuStatistics(Head, &OnCpu);
+	ASSERT(OnCpu != NULL);
+
+	//
+	// Save OnCpu in CPU form context
+	//
+
+	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
+	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
+	PcContext = (PCPU_PC_CONTEXT)Context->Context;
+	PcContext->OnCpu = OnCpu;
+
 	TextTable = ApsBuildSymbolTable(TextFile, 4093);
 
-	for(i = 0, j = 0; i < Count; i++) {
+	for(i = 0, j = 0; i < OnCpu->PcCount; i++) {
 
-		if (!PcEntry->Exclusive) {
-			PcEntry += 1;
-			continue;
-		}
-		
-		Percent = (PcEntry->Exclusive * 1.0) / (Exclusive * 1.0);
-		if (Percent < CPU_UI_INCLUSIVE_RATIO_THRESHOLD) {
-			PcEntry += 1;
-			continue;
-		}
-			
+		Pc = &OnCpu->Pc[i];
+
 		//
 		// Symbol name
 		//
@@ -504,13 +523,13 @@ CpuPcInsertData(
 		lvi.iItem = j;
 		lvi.iSubItem = 0;
 		lvi.mask = LVIF_TEXT|LVIF_PARAM;
-		lvi.lParam = (LPARAM)PcEntry;
+		lvi.lParam = (LPARAM)Pc;
 
-		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Address);
+		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Pc->Pc.Address);
 		if (TextEntry) {
 			StringCchPrintf(Buffer, MAX_PATH, L"%S", TextEntry->Text);
 		} else {
-            ApsFormatAddress(Buffer, MAX_PATH, PcEntry->Address, TRUE);
+            ApsFormatAddress(Buffer, MAX_PATH, Pc->Pc.Address, TRUE);
 		}
 
 		lvi.pszText = Buffer;
@@ -523,7 +542,7 @@ CpuPcInsertData(
         lvi.iSubItem = 1;
 		lvi.mask = LVIF_TEXT;
 
-        ApsGetDllBaseNameById(Head, PcEntry->DllId, Buffer, MAX_PATH);
+        ApsGetDllBaseNameById(Head, Pc->Pc.DllId, Buffer, MAX_PATH);
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -532,16 +551,16 @@ CpuPcInsertData(
 		//
 
 		lvi.iSubItem = 2;
-		StringCchPrintf(Buffer, MAX_PATH, L"%u", PcEntry->Exclusive);
+		StringCchPrintf(Buffer, MAX_PATH, L"%u", Pc->Count);
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
 		//
-		// Sample %
+		// Time %
 		//
 
 		lvi.iSubItem = 3;
-		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", Percent * 100.0);
+		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", CpuComputeOnCpuPercent(OnCpu, Pc, TRUE));
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -551,9 +570,9 @@ CpuPcInsertData(
 		
 		lvi.iSubItem = 4;
 
-		if (PcEntry->LineId != -1) {
+		if (Pc->Pc.LineId != -1) {
 			ASSERT(Line != NULL);
-			LineEntry = Line + PcEntry->LineId;
+			LineEntry = Line + Pc->Pc.LineId;
 			StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
 			lvi.pszText = Buffer; 
 		} else {
@@ -563,7 +582,7 @@ CpuPcInsertData(
 		ListView_SetItem(hWndCtrl, &lvi);
 
 		j += 1;
-		PcEntry += 1;
+		Pc += 1;
 	}
 
 	ApsDestroySymbolTable(TextTable);
@@ -573,8 +592,9 @@ CpuPcInsertData(
 	//
 
 	Unicode = (PWSTR)ApsMalloc(MAX_PATH * 2);
-	StringCchPrintf(Unicode, MAX_PATH, L"Total %u IP samples", Exclusive);
+	StringCchPrintf(Unicode, MAX_PATH, L"Total %u IP samples running on CPU", OnCpu->PcCount);
 	PostMessage(GetParent(hWnd), WM_USER_STATUSBAR, 0, (LPARAM)Unicode);
+
 }
 
 LRESULT 

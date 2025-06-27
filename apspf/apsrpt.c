@@ -29,6 +29,7 @@ ApsWriteReport(
 	PPF_STREAM_SYSTEM System;
 	HANDLE IndexHandle;
 	HANDLE DataHandle;
+	ULONG64 RecordSize;
 
 	Profile->ReportFileHandle = CreateFile(Profile->ReportPath,
 		                                   GENERIC_READ|GENERIC_WRITE,
@@ -144,7 +145,7 @@ ApsWriteReport(
 		}
 
 		Status = ApsWriteIndexStream(Profile, Head, Profile->ReportFileHandle, 
-			                         IndexHandle, Start, &End);
+			                         IndexHandle, Start, &End, &RecordSize);
 		CloseHandle(IndexHandle);
 		DeleteFile(Profile->IndexPath);
 
@@ -169,7 +170,7 @@ ApsWriteReport(
 		}
 
 		Status = ApsWriteRecordStream(Profile, Head, Profile->ReportFileHandle, 
-			                          DataHandle, Start, &End);
+			                          DataHandle, Start, RecordSize, &End);
 		CloseHandle(DataHandle);
 		DeleteFile(Profile->DataPath);
 
@@ -426,6 +427,8 @@ ApsWriteDllStream(
 			NameString = (PMINIDUMP_STRING)((PUCHAR)Buffer + Module->ModuleNameRva);
 			StringCchCopy(Dll->Path, MAX_PATH, NameString->Buffer);
 
+			Dll->IsClrImage = ApsIsClrImageFile(Dll->Path);
+
 			//
 			// Copy CvRecord, note that the pdb name may contains a full path, we
 			// need split the path and reserve only its short file name 
@@ -631,7 +634,8 @@ ApsWriteIndexStream(
 	IN HANDLE FileHandle,
 	IN HANDLE IndexHandle,
 	IN LARGE_INTEGER Start,
-	OUT PLARGE_INTEGER End
+	OUT PLARGE_INTEGER End,
+	OUT PULONG64 RecordSize
 	)
 {
 	ULONG Status;
@@ -639,12 +643,22 @@ ApsWriteIndexStream(
 	ULONG Size;
 	PVOID Buffer;
 	HANDLE MappingHandle;
+	ULONG MarkStep;
+	ULONG NumberOfIndex;
+	PBTR_FILE_INDEX Index;
 
     Status = APS_STATUS_OK;
     Complete = 0;
     Size = 0;
     Buffer = NULL;
     MappingHandle = NULL;
+
+	//
+	// Compute mark step to adjust number of valid indexes
+	//
+
+	*RecordSize = 0;
+	MarkStep = 1000 / Profile->Attribute.SamplingPeriod;
 
 	__try {
 
@@ -661,12 +675,27 @@ ApsWriteIndexStream(
 			__leave;
 		}
 
+		//
+		// Drop redudant indexes by round it up to MarkStep + 1
+		//
+
+		NumberOfIndex = Size / sizeof(BTR_FILE_INDEX);
+		NumberOfIndex = NumberOfIndex - NumberOfIndex % (MarkStep + 1);
+		Size = NumberOfIndex * sizeof(BTR_FILE_INDEX);
+
 		SetFilePointerEx(FileHandle, Start, NULL, FILE_BEGIN);
 		Status = WriteFile(FileHandle, Buffer, Size, &Complete, NULL);
 		if (Status != TRUE) {
 			Status = GetLastError();
 			__leave;
 		}
+
+		//
+		// Set record size match the last valid index
+		//
+
+		Index = (PBTR_FILE_INDEX)Buffer + NumberOfIndex - 1;
+		*RecordSize = Index->Offset + Index->Length;
 
 		Head->Streams[STREAM_INDEX].Offset = Start.QuadPart;
 		Head->Streams[STREAM_INDEX].Length = Size;
@@ -697,6 +726,7 @@ ApsWriteRecordStream(
 	IN HANDLE FileHandle,
 	IN HANDLE DataHandle,
 	IN LARGE_INTEGER Start,
+	IN ULONG64 RecordSize,
 	OUT PLARGE_INTEGER End
 	)
 {
@@ -708,13 +738,15 @@ ApsWriteRecordStream(
 
     Status = APS_STATUS_OK;
     Complete = 0;
-    Size = 0;
     Buffer = NULL;
     MappingHandle = NULL;
 
 	__try {
 
-		Size = GetFileSize(DataHandle, NULL);
+		//
+		// N.B. Currently we don't handle file bigger than 4G
+		//
+
 		MappingHandle = CreateFileMapping(DataHandle, NULL, PAGE_READWRITE, 0, 0, 0);
 		if (!MappingHandle) {
 			Status = GetLastError();
@@ -728,16 +760,16 @@ ApsWriteRecordStream(
 		}
 
 		SetFilePointerEx(FileHandle, Start, NULL, FILE_BEGIN);
-		Status = WriteFile(FileHandle, Buffer, Size, &Complete, NULL);
+		Status = WriteFile(FileHandle, Buffer, (DWORD)RecordSize, &Complete, NULL);
 		if (Status != TRUE) {
 			Status = GetLastError();
 			__leave;
 		}
 
 		Head->Streams[STREAM_RECORD].Offset = Start.QuadPart;
-		Head->Streams[STREAM_RECORD].Length = Size;
+		Head->Streams[STREAM_RECORD].Length = RecordSize;
 
-		End->QuadPart = Start.QuadPart + Size;
+		End->QuadPart = Start.QuadPart + RecordSize;
 		SetFilePointerEx(FileHandle, *End, NULL, FILE_BEGIN);
 
 		Status = APS_STATUS_OK;

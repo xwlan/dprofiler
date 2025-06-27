@@ -158,6 +158,26 @@ typedef struct _CPU_THREAD_TABLE {
 
 } CPU_THREAD_TABLE, *PCPU_THREAD_TABLE;
 
+//
+// For On CPU analysis
+//
+
+typedef struct _CPU_PC_ENTRY {
+	BTR_PC_ENTRY Pc;
+	ULONG Count;
+	ULONG KernelTime;
+	ULONG UserTime;
+} CPU_PC_ENTRY, *PCPU_PC_ENTRY;
+
+typedef struct _CPU_ONCPU_STATISTICS {
+	ULONG TotalKernelTime;
+	ULONG TotalUserTime;
+	ULONG TotalCount;
+	ULONG PcCount;
+	ULONG AllocationCount;
+	CPU_PC_ENTRY Pc[ANYSIZE_ARRAY];
+} CPU_ONCPU_STATISTICS, *PCPU_ONCPU_STATISTICS;
+
 ULONG
 ApsCreateCpuProfile(
 	__in ULONG ProcessId,
@@ -338,6 +358,44 @@ BTR_CPU_STATE_TYPE
 CpuPcToThreadState(
 	__in ULONG_PTR Pc0,
 	__in ULONG_PTR Pc1
+	);
+
+ULONG
+CpuBuildOnCpuStatistics(
+	IN PPF_REPORT_HEAD Head,
+	OUT PCPU_ONCPU_STATISTICS* Stat
+	);
+
+VOID
+CpuUpdateOnCpuCounter(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PBTR_CPU_SAMPLE Sample,
+	IN PBTR_PC_ENTRY PcEntry,
+	IN PBTR_TEXT_ENTRY TextEntry
+	);
+
+BOOLEAN
+CpuIsMarkRecord(
+	IN PBTR_CPU_RECORD Record
+	);
+
+VOID
+CpuDebugOnCpuStatistics(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PBTR_TEXT_TABLE TextTable
+	);
+
+int __cdecl
+CpuOnCpuPcSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
+	);
+
+float
+CpuComputeOnCpuPercent(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_PC_ENTRY Pc,
+	IN BOOLEAN ByTime
 	);
 
 #ifdef __cplusplus 

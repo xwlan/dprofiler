@@ -268,6 +268,12 @@ CpuUnload(
 	}
 
 	//
+	// Release CPU record buffer 
+	//
+
+	CpuReleaseBuffer();
+	
+	//
 	// Close index and data file
 	//
 
@@ -750,6 +756,14 @@ CpuCollectSample(
 	PVOID Callers[MAX_STACK_DEPTH];
 	LARGE_INTEGER ExitTime;
 	LARGE_INTEGER EnterTime;
+	BTR_CPU_RECORD MarkRecord;
+	static ULONG MarkStep = 0;
+	static ULONG CurrentStep = 0;
+
+	if (MarkStep == 0) {
+		MarkStep = 1000 / BtrProfileObject->Attribute.SamplingPeriod;
+		ASSERT(MarkStep != 0);
+	}
 
 	QueryPerformanceCounter(&EnterTime);
 
@@ -1013,13 +1027,6 @@ CpuCollectSample(
 	}
 
 	//
-	// Compute CPU usage of current process
-	//
-
-	Record->CpuUsage = CpuComputeUsage(TRUE);
-    Record->PageFault = CpuProcess->PageFault[CV_CURRENT] - CpuProcess->PageFault[CV_LAST];
-
-	//
 	// Track profiling cost by ticks
 	//
 
@@ -1031,6 +1038,18 @@ CpuCollectSample(
 	//
 
 	CpuWriteRecord(Record);
+
+	//
+	// Check whether a mark record required, insert mark
+	// and reset CurrentStep
+	//
+
+	CurrentStep += 1;
+	if (CurrentStep == MarkStep) {
+		CpuBuildMarkRecord(TRUE, &MarkRecord);
+		CpuWriteRecord(&MarkRecord);
+		CurrentStep = 0;
+	}
 
     //
     // Update thread list
@@ -1059,6 +1078,22 @@ CpuAllocateRecord(
 	CpuRecordBuffer = (PBTR_CPU_RECORD)VirtualAlloc(NULL, CpuRecordBufferLength, 
 		                                            MEM_COMMIT, PAGE_READWRITE);
 	return CpuRecordBuffer;
+}
+
+VOID
+CpuReleaseBuffer(
+	VOID
+	)
+{
+	//
+	// Free CPU record buffer
+	//
+
+	if (CpuRecordBuffer) {
+		VirtualFree(CpuRecordBuffer, 0, MEM_RELEASE);
+		CpuRecordBuffer = NULL;
+		CpuRecordBufferLength = 0;
+	}
 }
 
 ULONG
@@ -1708,17 +1743,15 @@ CpuUpdateProfileCounters(
 	CpuProfileUserTime[CV_CURRENT] = User;
 }
 
-double
-CpuComputeUsage(
-	__in BOOLEAN IncludeOverhead
+VOID
+CpuBuildMarkRecord(
+	IN BOOLEAN IncludeOverhead,
+	OUT PBTR_CPU_RECORD Record
 	)
 {
 	DOUBLE Percent;
 	LONGLONG TotalDelta;
 	LONGLONG ProcessDelta;
-	static LONG CurrentIndex = 0;
-	static ULONG64 ProcessUsage = 0;
-	static ULONG64 TotalUsage = 0;
 
 	//
 	// Compute system delta time
@@ -1728,8 +1761,8 @@ CpuComputeUsage(
 
 	CpuComputeTimeDelta(&CpuTotalIdleTime[CV_LAST], &CpuTotalIdleTime[CV_CURRENT], &CpuTotalIdleDelta);
 	CpuComputeTimeDelta(&CpuTotalKernelTime[CV_LAST], &CpuTotalKernelTime[CV_CURRENT], &CpuTotalKernelDelta);
-	CpuComputeTimeDelta(&CpuTotalUserTime[CV_LAST],&CpuTotalUserTime[CV_CURRENT], &CpuTotalUserDelta);
-	
+	CpuComputeTimeDelta(&CpuTotalUserTime[CV_LAST], &CpuTotalUserTime[CV_CURRENT], &CpuTotalUserDelta);
+
 	CpuTotalDelta.QuadPart = CpuTotalKernelDelta.QuadPart + CpuTotalUserDelta.QuadPart;
 
 	//
@@ -1737,19 +1770,19 @@ CpuComputeUsage(
 	//
 
 	CpuUpdateProcessCounters(CpuProcess);
-	CpuComputeTimeDelta(&CpuProcessKernelTime[CV_LAST],&CpuProcessKernelTime[CV_CURRENT],&CpuProcessKernelDelta);
-	CpuComputeTimeDelta(&CpuProcessUserTime[CV_LAST],&CpuProcessUserTime[CV_CURRENT],&CpuProcessUserDelta);
+	CpuComputeTimeDelta(&CpuProcessKernelTime[CV_LAST], &CpuProcessKernelTime[CV_CURRENT], &CpuProcessKernelDelta);
+	CpuComputeTimeDelta(&CpuProcessUserTime[CV_LAST], &CpuProcessUserTime[CV_CURRENT], &CpuProcessUserDelta);
 	CpuProcessDelta.QuadPart = CpuProcessKernelDelta.QuadPart + CpuProcessUserDelta.QuadPart;
-	
+
 	//
 	// Compute profile delta time
 	//
 
 	CpuUpdateProfileCounters();
-	CpuComputeTimeDelta(&CpuProfileKernelTime[CV_LAST], &CpuProfileKernelTime[CV_CURRENT],&CpuProfileKernelDelta);
-	CpuComputeTimeDelta(&CpuProfileUserTime[CV_LAST],&CpuProfileUserTime[CV_CURRENT],&CpuProfileUserDelta);
+	CpuComputeTimeDelta(&CpuProfileKernelTime[CV_LAST], &CpuProfileKernelTime[CV_CURRENT], &CpuProfileKernelDelta);
+	CpuComputeTimeDelta(&CpuProfileUserTime[CV_LAST], &CpuProfileUserTime[CV_CURRENT], &CpuProfileUserDelta);
 	CpuProfileDelta.QuadPart = CpuProfileKernelDelta.QuadPart + CpuProfileUserDelta.QuadPart;
-		
+
 	//
 	// Compute the process's CPU usage 
 	//
@@ -1757,43 +1790,44 @@ CpuComputeUsage(
 	if (IncludeOverhead) {
 		TotalDelta = CpuTotalDelta.QuadPart;
 		ProcessDelta = CpuProcessDelta.QuadPart;
-	} else {
+	}
+	else {
 		TotalDelta = CpuTotalDelta.QuadPart - CpuProfileDelta.QuadPart;
 		ProcessDelta = CpuProcessDelta.QuadPart - CpuProfileDelta.QuadPart;
 	}
 
-	ProcessUsage += ProcessDelta;
-	TotalUsage += TotalDelta;
-
-	CurrentIndex += 1;
-	if (CurrentIndex < 9) {
-
-		//
-		// Ensure no divide by zero
-		//
-
-		TotalDelta = max(TotalDelta, 1);
-		Percent = ProcessDelta * 100.0 / TotalDelta;
-		return Percent;
-	}
-
-
-	TotalUsage = max(TotalUsage, 1);
-	Percent = ProcessUsage * 100.0 / TotalUsage;
-
-	if (Percent > 0.0) {
-		DebugTrace("CPU usage: %.2f, ProcessUsage: %u, TotalUsage: %u", Percent, ProcessUsage, TotalUsage);
-	}
-
 	//
-	// Reset to start next round usage compute
+	// Ensure no divide by zero
 	//
 
-	CurrentIndex = 0;
-	TotalUsage = 0;
-	ProcessUsage = 0;
+	TotalDelta = max(TotalDelta, 1);
+	Percent = ProcessDelta * 100.0 / TotalDelta;
 
-	return Percent;
+	//
+	// Set ActiveCount as 1 to make CpuWriteRecord correctly compute record size
+	//
+
+	ZeroMemory(Record, sizeof(BTR_CPU_RECORD));
+	Record->ActiveCount = 1; 
+	Record->CpuUsage = Percent;
+
+	//
+	// Track system times, note that page fault is a process counter
+	//
+
+	Record->KernelTime = (ULONG64)CpuTotalKernelDelta.QuadPart;
+	Record->UserTime = (ULONG64)CpuTotalUserDelta.QuadPart;
+    Record->PageFault = CpuProcess->PageFault[CV_CURRENT] - CpuProcess->PageFault[CV_LAST];
+	Record->ProfileTime = CpuProfileDelta.LowPart;
+
+	//
+	// Track process times
+	//
+
+	Record->Sample[0].KernelTime = CpuProcessKernelDelta.LowPart;
+	Record->Sample[0].UserTime = CpuProcessUserDelta.LowPart;
+	
+	Record->Flag = BTR_FLAG_CPU_MARKER;
 }
 
 //

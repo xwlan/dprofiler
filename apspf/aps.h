@@ -394,6 +394,12 @@ ApsFreeModule(
 	__in PAPS_MODULE Module 
 	);
 
+
+BOOLEAN
+ApsIsClrImageFile(
+	IN PCWSTR ModuleName
+	);
+
 ULONG
 ApsGetModuleTimeStamp(
 	__in PAPS_MODULE Module,

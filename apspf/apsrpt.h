@@ -73,22 +73,25 @@ ApsWriteDllStream(
 
 ULONG
 ApsWriteIndexStream(
-	__in PAPS_PROFILE_OBJECT Profile,
-	__in PPF_REPORT_HEAD Head,
-	__in HANDLE FileHandle,
-	__in HANDLE IndexHandle,
-	__in LARGE_INTEGER Start,
-	__out PLARGE_INTEGER End
+	IN PAPS_PROFILE_OBJECT Profile,
+	IN PPF_REPORT_HEAD Head,
+	IN HANDLE FileHandle,
+	IN HANDLE IndexHandle,
+	IN LARGE_INTEGER Start,
+	OUT PLARGE_INTEGER End,
+	OUT PULONG64 RecordSize
 	);
+
 
 ULONG
 ApsWriteRecordStream(
-	__in PAPS_PROFILE_OBJECT Profile,
-	__in PPF_REPORT_HEAD Head,
-	__in HANDLE FileHandle,
-	__in HANDLE DataHandle,
-	__in LARGE_INTEGER Start,
-	__out PLARGE_INTEGER End
+	IN PAPS_PROFILE_OBJECT Profile,
+	IN PPF_REPORT_HEAD Head,
+	IN HANDLE FileHandle,
+	IN HANDLE DataHandle,
+	IN LARGE_INTEGER Start,
+	IN ULONG64 RecordSize,
+	OUT PLARGE_INTEGER End
 	);
 
 ULONG

@@ -417,6 +417,16 @@ CpuScanThreadedPc(
         //
 
 		Record = CpuGetNextCpuRecord(Record, Number);
+
+		//
+		// N.B. We temporarily skip mark record to avoid break comptability
+		// with old implementation of threaded PC statistics.
+		//
+
+		if (Record->Flag & BTR_FLAG_CPU_MARKER) {
+			continue;
+		}
+
         //ApsDebugTrace("cpur #%u: %.03f", Number, Record->CpuUsage);
         Table->KernelTime += Record->KernelTime;
         Table->UserTime += Record->UserTime;
@@ -1403,6 +1413,16 @@ CpuComputeUsageByRange(
 
 	for(Number = First; Number <= Last; Number += 1) {
 	    Record = (PBTR_CPU_RECORD)((PUCHAR)Record + (ULONG)Index[Number].Offset);
+
+		//
+		// N.B. We temporarily skip mark record to avoid break compatibilty with
+		// old implementation.
+		//
+
+		if (Record->Flag & BTR_FLAG_CPU_MARKER) {
+			continue;
+		}
+
 		*CpuMin = min(*CpuMin, Record->CpuUsage);
 		*CpuMax = max(*CpuMax, Record->CpuUsage);
 		Total += Record->CpuUsage;
@@ -1433,4 +1453,293 @@ CpuGetUsageByIndex(
 
 	Record = (PBTR_CPU_RECORD)((PUCHAR)Record + (ULONG)Index[Number].Offset);
 	return Record->CpuUsage;
+}
+
+BOOLEAN
+CpuIsMarkRecord(
+	IN PBTR_CPU_RECORD Record
+	)
+{
+	return (Record->Flag & BTR_FLAG_CPU_MARKER);
+}
+
+VOID
+CpuUpdateOnCpuCounter(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PBTR_CPU_SAMPLE Sample,
+	IN PBTR_PC_ENTRY PcEntry,
+	IN PBTR_TEXT_ENTRY TextEntry
+	)
+{
+	ULONG i;
+	PCPU_PC_ENTRY CpuPc;
+
+	for (i = 0; i < OnCpu->AllocationCount; i++) {
+		CpuPc = &OnCpu->Pc[i];
+		if (!CpuPc->Pc.Address) {
+
+			//
+			// Scan an empty slot and allocate for current sample
+			//
+
+			CpuPc->Pc = *PcEntry;
+			CpuPc->Count = 1;
+			CpuPc->KernelTime = Sample->KernelTime;
+			CpuPc->UserTime = Sample->UserTime;
+
+			OnCpu->PcCount += 1;
+			OnCpu->TotalCount += 1;
+			OnCpu->TotalKernelTime += Sample->KernelTime;
+			OnCpu->TotalUserTime += Sample->UserTime;
+			break;
+		}
+		else if ((LONG_PTR)CpuPc->Pc.Address == (LONG_PTR)PcEntry->Address) {
+
+			//
+			// Find the match PcEntry, update its counters
+			//
+
+			CpuPc->Count += 1;
+			CpuPc->KernelTime += Sample->KernelTime;
+			CpuPc->UserTime += Sample->UserTime;
+			
+			OnCpu->TotalCount += 1;
+			OnCpu->TotalKernelTime += Sample->KernelTime;
+			OnCpu->TotalUserTime += Sample->UserTime;
+			break;
+		}
+	}
+}
+
+ULONG
+CpuBuildOnCpuStatistics(
+	IN PPF_REPORT_HEAD Head,
+	OUT PCPU_ONCPU_STATISTICS *Stat 
+	)
+{
+	PBTR_FILE_INDEX Index;
+	PBTR_CPU_RECORD Record;
+	PBTR_CPU_SAMPLE Sample;
+	ULONG Number;
+	ULONG Count;
+	ULONG ThreadCount;
+	ULONG i;
+	PBTR_STACK_RECORD StackTrace;
+	PBTR_STACK_RECORD StackFile;
+	PBTR_DLL_FILE DllFile;
+	PBTR_DLL_ENTRY DllEntry;
+	PBTR_FUNCTION_ENTRY FuncEntry;
+	PBTR_LINE_ENTRY LineEntry;
+	PBTR_PC_TABLE PcTable;
+	PBTR_PC_ENTRY PcEntry;
+	PBTR_TEXT_TABLE TextTable;
+	PBTR_TEXT_FILE TextFile;
+	PBTR_TEXT_ENTRY TextEntry;
+
+	int MaxPcCount;
+	PCPU_ONCPU_STATISTICS OnCpu;
+
+	//
+	// Require PC stream is available
+	//
+
+	if (!Head->Streams[STREAM_PC].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	if (!Head->Streams[STREAM_INDEX].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	if (!Head->Streams[STREAM_RECORD].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	Index = (PBTR_FILE_INDEX)ApsGetStreamPointer(Head, STREAM_INDEX);
+	Record = (PBTR_CPU_RECORD)ApsGetStreamPointer(Head, STREAM_RECORD);
+	Count = (ULONG)(Head->Streams[STREAM_INDEX].Length / sizeof(BTR_FILE_INDEX));
+
+	StackFile = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
+	ASSERT(StackFile != NULL);
+
+	MaxPcCount = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
+	OnCpu = (PCPU_ONCPU_STATISTICS)ApsMalloc(FIELD_OFFSET(CPU_ONCPU_STATISTICS, Pc[MaxPcCount]));
+	OnCpu->AllocationCount = MaxPcCount;
+
+	//
+	// Build symbol table
+	//
+
+	TextFile = (PBTR_TEXT_FILE)ApsGetStreamPointer(Head, STREAM_SYMBOL);
+	TextTable = ApsBuildSymbolTable(TextFile, 4093);
+
+	//
+	// Get DLL entry base address 
+	//
+
+	DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
+	DllEntry = &DllFile->Dll[0];
+
+	//
+	// Get function entry base address
+	//
+
+	FuncEntry = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
+
+	//
+	// Get line entry base address
+	//
+
+	LineEntry = (PBTR_LINE_ENTRY)ApsGetStreamPointer(Head, STREAM_LINE);
+
+	//
+	// Create Pc table from STREAM_PC
+	//
+ 
+	ApsCreatePcTableFromStream(Head, &PcTable);
+
+	int MarkIndex = 0;
+	for (Number = 0; Number < Count; Number += 1) {
+
+		//
+		// Get next CPU profiling record
+		//
+
+		Record = CpuGetNextCpuRecord(Record, Number);
+		if (CpuIsMarkRecord(Record)) {
+			ApsDebugTrace("CPU Mark #%u: K %u U %u Usage: %.2f %%", MarkIndex,
+						(ULONG)Record->KernelTime, (ULONG)Record->UserTime, Record->CpuUsage);
+			MarkIndex += 1;
+			continue;
+		}
+		else {
+			ApsDebugTrace("CPU Record #%u: Active %u Retire %u K %u U %u", Number,
+						Record->ActiveCount, Record->RetireCount,
+						(ULONG)Record->KernelTime, (ULONG)Record->UserTime);
+		}
+
+		//
+		// Get number of total threads include retired ones
+		//
+
+		ThreadCount = Record->ActiveCount + Record->RetireCount;
+
+		for (i = 0; i < ThreadCount; i++) {
+
+			CHAR Name[MAX_PATH];
+			PSTR Ptr;
+
+			Sample = &Record->Sample[i];
+			if (Sample->KernelTime == 0 && Sample->UserTime == 0) {
+
+				//
+				// The thread is off CPU, just ignore it
+				//
+
+				continue;
+			}
+
+			StackTrace = &StackFile[Sample->StackId];
+			PcEntry = ApsLookupPcEntry(StackTrace->Frame[0], PcTable);
+			ASSERT(PcEntry != NULL);
+			TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Address);
+			if (!TextEntry) {
+				sprintf_s(Name, MAX_PATH, "0x%I64x", (ULONG64)PcEntry->Address);
+				Ptr = Name;
+			}
+			else {
+				Ptr = TextEntry->Text;
+			}
+
+			CpuUpdateOnCpuCounter(OnCpu, Sample, PcEntry, TextEntry);
+
+			ApsDebugTrace("TID %u: K %u U %u IP %s", Sample->ThreadId, 
+						(ULONG)Sample->KernelTime, (ULONG)Sample->UserTime, Ptr);
+		}
+	}
+
+	//
+	// Sort the On CPU Pc in decrease order by its time percent
+	//
+
+	qsort(&OnCpu->Pc[0], OnCpu->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
+
+#ifdef _DEBUG
+	CpuDebugOnCpuStatistics(OnCpu, TextTable);
+#endif
+
+	*Stat = OnCpu;
+	
+	ApsDestroySymbolTable(TextTable);
+	ApsDestroyPcTableFromStream(PcTable);
+	return APS_STATUS_OK;
+}
+
+int __cdecl
+CpuOnCpuPcSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
+	)
+{
+	PCPU_PC_ENTRY T1, T2;
+
+	T1 = (PCPU_PC_ENTRY)Entry1;
+	T2 = (PCPU_PC_ENTRY)Entry2;
+
+	//
+	// N.B. we need a decreasing order
+	//
+
+	return (T2->KernelTime + T2->UserTime) - (T1->KernelTime + T1->UserTime);
+}
+
+VOID
+CpuDebugOnCpuStatistics(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PBTR_TEXT_TABLE TextTable
+	)
+{
+	ULONG i;
+	PCPU_PC_ENTRY Pc;
+	PBTR_TEXT_ENTRY TextEntry;
+	CHAR Name[MAX_PATH];
+	PCSTR Ptr;
+	double TotalTime;
+	double Percent;
+
+	TotalTime = (OnCpu->TotalKernelTime + OnCpu->TotalUserTime) * 1.0;
+
+	for (i = 0; i < OnCpu->PcCount; i++) {
+		Pc = &OnCpu->Pc[i];
+		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Pc->Pc.Address);
+		if (!TextEntry) {
+			sprintf_s(Name, MAX_PATH, "0x%I64x", (ULONG64)Pc->Pc.Address);
+			Ptr = Name;
+		}
+		else {
+			Ptr = TextEntry->Text;
+		}
+
+		Percent = (Pc->KernelTime + Pc->UserTime) * 100.0 / TotalTime;
+		ApsDebugTrace("OnCpu Statistics: #%u IP %s , Percent %.2f %% , Count %u", 
+						i, Ptr, Percent, Pc->Count);
+	}
+}
+
+float
+CpuComputeOnCpuPercent(
+	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_PC_ENTRY Pc,
+	IN BOOLEAN ByTime
+	)
+{
+	float Percent;
+
+	if (ByTime) {
+		Percent = (Pc->KernelTime + Pc->UserTime) * 100.0 / (OnCpu->TotalKernelTime + OnCpu->TotalUserTime);
+	}
+	else {
+		Percent = Pc->Count * 100.0 / OnCpu->TotalCount;
+	}
+	return Percent;
 }

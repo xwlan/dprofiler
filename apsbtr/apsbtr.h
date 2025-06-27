@@ -459,7 +459,8 @@ typedef struct _BTR_DLL_ENTRY {
 
 	ULONG CheckSum;
 	ULONG Timestamp;
-	ULONG DllId;
+	USHORT DllId;
+	BOOLEAN IsClrImage;
 
 	union {
 		ULONG Inclusive;
@@ -496,7 +497,7 @@ typedef struct _BTR_DLL_FILE {
 //
 
 #define STACK_TEXT_BUCKET 4093
-#define STACK_TEXT_LIMIT  64 
+#define STACK_TEXT_LIMIT 128
 
 typedef struct _BTR_TEXT_ENTRY {
 	LIST_ENTRY ListEntry;

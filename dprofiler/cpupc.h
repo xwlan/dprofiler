@@ -28,6 +28,7 @@ typedef enum _CPU_PC_ENUM {
 typedef struct _CPU_PC_CONTEXT {
 	int PercentSpace;
 	int PercentMinimum;
+	struct _CPU_ONCPU_STATISTICS *OnCpu;
 } CPU_PC_CONTEXT, *PCPU_PC_CONTEXT;
 
 HWND
