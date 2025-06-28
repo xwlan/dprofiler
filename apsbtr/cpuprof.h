@@ -49,6 +49,7 @@ typedef struct _BTR_CPU_THREAD {
 
 	ULONG ThreadId;
 	HANDLE ThreadHandle;
+	PVOID StartAddress;
 	struct _TEB *Teb;
 
 	FILETIME EnterTime;
@@ -279,6 +280,11 @@ CpuQueryThreadCycles(
     __in PBTR_CPU_THREAD Thread,
     __out PULONG64 Cycles
     );
+
+PVOID
+CpuQueryThreadStartAddress(
+	IN PBTR_CPU_THREAD Thread
+	);
 
 PBTR_CPU_PROCESS
 CpuAllocateProcess(

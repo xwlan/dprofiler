@@ -476,6 +476,14 @@ ApsGetDllBaseNameById(
     __in ULONG Length
     );
 
+BOOLEAN
+ApsGetDllBaseNameByAddress(
+	IN PPF_REPORT_HEAD Head,
+	IN ULONG_PTR Address,
+	OUT PWSTR Buffer,
+	OUT ULONG Length
+	);
+
 VOID
 ApsClearDllFileCounters(
     __in PBTR_DLL_FILE DllFile

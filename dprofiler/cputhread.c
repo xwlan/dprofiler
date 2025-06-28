@@ -34,7 +34,8 @@ DIALOG_SCALER CpuThreadScaler = {
 
 static
 LISTVIEW_COLUMN CpuThreadColumn[] = {
-	{ 40,  L"TID",      LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 40,  L"TID",      LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120, L"Start Address", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 80,  L"Time (ms)",LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 80,  L"Time %",   LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 50,  L"Priority", LVCFMT_LEFT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
@@ -582,19 +583,21 @@ CpuThreadSortThreadCallback(
 	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
 	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
 
+	Result = 0;
 	ListView = Context->ListView;
 	ListViewGetParam(hWndList, (LONG)First, (LPARAM *)&Thread1);
 	ListViewGetParam(hWndList, (LONG)Second, (LPARAM *)&Thread2);
+
 
 	if (ListView->LastClickedColumn == 0) {
         Result = Thread1->ThreadId - Thread2->ThreadId;
 	}
 	
-	if (ListView->LastClickedColumn == 1 || ListView->LastClickedColumn == 2) {
+	if (ListView->LastClickedColumn == 2 || ListView->LastClickedColumn == 3) {
         Result = (Thread1->TotalKernelTime + Thread1->TotalUserTime) - (Thread2->TotalKernelTime + Thread2->TotalUserTime);
 	}
 	
-	if (ListView->LastClickedColumn == 3 || ListView->LastClickedColumn == 4) {
+	if (ListView->LastClickedColumn == 4 || ListView->LastClickedColumn == 5) {
 	    ListView_GetItemText(hWndList, First,  ListView->LastClickedColumn, FirstData,  MAX_PATH);
 	    ListView_GetItemText(hWndList, Second, ListView->LastClickedColumn, SecondData, MAX_PATH);
 		Result = wcsicmp(FirstData, SecondData);
@@ -631,6 +634,7 @@ CpuThreadSortPcCallback(
 	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
 	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
 
+	Result = 0;
 	ListView = Context->ListView;
 	ListViewGetParam(hWndList, (LONG)First, (LPARAM *)&Pc1);
 	ListViewGetParam(hWndList, (LONG)Second, (LPARAM *)&Pc2);
@@ -678,8 +682,15 @@ CpuThreadInsertThreads(
     double TotalTimes;
 	PCPU_COUNTERS Counter = NULL;
 	PCPU_COUNTERS Thread;
-    LVITEM lvi = {0};
+	PBTR_CPU_THREAD BtrThread;
+	PBTR_TEXT_TABLE TextTable;
+	PBTR_TEXT_FILE TextFile;
+	PBTR_TEXT_ENTRY TextEntry;
+	PBTR_DLL_FILE DllFile;
+	PBTR_DLL_ENTRY DllEntry;
 	WCHAR Buffer[MAX_PATH];
+	WCHAR Name[MAX_PATH];
+    LVITEM lvi = {0};
 
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;
@@ -690,7 +701,12 @@ CpuThreadInsertThreads(
 
     Context->Head = Head;
 
-    //
+    TextFile = (PBTR_TEXT_FILE)((PUCHAR)Head + Head->Streams[STREAM_SYMBOL].Offset);
+	TextTable = ApsBuildSymbolTable(TextFile, 4093);
+
+	DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
+	DllEntry = &DllFile->Dll[0];
+
     // Scan the CPU sample records to generate threaded PC stream
     //
 
@@ -742,10 +758,40 @@ CpuThreadInsertThreads(
 		ListView_InsertItem(hWndCtrl, &lvi);
 
 		//
-		// Time (ms)
+		// Start (Thread start address)
 		//
 
 		lvi.iSubItem = 1;
+		lvi.mask = LVIF_TEXT;
+
+		BtrThread = CpuGetBtrThreadObject(Head, Thread->ThreadId);
+		ASSERT(BtrThread != NULL);
+
+		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)BtrThread->StartAddress);
+		if (TextEntry) {
+			StringCchPrintf(Name, MAX_PATH, L"%S", TextEntry->Text);
+		}
+		else {
+			ApsFormatAddress(Name, MAX_PATH, BtrThread->StartAddress, TRUE);
+		}
+		
+		WCHAR DllName[64];
+		if (ApsGetDllBaseNameByAddress(Head, BtrThread->StartAddress, DllName, 63)) {
+		}
+		else {
+			StringCchCopy(DllName, 64, L"Unknown");
+		}
+
+		StringCchPrintf(Buffer, MAX_PATH, L"%s!%s", DllName, Name);
+
+		lvi.pszText = Buffer;
+		ListView_SetItem(hWndCtrl, &lvi);
+
+		//
+		// Time (ms)
+		//
+
+		lvi.iSubItem = 2;
 		lvi.mask = LVIF_TEXT;
 
 		Milliseconds = ApsNanoUnitToMilliseconds(Thread->TotalKernelTime + Thread->TotalUserTime);
@@ -758,7 +804,7 @@ CpuThreadInsertThreads(
 		// Time (%)
 		//
 
-		lvi.iSubItem = 2;
+		lvi.iSubItem = 3;
 		lvi.mask = LVIF_TEXT;
 		StringCchPrintf(Buffer, MAX_PATH, L"%.3f", (Milliseconds * 100.0) / TotalTimes);
 		lvi.pszText = Buffer;
@@ -768,7 +814,7 @@ CpuThreadInsertThreads(
 		// Priority 
 		//
 
-		lvi.iSubItem = 3;
+		lvi.iSubItem = 4;
 		lvi.mask = LVIF_TEXT;
 
 		CpuTranslateThreadPriority(Buffer, MAX_PATH, CpuGetThreadPriority(Head, Thread->ThreadId));
@@ -779,7 +825,7 @@ CpuThreadInsertThreads(
 		// State 
 		//
 
-		lvi.iSubItem = 4;
+		lvi.iSubItem = 5;
 		lvi.mask = LVIF_TEXT;
 
 		if (!CpuIsThreadRetired(Head, Thread->ThreadId)){
@@ -789,6 +835,8 @@ CpuThreadInsertThreads(
 			lvi.pszText = L"Retired";
 		}
 		ListView_SetItem(hWndCtrl, &lvi);
+
+		Number += 1;
     }
 
     //
@@ -840,7 +888,12 @@ CpuTranslateThreadPriority(
         StringCchCopy(Buffer, Length, L"Time Critical");
         break;
     default:
-        StringCchCopy(Buffer, Length, L"Unknown");
+
+		//
+		// For unknown value, directly print its priority value
+		//
+
+		StringCchPrintf(Buffer, Length, L"%u", Priority);
     }
 }
 

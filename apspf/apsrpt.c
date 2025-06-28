@@ -2566,6 +2566,42 @@ ApsGetDllBaseNameById(
 
 }
 
+BOOLEAN
+ApsGetDllBaseNameByAddress(
+	IN PPF_REPORT_HEAD Head,
+	IN ULONG_PTR Address,
+	OUT PWSTR Buffer,
+	OUT ULONG Length
+	)
+{
+	PBTR_DLL_FILE DllFile;
+	PBTR_DLL_ENTRY DllEntry;
+	WCHAR Name[MAX_PATH];
+	WCHAR Ext[MAX_PATH];
+	ULONG Number;
+
+	DllFile = (PBTR_DLL_FILE)((PUCHAR)Head + Head->Streams[STREAM_DLL].Offset);
+
+	for(Number = 0; Number < DllFile->Count; Number += 1) {
+
+		DllEntry = (PBTR_DLL_ENTRY)&DllFile->Dll[Number];
+		if ((ULONG_PTR)DllEntry->BaseVa < Address && (ULONG_PTR)DllEntry->BaseVa + (ULONG_PTR)DllEntry->Size > Address) {
+			_wsplitpath(DllEntry->Path, NULL, NULL, Name, Ext);
+			_wcslwr(Name);
+
+			if (Ext[0] != 0) {
+				swprintf_s(Buffer, Length, L"%s%s", Name, Ext);
+			}
+			else {
+				swprintf_s(Buffer, Length, L"%s", Name);
+			}
+			return TRUE;
+		}
+	}
+	
+	return FALSE;
+}
+
 VOID
 ApsClearDllFileCounters(
     __in PBTR_DLL_FILE DllFile

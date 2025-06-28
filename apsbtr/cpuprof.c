@@ -465,6 +465,7 @@ CpuThreadAttach(
     Thread = CpuAllocateThread();
     Thread->ThreadId = GetCurrentThreadId();
     Thread->ThreadHandle = ThreadHandle;
+	CpuQueryThreadStartAddress(Thread);
 
 	//
 	// Enqueue to thread attach list
@@ -483,6 +484,7 @@ CpuThreadDetach(
 
     Thread = CpuAllocateThread();
 	Thread->ThreadId = GetCurrentThreadId();
+	CpuQueryThreadStartAddress(Thread);
 
 	//
 	// Enqueue to thread detach list
@@ -1347,6 +1349,7 @@ CpuInitializeThread(
 
     Thread->ThreadId = ThreadId;
     Thread->ThreadHandle = ThreadHandle;
+	CpuQueryThreadStartAddress(Thread);
 
     if (CurrentThread) {
         Thread->Teb = NtCurrentTeb();
@@ -1432,6 +1435,27 @@ CpuQueryThreadCycles(
 
     *Cycles = Information.AccumulatedCycles.QuadPart;
     return S_OK;
+}
+
+PVOID
+CpuQueryThreadStartAddress(
+	IN PBTR_CPU_THREAD Thread
+	)
+{
+    NTSTATUS NtStatus;
+	PVOID Address = NULL;
+
+    NtStatus = (*NtQueryInformationThread)(Thread->ThreadHandle, 
+											ThreadQuerySetWin32StartAddress,
+											(PVOID)&Address, sizeof(PVOID),
+											NULL);
+
+    if (!NT_SUCCESS(NtStatus)) {
+        return NULL;
+    }
+
+	Thread->StartAddress = Address;
+    return Address;
 }
 
 ULONG
