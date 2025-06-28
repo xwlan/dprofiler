@@ -1806,7 +1806,6 @@ CpuAllocateThreadTable(
 	IN PPF_REPORT_HEAD Head
 	)
 {
-	PCPU_COUNTERS Counter;
 	return NULL;
 }
 
@@ -1922,9 +1921,7 @@ CpuScanOnCpuThreaded(
 	PBTR_TEXT_ENTRY TextEntry;
 
 	int MaxPcCount;
-	int AllocationCount;
 	int CounterSize;
-	int MarkStep;
 	PCPU_COUNTERS Counter;
 	PCPU_COUNTERS Thread;
 	PCPU_COUNTERS Entry;
@@ -2122,3 +2119,116 @@ CpuGetNextCounter(
 	}
 	return NULL;
 } 
+
+VOID
+CpuInsertPcStackTrace(
+	IN PCPU_PC_STACKTRACE StackTrace,
+	IN PBTR_STACK_RECORD StackRecord,
+	IN PBTR_CPU_SAMPLE Sample
+	)
+{
+	ULONG i;
+	PCPU_PC_STACKTRACE Entry;
+
+	Entry = &StackTrace[1];
+	for (i = 0; i < CPU_MAX_PC_STACKTRACE - 1; i += 1) {
+		if (Entry->StackId == -1) {
+			Entry->StackId = StackRecord->StackId;
+			Entry->Count = 1;
+			Entry->KernelTime = Sample->KernelTime;
+			Entry->UserTime = Sample->UserTime;
+			StackTrace->Count += 1;
+			return;
+		}
+		if (Entry->StackId == StackRecord->StackId) {
+			Entry->Count += 1;
+			Entry->KernelTime += Sample->KernelTime;
+			Entry->UserTime += Sample->UserTime;
+			return;
+		}
+	}
+}
+
+PCPU_PC_STACKTRACE
+CpuBuildStackTraceListForPc(
+	IN PPF_REPORT_HEAD Head,
+	IN ULONG ThreadId,
+	IN PCPU_PC_ENTRY Pc,
+	IN BOOLEAN OnCpu
+	)
+{
+	PBTR_FILE_INDEX Index;
+	PBTR_CPU_RECORD Record;
+	PBTR_CPU_SAMPLE Sample;
+	ULONG Number;
+	ULONG Count;
+	ULONG ThreadCount;
+	PBTR_STACK_RECORD StackFile;
+	PCPU_PC_STACKTRACE StackTrace;
+	PBTR_STACK_RECORD StackRecord;
+	ULONG i;
+
+	ASSERT(OnCpu);
+
+	Index = (PBTR_FILE_INDEX)ApsGetStreamPointer(Head, STREAM_INDEX);
+	Record = (PBTR_CPU_RECORD)ApsGetStreamPointer(Head, STREAM_RECORD);
+	Count = (ULONG)(Head->Streams[STREAM_INDEX].Length / sizeof(BTR_FILE_INDEX));
+
+	StackFile = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
+	ASSERT(StackFile != NULL);
+
+	//
+	// Support up to 63 different stack traces which is enough for most scenario 
+	// allocation 64 slots, the first is reserved as header
+	//
+
+	StackTrace = (PCPU_PC_STACKTRACE)ApsMalloc(sizeof(CPU_PC_STACKTRACE) * CPU_MAX_PC_STACKTRACE);
+	for (Number = 0; Number < CPU_MAX_PC_STACKTRACE; Number += 1) {
+		StackTrace[Number].StackId = -1;
+	}
+
+	for (Number = 0; Number < Count; Number += 1) {
+
+		//
+		// Get next CPU profiling record
+		//
+
+		Record = CpuGetNextCpuRecord(Record, Number);
+		if (CpuIsMarkRecord(Record)) {
+			continue;
+		}
+
+		//
+		// Get number of total threads include retired ones
+		//
+
+		ThreadCount = Record->ActiveCount + Record->RetireCount;
+
+		for (i = 0; i < ThreadCount; i++) {
+
+			Sample = &Record->Sample[i];
+			
+			if (Sample->ThreadId != ThreadId) {
+				continue;
+			}
+
+			if (Sample->KernelTime == 0 && Sample->UserTime == 0) {
+
+				//
+				// although ThreadId match, it's off CPU, break current loop
+				// and go to next BTR_CPU_RECORD
+				//
+
+				break;
+			}
+
+			StackRecord = &StackFile[Sample->StackId];
+			if ((ULONG_PTR)StackRecord->Frame[0] == (ULONG_PTR)Pc->Pc.Address) {
+				CpuInsertPcStackTrace(StackTrace, StackRecord, Sample);
+			}
+		}
+	}
+
+	ASSERT(StackTrace->Count != 0);
+	return StackTrace;
+}

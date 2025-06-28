@@ -82,6 +82,22 @@ CpuThreadOnNotify(
 	__in LPARAM lp
 	);
 
+LRESULT
+CpuThreadOnCommand(
+	IN HWND hWnd,
+	IN UINT uMsg,
+	IN WPARAM wp,
+	IN LPARAM lp
+	);
+
+LRESULT
+CpuThreadOnContextMenu(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	);
+
 LRESULT 
 CpuThreadOnColumnClick(
     __in PDIALOG_OBJECT Object,
@@ -131,6 +147,14 @@ PCPU_THREAD_TABLE
 CpuThreadGetTable(
     __in HWND hWnd
     );
+
+LRESULT
+CpuThreadOnStackTrace(
+	IN HWND hWnd,
+	IN UINT uMsg,
+	IN WPARAM wp,
+	IN LPARAM lp
+	);
 
 PCPU_THREAD
 CpuThreadGetMostBusyThread(

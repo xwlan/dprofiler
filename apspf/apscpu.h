@@ -46,7 +46,17 @@ typedef struct _CPU_THREAD_PC_TABLE {
 #define CPU_THREAD_STATE_RUNNING  0
 #define CPU_THREAD_STATE_RETIRED  1
 
+//
+// The maximum thread number for thread counter list
+//
+
 #define CPU_MAX_THREAD 1024
+
+//
+// The maximum stack trace list for a specified pc
+//
+
+#define CPU_MAX_PC_STACKTRACE 64
 
 //
 // Stack record per thread
@@ -186,6 +196,16 @@ typedef struct _CPU_COUNTERS {
 	ULONG ThreadCount; 
 	CPU_PC_ENTRY Pc[ANYSIZE_ARRAY];
 } CPU_COUNTERS, *PCPU_COUNTERS;
+
+typedef struct _CPU_PC_STACKTRACE {
+	ULONG StackId;
+	union {
+		ULONG Count;
+		ULONG StackTraceCount;
+	};
+	ULONG KernelTime;
+	ULONG UserTime;
+} CPU_PC_STACKTRACE, *PCPU_PC_STACKTRACE;
 
 ULONG
 ApsCreateCpuProfile(
@@ -459,6 +479,21 @@ PCPU_COUNTERS
 CpuGetNextCounter(
 	IN PCPU_COUNTERS Counter,
 	IN PCPU_COUNTERS Current
+	);
+
+PCPU_PC_STACKTRACE
+CpuBuildStackTraceListForPc(
+	IN PPF_REPORT_HEAD Head,
+	IN ULONG ThreadId,
+	IN PCPU_PC_ENTRY Pc,
+	IN BOOLEAN OnCpu
+	);
+
+VOID
+CpuInsertPcStackTrace(
+	IN PCPU_PC_STACKTRACE StackTrace,
+	IN PBTR_STACK_RECORD StackRecord,
+	IN PBTR_CPU_SAMPLE Sample
 	);
 
 #ifdef __cplusplus 

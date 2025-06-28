@@ -653,3 +653,30 @@ SdkGetCopyright(
 {
 	LoadString(SdkInstance, IDS_COPYRIGHT, Buffer, Length);
 }
+
+VOID
+SdkCenterWindow2(HWND hDlgA, HWND hDlgB)
+{
+	RECT rectA, rectB;
+	int widthB, heightB;
+
+	// 获取对话框A的客户区矩形
+	GetClientRect(hDlgA, &rectA);
+
+	// 计算对话框B的大小（A的80%）
+	widthB = (rectA.right - rectA.left) * 0.8;
+	heightB = (rectA.bottom - rectA.top) * 0.8;
+
+	// 设置对话框B的大小
+	SetWindowPos(hDlgB, NULL, 0, 0, widthB, heightB, SWP_NOZORDER | SWP_NOMOVE);
+
+	// 获取对话框B的新尺寸
+	GetWindowRect(hDlgB, &rectB);
+
+	// 计算居中位置
+	int x = rectA.left + (rectA.right - rectA.left) / 2 - (rectB.right - rectB.left) / 2;
+	int y = rectA.top + (rectA.bottom - rectA.top) / 2 - (rectB.bottom - rectB.top) / 2;
+
+	// 设置对话框B的位置
+	SetWindowPos(hDlgB, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
+}

@@ -301,6 +301,10 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="cpupcstack.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="cpustack.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
       </PrecompiledHeader>
@@ -785,6 +789,7 @@
     <ClInclude Include="cpuflame.h" />
     <ClInclude Include="cpuhistory.h" />
     <ClInclude Include="cpupc.h" />
+    <ClInclude Include="cpupcstack.h" />
     <ClInclude Include="cpustack.h" />
     <ClInclude Include="cpusummary.h" />
     <ClInclude Include="cputhread.h" />

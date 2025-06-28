@@ -95,10 +95,12 @@
 #define IDI_ICON_SAMPLEUP               193
 #define IDD_DIALOG_CCR_STACK            193
 #define IDI_ICON_SAMPLEBOTTOM           194
+#define IDD_DIALOG_PCSTACK              194
 #define IDI_ICON_SAMPLETOP              195
 #define IDI_ICON_SAMPLESTACK            196
 #define IDI_ICON_SAMPLEREPORT           197
 #define IDD_FORMVIEW_CCR_SUMMARY        198
+#define IDR_MENU_PCSTACK                198
 #define IDD_FORMVIEW_CCR_CONTENTION     199
 #define IDD_FORMVIEW3                   200
 #define IDD_FORMVIEW_CCR_FLAME          200
@@ -106,6 +108,7 @@
 #define IDD_DIALOG_IO_STACK             202
 #define IDD_FORMVIEW4                   203
 #define IDD_FORMVIEW_IO_FLAME           203
+#define IDD_FORMVIEW5                   204
 #define IDC_STATIC_BUILD                1000
 #define IDC_LIST_VERSION                1002
 #define IDC_LIST_TASK                   1004
@@ -213,13 +216,17 @@
 #define IDC_LIST1                       1120
 #define IDC_LIST_IO_SUMMARY             1120
 #define IDC_LIST_CCR_CONTENTION         1120
+#define IDC_LIST_PCSTACK_LEFT           1120
 #define IDC_LIST_CCR_SUMMARY            1121
 #define IDC_LIST_CCR_STACK_LOCK         1121
 #define IDC_CCR_FLAME                   1122
 #define IDC_LIST_CCR_STACK_PC           1122
 #define IDC_LIST_IO_STACK_PC            1123
 #define IDC_LIST_IO_STACK               1124
+#define IDC_LIST2                       1124
+#define IDC_LIST_PCSTACK_RIGHT          1124
 #define IDC_IO_FLAME                    1125
+#define IDC_BUTTON_PCSTACK_EXPORT       1125
 #define IDM_NEW                         32773
 #define IDM_STOP                        32774
 #define IDM_FILTER_EXECUTE              32775
@@ -255,6 +262,9 @@
 #define ID_CCR_STACKTRACE               32817
 #define ID_IO_STACKTRACE                32818
 #define IDR_MENU_IO                     32819
+#define ID__PCSTACK_STACKTRACE          32819
+#define ID_STACKTRACE_STACKTRACE32821   32821
+#define ID_PCSTACK_STACKTRACE           32822
 #define IDC_STATIC                      -1
 #define IDC_STATIC_PRODUCT              -1
 
@@ -263,9 +273,9 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        194
-#define _APS_NEXT_COMMAND_VALUE         32818
-#define _APS_NEXT_CONTROL_VALUE         1124
-#define _APS_NEXT_SYMED_VALUE           110
+#define _APS_NEXT_RESOURCE_VALUE        199
+#define _APS_NEXT_COMMAND_VALUE         32823
+#define _APS_NEXT_CONTROL_VALUE         1126
+#define _APS_NEXT_SYMED_VALUE           111
 #endif
 #endif

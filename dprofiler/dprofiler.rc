@@ -18,7 +18,7 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Chinese (Simplified, PRC) resources
+// Chinese (Simplified, China) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
 LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
@@ -30,6 +30,7 @@ LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
 //
 
 IDB_BITMAP_WIZARD       BITMAP                  "res\\wizard.bmp"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -76,6 +77,7 @@ END
 //
 
 IDR_AVI3                AVI                     "res\\dprofile.avi"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -195,7 +197,7 @@ BEGIN
     END
 END
 
-#endif    // Chinese (Simplified, PRC) resources
+#endif    // Chinese (Simplified, China) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -212,7 +214,9 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 IDB_BITMAP_ZOOMIN       BITMAP                  "res\\zoomin.bmp"
+
 IDB_BITMAP_ZOOMOUT      BITMAP                  "res\\zoomout.bmp"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -621,6 +625,17 @@ BEGIN
     CONTROL         "IoFlameGraph",IDC_IO_FLAME,"SdkFlame",WS_CLIPSIBLINGS | WS_HSCROLL,7,7,385,193,WS_EX_CLIENTEDGE | WS_EX_CONTROLPARENT
 END
 
+IDD_DIALOG_PCSTACK DIALOGEX 0, 0, 347, 258
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME
+CAPTION "On CPU Stack"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,290,237,50,14
+    CONTROL         "",IDC_LIST_PCSTACK_LEFT,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,7,153,213
+    CONTROL         "",IDC_LIST_PCSTACK_RIGHT,"SysListView32",LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,163,7,177,213
+    PUSHBUTTON      "Export",IDC_BUTTON_PCSTACK_EXPORT,223,237,50,14
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -671,6 +686,10 @@ BEGIN
     END
 
     IDD_FORMVIEW_BLANK, DIALOG
+    BEGIN
+    END
+
+    IDD_FORMVIEW_CPU_STACK, DIALOG
     BEGIN
     END
 
@@ -784,6 +803,14 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 200
     END
+
+    IDD_DIALOG_PCSTACK, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 340
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 251
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -821,6 +848,14 @@ BEGIN
     END
 END
 
+IDR_MENU_PCSTACK MENU
+BEGIN
+    POPUP ""
+    BEGIN
+        MENUITEM "Stack Trace",                 ID_PCSTACK_STACKTRACE
+    END
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -830,20 +865,35 @@ END
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_SMALL               ICON                    "res\\apsara.ico"
+
 IDI_ICON_APSARA         ICON                    "res\\apsara.ico"
+
 IDI_ICON_GENERIC        ICON                    "res\\generic.ico"
+
 IDI_ICON_BACKWARD       ICON                    "res\\backward.ico"
+
 IDI_ICON_DEDUCTION      ICON                    "res\\deduction.ico"
+
 IDI_ICON_FORWARD        ICON                    "res\\forward.ico"
+
 IDI_ICON_SEARCH         ICON                    "res\\search.ico"
+
 IDI_ICON_SAMPLELEFT     ICON                    "res\\sampleleft.ico"
+
 IDI_ICON_SAMPLERIGHT    ICON                    "res\\sampleright.ico"
+
 IDI_ICON_SAMPLEDOWN     ICON                    "res\\sampledown.ico"
+
 IDI_ICON_SAMPLEUP       ICON                    "res\\sampleup.ico"
+
 IDI_ICON_SAMPLEBOTTOM   ICON                    "res\\samplebottom.ico"
+
 IDI_ICON_SAMPLETOP      ICON                    "res\\sampletop.ico"
+
 IDI_ICON_SAMPLESTACK    ICON                    "res\\samplestack.ico"
+
 IDI_ICON_SAMPLEREPORT   ICON                    "res\\samplereport.ico"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -894,6 +944,7 @@ END
 //
 
 IDR_HELP                HELP                    "res\\help.rtf"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

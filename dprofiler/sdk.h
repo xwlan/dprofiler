@@ -246,6 +246,9 @@ SdkGetCopyright(
 	__in SIZE_T Length
 	);
 
+VOID
+SdkCenterWindow2(HWND hDlgA, HWND hDlgB);
+
 //
 // MessageBox Flags 
 //

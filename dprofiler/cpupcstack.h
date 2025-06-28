@@ -4,8 +4,8 @@
 // Copyright(C) 2009-2015
 //
 
-#ifndef _CCR_STACK_H_
-#define _CCR_STACK_H_
+#ifndef _CPU_PC_STACK_H_
+#define _CPU_PC_STACK_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,17 +16,24 @@ extern "C" {
 #include "apsbtr.h"
 #include "apsprofile.h"
 
-	
+
+typedef struct _CPU_PCSTACK_CONTEXT {
+	PCPU_PC_ENTRY Pc;
+	ULONG ThreadId;
+	PCPU_PC_STACKTRACE Stack;
+} CPU_PCSTACK_CONTEXT, *PCPU_PCSTACK_CONTEXT;
+
 HWND
-CcrStackCreate(
-	__in HWND hWndParent,
-	__in ULONG CtrlId,
-	__in PPF_REPORT_HEAD Head,
-	__in PCCR_LOCK_TRACK Lock
+CpuPcStackCreate(
+	IN HWND hWndParent,
+	IN ULONG CtrlId,
+	IN PPF_REPORT_HEAD Head,
+	IN PCPU_PC_ENTRY Pc,
+	IN ULONG ThreadId
 	);
 
 LRESULT
-CcrStackOnInitDialog(
+CpuPcStackOnInitDialog(
 	__in HWND hWnd,
 	__in UINT uMsg,
 	__in WPARAM wp,
@@ -34,7 +41,7 @@ CcrStackOnInitDialog(
 	);
 
 LRESULT CALLBACK 
-CcrStackHeaderProcedure(
+CpuPcStackHeaderProcedure(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -44,7 +51,7 @@ CcrStackHeaderProcedure(
 	);
 
 LRESULT
-CcrStackOnSize(
+CpuPcStackOnSize(
 	__in HWND hWnd,
 	__in UINT uMsg,
 	__in WPARAM wp,
@@ -52,7 +59,7 @@ CcrStackOnSize(
 	);
 
 LRESULT
-CcrStackOnClose(
+CpuPcStackOnClose(
 	__in HWND hWnd,
 	__in UINT uMsg,
 	__in WPARAM wp,
@@ -60,7 +67,7 @@ CcrStackOnClose(
 	);
 
 INT_PTR CALLBACK
-CcrStackProcedure(
+CpuPcStackProcedure(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -68,7 +75,7 @@ CcrStackProcedure(
 	);
 
 LRESULT
-CcrStackOnOk(
+CpuPcStackOnOk(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -76,7 +83,7 @@ CcrStackOnOk(
 	);
 
 LRESULT
-CcrStackOnExport(
+CpuPcStackOnExport(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -84,7 +91,7 @@ CcrStackOnExport(
 	);
 
 LRESULT
-CcrStackOnNotify(
+CpuPcStackOnNotify(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -92,7 +99,7 @@ CcrStackOnNotify(
 	);
 
 LRESULT
-CcrStackOnCommand(
+CpuPcStackOnCommand(
 	__in HWND hWnd, 
 	__in UINT uMsg, 
 	__in WPARAM wp, 
@@ -100,33 +107,32 @@ CcrStackOnCommand(
 	);
 
 LRESULT 
-CcrStackOnColumnClick(
+CpuPcStackOnColumnClick(
     __in PDIALOG_OBJECT Object,
 	__in NMLISTVIEW *lpNmlv
 	);
 
 LRESULT 
-CcrStackOnItemChanged(
+CpuPcStackOnItemChanged(
     __in PDIALOG_OBJECT Object,
 	__in NMLISTVIEW *lpNmlv
 	);
 
 int CALLBACK
-CcrStackSortCallback(
+CpuPcStackSortCallback(
 	__in LPARAM First, 
 	__in LPARAM Second,
 	__in LPARAM Param
 	);
 
 VOID
-CcrStackInsertLock(
-	__in HWND hWnd,
-	__in PPF_REPORT_HEAD Head,
-	__in PCCR_LOCK_TRACK Lock
-    );
+CpuPcStackInsertPcCount(
+	IN HWND hWnd,
+	IN PPF_REPORT_HEAD Head
+	);
 
 VOID
-CcrInsertBackTrace(
+CpuPcStackInsertBackTrace(
 	__in HWND hWnd,
     __in int Index 
 	);

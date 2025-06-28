@@ -15,6 +15,8 @@
 #include "frame.h"
 #include "apscpu.h"
 #include "apsrpt.h"
+#include "cpupcstack.h"
+#include "resource.h"
 
 static
 DIALOG_SCALER_CHILD CpuThreadChildren[3] = {
@@ -289,9 +291,40 @@ CpuThreadProcedure(
 
 	case WM_NOTIFY:
 		return CpuThreadOnNotify(hWnd, uMsg, wp, lp);
+
+	case WM_COMMAND:
+		return CpuThreadOnCommand(hWnd, uMsg, wp, lp);
 	}
 
 	return Status;
+}
+
+LRESULT
+CpuThreadOnCommand(
+	IN HWND hWnd,
+	IN UINT uMsg,
+	IN WPARAM wp,
+	IN LPARAM lp
+	)
+{
+	UINT CommandId;
+
+	//
+	// Source       HIWORD(wParam)  LOWORD(wParam)  lParam 
+	// Menu         0               MenuId          0   
+	// Accelerator  1               AcceleratorId	0
+	// Control      NotifyCode      ControlId       hWndCtrl
+	//
+
+	CommandId = LOWORD(wp);
+
+	switch (CommandId) {
+
+	case ID_PCSTACK_STACKTRACE:
+		return CpuThreadOnStackTrace(hWnd, uMsg, wp, lp);
+	}
+
+	return 0;
 }
 
 LRESULT
@@ -313,6 +346,65 @@ CpuThreadOnCustomDraw(
 {
 	LRESULT Status = 0L;
     return Status;
+}
+
+LRESULT
+CpuThreadOnContextMenu(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	)
+{
+	POINT Screen;
+	POINT Client;
+	PDIALOG_OBJECT Object;
+	HMENU hPopupMenu = NULL;
+	HMENU hMenuLoaded;
+	RECT Rect;
+	LPNMHDR lpnmhdr = (LPNMHDR)lp;
+
+	if (lpnmhdr->idFrom != IDC_LIST_CPU_THREAD_PC) {
+		return 0;
+	}
+
+	GetCursorPos(&Screen);
+
+	//
+	// Ensure mouse fall into right list control's client area
+	//
+
+	Client = Screen;
+	ScreenToClient(lpnmhdr->hwndFrom, &Client);
+
+	GetClientRect(lpnmhdr->hwndFrom, &Rect);
+	if (!PtInRect(&Rect, Client)) {
+		return 0;
+	}
+
+	//
+	// ensure user has selected one item
+	//
+
+	if (!ListView_GetSelectedCount(lpnmhdr->hwndFrom)) {
+		return 0;
+	}
+
+	//
+	// Display the context menu
+	//
+
+	hMenuLoaded = LoadMenu(SdkInstance, MAKEINTRESOURCE(IDR_MENU_PCSTACK));
+	hPopupMenu = GetSubMenu(hMenuLoaded, 0);
+
+	//
+	// The menu command must be routed to dialog, not tabctrl
+	//
+
+	TrackPopupMenu(hPopupMenu, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_VERTICAL,
+				 Screen.x, Screen.y, 0, hWnd, NULL);
+	DestroyMenu(hMenuLoaded);
+	return TRUE;
 }
 
 LRESULT
@@ -348,6 +440,9 @@ CpuThreadOnNotify(
 			if(IDC_LIST_CPU_THREAD_THREAD == pNmhdr->idFrom) {
 				Status = CpuThreadOnItemChanged(Object, (LPNMLISTVIEW)lp);
 			}
+			break;
+		case NM_RCLICK:
+			Status = CpuThreadOnContextMenu(hWnd, uMsg, wp, lp);
 			break;
 	}
 
@@ -701,16 +796,13 @@ CpuThreadInsertThreads(
 
     Context->Head = Head;
 
-    TextFile = (PBTR_TEXT_FILE)((PUCHAR)Head + Head->Streams[STREAM_SYMBOL].Offset);
-	TextTable = ApsBuildSymbolTable(TextFile, 4093);
-
-	DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
-	DllEntry = &DllFile->Dll[0];
-
     // Scan the CPU sample records to generate threaded PC stream
     //
 
 	CpuScanOnCpuThreaded(Head, CPU_COUNTER_ONCPU_THREADED, &Counter);
+	if (!Counter->ThreadCount || !Counter->PcCount) {
+		return 0;
+	}
 
     TotalTimes = ApsNanoUnitToMilliseconds(
 		(ULONG)(Counter->TotalKernelTime + Counter->TotalUserTime));
@@ -727,6 +819,12 @@ CpuThreadInsertThreads(
 
     Context->Context = Counter;
 
+    TextFile = (PBTR_TEXT_FILE)((PUCHAR)Head + Head->Streams[STREAM_SYMBOL].Offset);
+	TextTable = ApsBuildSymbolTable(TextFile, 4093);
+
+	DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
+	DllEntry = &DllFile->Dll[0];
+
     //
     // Fill the threads into listview
     //
@@ -734,19 +832,20 @@ CpuThreadInsertThreads(
     hWndCtrl = GetDlgItem(hWnd, IDC_LIST_CPU_THREAD_THREAD);
     ASSERT(hWndCtrl != NULL); 
 
-    Number = 0;
-
     //
     // Scan counter table to insert all threads, each listview item
     // attached a thread object as LPARAM 
     //
 
+    Number = 0;
 	for (Thread = CpuGetFirstCounter(Counter); Thread != NULL; 
 		 Thread = CpuGetNextCounter(Counter, Thread)) {
 
 		//
 		// TID
 		//
+
+		ASSERT(Thread->PcCount != 0);
 
 		lvi.iItem = Number;
 		lvi.iSubItem = 0;
@@ -776,7 +875,7 @@ CpuThreadInsertThreads(
 		}
 		
 		WCHAR DllName[64];
-		if (ApsGetDllBaseNameByAddress(Head, BtrThread->StartAddress, DllName, 63)) {
+		if (ApsGetDllBaseNameByAddress(Head, (ULONG_PTR)BtrThread->StartAddress, DllName, 63)) {
 		}
 		else {
 			StringCchCopy(DllName, 64, L"Unknown");
@@ -953,4 +1052,66 @@ CpuThreadGetTable(
 )
 {
 	return NULL;
+}
+
+LRESULT
+CpuThreadOnStackTrace(
+	IN HWND hWnd,
+	IN UINT uMsg,
+	IN WPARAM wp,
+	IN LPARAM lp
+	)
+{
+	PDIALOG_OBJECT Object;
+	PCPU_FORM_CONTEXT Context;
+	PCPU_PC_ENTRY PcEntry;
+	PCPU_COUNTERS Thread;
+	HWND hWndList;
+	LONG Index;
+
+	//
+	// Get currently selected Pc entry
+	//
+
+	hWndList = GetDlgItem(hWnd, IDC_LIST_CPU_THREAD_PC);
+	Index = ListViewGetFirstSelected(hWndList);
+	if (Index == -1) {
+		return 0;
+	}
+
+	PcEntry = NULL;
+	ListViewGetParam(hWndList, Index, (LPARAM*)&PcEntry);
+	ASSERT(PcEntry != NULL);
+	if (!PcEntry) {
+		return 0;
+	}
+
+	//
+	// Get current selected thread id
+	//
+
+	hWndList = GetDlgItem(hWnd, IDC_LIST_CPU_THREAD_THREAD);
+	Index = ListViewGetFirstSelected(hWndList);
+	if (Index == -1) {
+		ASSERT(0);
+		return 0;
+	}
+
+	Thread = NULL;
+	ListViewGetParam(hWndList, Index, (LPARAM*)&Thread);
+	ASSERT(Thread != NULL);
+	if (!Thread) {
+		return 0;
+	}
+
+	//
+	// Create PcStack dialog
+	//
+
+	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
+	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
+	ASSERT(Object->Context != NULL);
+
+	CpuPcStackCreate(hWnd, 0, Context->Head, PcEntry, Thread->ThreadId);
+	return 0;
 }
