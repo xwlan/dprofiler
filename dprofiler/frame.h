@@ -81,6 +81,11 @@ FrameCreate(
 	__in PFRAME_OBJECT Object 
 	);
 
+PFRAME_OBJECT
+FrameGetObject(
+	VOID
+	);
+
 BOOLEAN
 FrameLoadBars(
 	__in PFRAME_OBJECT Object

@@ -54,6 +54,8 @@
 
 
 PWSTR SdkFrameClass = L"SdkFrame";
+PFRAME_OBJECT FrameObject;
+
 
 BOOLEAN
 FrameRegisterClass(
@@ -112,6 +114,14 @@ FrameCreate(
 	} else {
 		return NULL;
 	}
+}
+
+PFRAME_OBJECT
+FrameGetObject(
+	VOID
+	)
+{
+	return FrameObject;
 }
 
 VOID
@@ -926,6 +936,7 @@ FrameOnCreate(
 	LoadString(SdkInstance, IDS_PRODUCT, Buffer, MAX_PATH);
 	SetWindowText(hWnd, Buffer);
 
+	FrameObject = Frame;
 	SdkSetObject(hWnd, Frame);
 	Frame->hWnd = hWnd;
 
