@@ -50,10 +50,8 @@ LISTVIEW_COLUMN CpuThreadColumn[] = {
 static 
 LISTVIEW_COLUMN CpuPcColumn[] = {
 	{ 160, L"Name",  LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 80,  L"Inclusive",	 LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 80,  L"Inclusive %",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 80,  L"Exclusive",    LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 80,  L"Exclusive %",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 80,  L"Samples",	 LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 80,  L"Time %",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 80,  L"Module",  LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 240, L"Line",  LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 };
@@ -361,24 +359,21 @@ CpuThreadOnItemChanged(
 	__in NMLISTVIEW *lpNmlv
 	)
 {
-    PCPU_THREAD Thread;
-    PCPU_THREAD_PC_TABLE PcTable;
     HWND hWndCtrl;
-    LVITEM lvi = {0};
-	WCHAR Buffer[MAX_PATH];
 	PBTR_TEXT_TABLE TextTable;
 	PBTR_TEXT_FILE TextFile;
 	PBTR_TEXT_ENTRY TextEntry;
-	PCPU_THREAD_PC PcEntry;
-	ULONG Exclusive;
+    PCPU_COUNTERS Thread;
+	PCPU_PC_ENTRY PcEntry;
     PPF_REPORT_HEAD Head;
     PCPU_FORM_CONTEXT Form;
-	ULONG i;
-    ULONG Number;
 	PBTR_LINE_ENTRY Line;
 	PBTR_LINE_ENTRY LineEntry;
 	PBTR_DLL_FILE DllFile;
 	PBTR_DLL_ENTRY DllEntry;
+    LVITEM lvi = {0};
+	WCHAR Buffer[MAX_PATH];
+    ULONG Number;
 	double Percent;
 
     Form = (PCPU_FORM_CONTEXT)Object->Context;
@@ -387,20 +382,17 @@ CpuThreadOnItemChanged(
     Head = Form->Head;
     ASSERT(Head != NULL);
 
-    if (lpNmlv->uNewState & LVIS_SELECTED) {
+	if (lpNmlv->uNewState & LVIS_SELECTED) {
 
-        //
-        // Delete all items if any
-        //
+		//
+		// Delete all items if any
+		//
 
-        hWndCtrl = GetDlgItem(Object->hWnd, IDC_LIST_CPU_THREAD_PC);
+		hWndCtrl = GetDlgItem(Object->hWnd, IDC_LIST_CPU_THREAD_PC);
         ListView_DeleteAllItems(hWndCtrl);
 
         ASSERT(lpNmlv->lParam != 0);
-        Thread = (PCPU_THREAD)lpNmlv->lParam;
-
-        PcTable = Thread->Table;
-        ASSERT(PcTable != NULL);
+        Thread = (PCPU_COUNTERS)lpNmlv->lParam;
 
         //
         // Build symbol table to parse PC address 
@@ -409,140 +401,92 @@ CpuThreadOnItemChanged(
         TextFile = (PBTR_TEXT_FILE)((PUCHAR)Head + Head->Streams[STREAM_SYMBOL].Offset);
         TextTable = ApsBuildSymbolTable(TextFile, 4093);
 
-        Exclusive = Thread->Exclusive;
-        Number = 0;
-
 		DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
 		DllEntry = &DllFile->Dll[0];
 
 		Line = (PBTR_LINE_ENTRY)ApsGetStreamPointer(Head, STREAM_LINE);
 		LineEntry = Line;
 
-        for(i = 0; i < CPU_PC_BUCKET; i++) {
+		for (Number = 0; Number < Thread->PcCount; Number += 1) {
 
-            PLIST_ENTRY ListEntry;
-            PLIST_ENTRY ListHead;
+			PcEntry = &Thread->Pc[Number];
 
-            ListHead = &PcTable->ListHead[i];
-            ListEntry = ListHead->Flink;
+			lvi.iItem = Number;
+			lvi.iSubItem = 0;
+			lvi.mask = LVIF_TEXT | LVIF_PARAM;
+			lvi.lParam = (LPARAM)PcEntry;
 
-            while (ListEntry != ListHead) {
+			ASSERT(PcEntry->Pc.Address != NULL);
 
-                PcEntry = CONTAINING_RECORD(ListEntry, CPU_THREAD_PC, ListEntry);
+			TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Pc.Address);
+			if (TextEntry) {
+				StringCchPrintf(Buffer, MAX_PATH, L"%S", TextEntry->Text);
+			}
+			else {
+				ApsFormatAddress(Buffer, MAX_PATH, PcEntry->Pc.Address, TRUE);
+			}
 
-				Percent = (PcEntry->Inclusive * 1.0) / (Exclusive * 1.0);
-				if (Percent < CPU_UI_INCLUSIVE_RATIO_THRESHOLD) {
-	                ListEntry = ListEntry->Flink;
-					continue;
-				}
+			lvi.pszText = Buffer;
+			ListView_InsertItem(hWndCtrl, &lvi);
 
-                //
-                // Symbol name
-                //
+			//
+			// Samples 
+			//
 
-                lvi.iItem = Number;
-                lvi.iSubItem = 0;
-                lvi.mask = LVIF_TEXT|LVIF_PARAM;
-                lvi.lParam = (LPARAM)PcEntry;
+			lvi.iSubItem = 1;
+			lvi.mask = LVIF_TEXT;
+			StringCchPrintf(Buffer, MAX_PATH, L"%u", PcEntry->Count);
+			lvi.pszText = Buffer;
+			ListView_SetItem(hWndCtrl, &lvi);
 
-                ASSERT(PcEntry->Pc != NULL);
+			//
+			// Time %
+			//
 
-                TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Pc);
-                if (TextEntry) {
-                    StringCchPrintf(Buffer, MAX_PATH, L"%S", TextEntry->Text);
-                } else {
-                    ApsFormatAddress(Buffer, MAX_PATH, PcEntry->Pc, TRUE);
-                }
+			Percent = (PcEntry->KernelTime + PcEntry->UserTime) * 100.0 / (Thread->TotalKernelTime + Thread->TotalUserTime) * 1.0;
+			lvi.iSubItem = 2;
+			lvi.mask = LVIF_TEXT;
+			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", Percent);
+			lvi.pszText = Buffer;
+			ListView_SetItem(hWndCtrl, &lvi);
 
-                lvi.pszText = Buffer;
-                ListView_InsertItem(hWndCtrl, &lvi);
+			//
+			// Dll 
+			//
 
-                //
-                // Inclusive
-                //
+			lvi.iSubItem = 3;
+			lvi.mask = LVIF_TEXT;
 
-                lvi.iSubItem = 1;
-                lvi.mask = LVIF_TEXT;
-                StringCchPrintf(Buffer, MAX_PATH, L"%u", PcEntry->Inclusive);
-                lvi.pszText = Buffer;
-                ListView_SetItem(hWndCtrl, &lvi);
+			ApsGetDllBaseNameById(Head, PcEntry->Pc.DllId, Buffer, MAX_PATH);
+			lvi.pszText = Buffer;
+			ListView_SetItem(hWndCtrl, &lvi);
 
-               
-                //
-                // Inclusive %
-                //
+			//
+			// Line
+			//
 
-                lvi.iSubItem = 2;
-                lvi.mask = LVIF_TEXT;
-                StringCchPrintf(Buffer, MAX_PATH, L"%.2f", (PcEntry->Inclusive * 100.0) / (Exclusive * 1.0));
-                lvi.pszText = Buffer;
-                ListView_SetItem(hWndCtrl, &lvi);
-                
-                //
-                // Exclusive
-                //
+			if (PcEntry->Pc.LineId != -1) {
 
-                lvi.iSubItem = 3;
-                lvi.mask = LVIF_TEXT;
-                StringCchPrintf(Buffer, MAX_PATH, L"%u", PcEntry->Exclusive);
-                lvi.pszText = Buffer;
-                ListView_SetItem(hWndCtrl, &lvi);
+				ASSERT(Line != NULL);
 
-                //
-                // Exclusive %
-                //
+				LineEntry = Line + PcEntry->Pc.LineId;
+				StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
 
-                lvi.iSubItem = 4;
-                lvi.mask = LVIF_TEXT;
-                StringCchPrintf(Buffer, MAX_PATH, L"%.2f", (PcEntry->Exclusive * 100.0) / (Exclusive * 1.0));
-                lvi.pszText = Buffer;
-                ListView_SetItem(hWndCtrl, &lvi);
+				lvi.iSubItem = 4;
+				lvi.mask = LVIF_TEXT;
+				lvi.pszText = Buffer;
+				ListView_SetItem(hWndCtrl, &lvi);
+			}
+			else {
 
-                //
-                // Dll 
-                //
+				lvi.iSubItem = 4;
+				lvi.mask = LVIF_TEXT;
+				lvi.pszText = L"";
+				ListView_SetItem(hWndCtrl, &lvi);
+			}
+		}
 
-                lvi.iSubItem = 5;
-                lvi.mask = LVIF_TEXT;
-				
-				ApsGetDllBaseNameById(Head, PcEntry->DllId, Buffer, MAX_PATH);
-                lvi.pszText = Buffer;
-                ListView_SetItem(hWndCtrl, &lvi);
-
-				//
-				// Line
-				//
-
-				if (PcEntry->LineId != -1) {
-
-					ASSERT(Line != NULL);
-
-					LineEntry = Line + PcEntry->LineId;
-					StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
-
-					lvi.iSubItem = 6;
-					lvi.mask = LVIF_TEXT;
-					lvi.pszText = Buffer; 
-					ListView_SetItem(hWndCtrl, &lvi);
-
-				} else {
-
-					lvi.iSubItem = 6;
-					lvi.mask = LVIF_TEXT;
-					lvi.pszText = L""; 
-					ListView_SetItem(hWndCtrl, &lvi);
-				}
-
-                //
-                // Move to next PC
-                //
-
-                Number += 1;
-                ListEntry = ListEntry->Flink;
-            }
-        }
-
-        ApsDestroySymbolTable(TextTable);
+		ApsDestroySymbolTable(TextTable);
     }
 
     return 0L;
@@ -624,7 +568,7 @@ CpuThreadSortThreadCallback(
 {
 	WCHAR FirstData[MAX_PATH + 1];
     WCHAR SecondData[MAX_PATH + 1];
-    PCPU_THREAD Thread1, Thread2;
+    PCPU_COUNTERS Thread1, Thread2;
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
 	LISTVIEW_OBJECT *ListView;
@@ -647,7 +591,7 @@ CpuThreadSortThreadCallback(
 	}
 	
 	if (ListView->LastClickedColumn == 1 || ListView->LastClickedColumn == 2) {
-        Result = (Thread1->KernelTime + Thread1->UserTime) - (Thread2->KernelTime + Thread2->UserTime);
+        Result = (Thread1->TotalKernelTime + Thread1->TotalUserTime) - (Thread2->TotalKernelTime + Thread2->TotalUserTime);
 	}
 	
 	if (ListView->LastClickedColumn == 3 || ListView->LastClickedColumn == 4) {
@@ -666,7 +610,7 @@ CpuThreadSortPcCallback(
 	__in LPARAM Param
 	)
 {
-	PCPU_THREAD_PC Pc1, Pc2;
+	PCPU_PC_ENTRY Pc1, Pc2;
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
 	LISTVIEW_OBJECT *ListView;
@@ -692,8 +636,8 @@ CpuThreadSortPcCallback(
 	ListViewGetParam(hWndList, (LONG)Second, (LPARAM *)&Pc2);
 
 	if (ListView->LastClickedColumn == 0 || 
-		ListView->LastClickedColumn == 5 ||
-		ListView->LastClickedColumn == 6) {
+		ListView->LastClickedColumn == 3 ||
+		ListView->LastClickedColumn == 4) {
 
         ListView_GetItemText(hWndList, First,  ListView->LastClickedColumn, FirstData,  MAX_PATH);
 	    ListView_GetItemText(hWndList, Second, ListView->LastClickedColumn, SecondData, MAX_PATH);
@@ -701,31 +645,23 @@ CpuThreadSortPcCallback(
 
 	}
 	
-    if (ListView->LastClickedColumn == 1 || ListView->LastClickedColumn == 2) {
-        Result = Pc1->Inclusive - Pc2->Inclusive;
-		if (Result == 0) {
-			Result = Pc1->Depth - Pc2->Depth;
-		}
+	//
+	// Sort by Pc sample count
+	//
+
+    if (ListView->LastClickedColumn == 1) {
+        Result = Pc1->Count - Pc2->Count;
 	}
 	
-    if (ListView->LastClickedColumn == 3 || ListView->LastClickedColumn == 4) {
-        Result = Pc1->Exclusive - Pc2->Exclusive;
+	//
+	// Sort by Pc time percent
+	//
+
+    if (ListView->LastClickedColumn == 2) {
+        Result = Pc1->KernelTime + Pc1->UserTime - (Pc2->KernelTime + Pc2->UserTime);
 	}
 	
 	return ListView->SortOrder ? Result : -Result;
-}
-
-PCPU_THREAD_TABLE
-CpuThreadGetTable(
-    __in HWND hWnd
-    )
-{  
-    PDIALOG_OBJECT Object;
-    PCPU_FORM_CONTEXT Context;
-
-    Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
-    Context = (PCPU_FORM_CONTEXT)Object->Context;
-    return (PCPU_THREAD_TABLE)Context->Context;
 }
 
 VOID
@@ -734,19 +670,16 @@ CpuThreadInsertThreads(
 	__in PPF_REPORT_HEAD Head
     )
 {
-    PCPU_THREAD_TABLE ThreadTable;
     PDIALOG_OBJECT Object;
     PCPU_FORM_CONTEXT Context;
     ULONG Number;
     HWND hWndCtrl;
-    ULONG i;
-    PCPU_THREAD Thread;
-    PLIST_ENTRY ListEntry;
-    PLIST_ENTRY ListHead;
-    LVITEM lvi = {0};
-	WCHAR Buffer[MAX_PATH];
     double Milliseconds;
     double TotalTimes;
+	PCPU_COUNTERS Counter = NULL;
+	PCPU_COUNTERS Thread;
+    LVITEM lvi = {0};
+	WCHAR Buffer[MAX_PATH];
 
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;
@@ -761,11 +694,10 @@ CpuThreadInsertThreads(
     // Scan the CPU sample records to generate threaded PC stream
     //
 
-    ThreadTable = CpuCreateThreadTable();
-    CpuScanThreadedPc(Head, ThreadTable);
+	CpuScanOnCpuThreaded(Head, CPU_COUNTER_ONCPU_THREADED, &Counter);
 
     TotalTimes = ApsNanoUnitToMilliseconds(
-		(ULONG)(ThreadTable->KernelTime + ThreadTable->UserTime));
+		(ULONG)(Counter->TotalKernelTime + Counter->TotalUserTime));
 
 	//
 	// Ensure not divide by zero
@@ -777,7 +709,7 @@ CpuThreadInsertThreads(
     // Save the thread table in CPU_FORM_CONTEXT
     //
 
-    Context->Context = ThreadTable;
+    Context->Context = Counter;
 
     //
     // Fill the threads into listview
@@ -789,92 +721,74 @@ CpuThreadInsertThreads(
     Number = 0;
 
     //
-    // Walk the hash table to insert all threads, each listview item
-    // attached thread object as LPARAM 
+    // Scan counter table to insert all threads, each listview item
+    // attached a thread object as LPARAM 
     //
 
-    for(i = 0; i < CPU_THREAD_BUCKET; i++) {
+	for (Thread = CpuGetFirstCounter(Counter); Thread != NULL; 
+		 Thread = CpuGetNextCounter(Counter, Thread)) {
 
-        ListHead = &ThreadTable->ListHead[i];
-        ListEntry = ListHead->Flink;
+		//
+		// TID
+		//
 
-        while (ListHead != ListEntry) {
+		lvi.iItem = Number;
+		lvi.iSubItem = 0;
+		lvi.mask = LVIF_TEXT|LVIF_PARAM;
+		lvi.lParam = (LPARAM)Thread;
 
-            Thread = CONTAINING_RECORD(ListEntry, CPU_THREAD, ListEntry);
+		StringCchPrintf(Buffer, MAX_PATH, L"%u", Thread->ThreadId);
+		lvi.pszText = Buffer;
+		ListView_InsertItem(hWndCtrl, &lvi);
 
-            //
-            // TID
-            //
+		//
+		// Time (ms)
+		//
 
-            lvi.iItem = Number;
-            lvi.iSubItem = 0;
-            lvi.mask = LVIF_TEXT|LVIF_PARAM;
-            lvi.lParam = (LPARAM)Thread;
+		lvi.iSubItem = 1;
+		lvi.mask = LVIF_TEXT;
 
-            StringCchPrintf(Buffer, MAX_PATH, L"%u", Thread->ThreadId);
-            lvi.pszText = Buffer;
-            ListView_InsertItem(hWndCtrl, &lvi);
+		Milliseconds = ApsNanoUnitToMilliseconds(Thread->TotalKernelTime + Thread->TotalUserTime);
+		StringCchPrintf(Buffer, MAX_PATH, L"%.3f", Milliseconds);
 
-            //
-            // Time (ms)
-            //
+		lvi.pszText = Buffer;
+		ListView_SetItem(hWndCtrl, &lvi);
+		
+		//
+		// Time (%)
+		//
 
-            lvi.iSubItem = 1;
-            lvi.mask = LVIF_TEXT;
+		lvi.iSubItem = 2;
+		lvi.mask = LVIF_TEXT;
+		StringCchPrintf(Buffer, MAX_PATH, L"%.3f", (Milliseconds * 100.0) / TotalTimes);
+		lvi.pszText = Buffer;
+		ListView_SetItem(hWndCtrl, &lvi);
 
-            Milliseconds = ApsNanoUnitToMilliseconds(Thread->KernelTime + Thread->UserTime);
-            StringCchPrintf(Buffer, MAX_PATH, L"%.3f", Milliseconds);
+		//
+		// Priority 
+		//
 
-            lvi.pszText = Buffer;
-            ListView_SetItem(hWndCtrl, &lvi);
-            
-            //
-            // Time (%)
-            //
+		lvi.iSubItem = 3;
+		lvi.mask = LVIF_TEXT;
 
-            lvi.iSubItem = 2;
-            lvi.mask = LVIF_TEXT;
-            StringCchPrintf(Buffer, MAX_PATH, L"%.3f", (Milliseconds * 100.0) / TotalTimes);
-            lvi.pszText = Buffer;
-            ListView_SetItem(hWndCtrl, &lvi);
+		CpuTranslateThreadPriority(Buffer, MAX_PATH, CpuGetThreadPriority(Head, Thread->ThreadId));
+		lvi.pszText = Buffer;
+		ListView_SetItem(hWndCtrl, &lvi);
 
-            //
-            // Priority 
-            //
+		//
+		// State 
+		//
 
-            lvi.iSubItem = 3;
-            lvi.mask = LVIF_TEXT;
+		lvi.iSubItem = 4;
+		lvi.mask = LVIF_TEXT;
 
-            CpuTranslateThreadPriority(Buffer, MAX_PATH, Thread->Priority);
-            lvi.pszText = Buffer;
-            ListView_SetItem(hWndCtrl, &lvi);
-
-            //
-            // State 
-            //
-
-            lvi.iSubItem = 4;
-            lvi.mask = LVIF_TEXT;
-
-            if (Thread->State == CPU_THREAD_STATE_RUNNING) {
-                lvi.pszText = L"Live";
-            } 
-            else if (Thread->State == CPU_THREAD_STATE_RETIRED) {
-                lvi.pszText = L"Retired";
-            }
-            else {
-                ASSERT(0);
-            }
-
-            ListView_SetItem(hWndCtrl, &lvi);
-
-            //
-            // Move to next item share same bucket
-            //
-
-            Number += 1;
-            ListEntry = ListEntry->Flink;
-        }
+		if (!CpuIsThreadRetired(Head, Thread->ThreadId)){
+			lvi.pszText = L"Live";
+		} 
+		else {
+			lvi.pszText = L"Retired";
+		}
+		ListView_SetItem(hWndCtrl, &lvi);
     }
 
     //
@@ -977,4 +891,13 @@ CpuThreadOnDbClick(
 
 	FrameShowSource(Object->hWnd, Buffer, Line);
 	return 0;
+}
+
+
+PCPU_THREAD_TABLE
+CpuThreadGetTable(
+	__in HWND hWnd
+)
+{
+	return NULL;
 }

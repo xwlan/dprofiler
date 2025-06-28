@@ -1107,6 +1107,28 @@ CpuGetBtrThreadObject(
 	return NULL;
 }
 
+ULONG
+CpuGetThreadPriority(
+    PPF_REPORT_HEAD Head,
+	ULONG ThreadId
+)
+{
+	PBTR_CPU_THREAD Thread;
+	Thread = CpuGetBtrThreadObject(Head, ThreadId);
+	return Thread->Priority;
+}
+
+BOOLEAN
+CpuIsThreadRetired(
+	PPF_REPORT_HEAD Head,
+	ULONG ThreadId
+	)
+{
+	PBTR_CPU_THREAD Thread;
+	Thread = CpuGetBtrThreadObject(Head, ThreadId);
+	return Thread->Retired;
+}
+
 VOID
 CpuCreateThreadStateHistory(
 	__in PCPU_THREAD Thread, 
@@ -1465,10 +1487,9 @@ CpuIsMarkRecord(
 
 VOID
 CpuUpdateOnCpuCounter(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PBTR_CPU_SAMPLE Sample,
-	IN PBTR_PC_ENTRY PcEntry,
-	IN PBTR_TEXT_ENTRY TextEntry
+	IN PBTR_PC_ENTRY PcEntry
 	)
 {
 	ULONG i;
@@ -1514,7 +1535,7 @@ CpuUpdateOnCpuCounter(
 ULONG
 CpuBuildOnCpuStatistics(
 	IN PPF_REPORT_HEAD Head,
-	OUT PCPU_ONCPU_STATISTICS *Stat 
+	OUT PCPU_COUNTERS *Stat 
 	)
 {
 	PBTR_FILE_INDEX Index;
@@ -1537,7 +1558,7 @@ CpuBuildOnCpuStatistics(
 	PBTR_TEXT_ENTRY TextEntry;
 
 	int MaxPcCount;
-	PCPU_ONCPU_STATISTICS OnCpu;
+	PCPU_COUNTERS OnCpu;
 
 	//
 	// Require PC stream is available
@@ -1563,7 +1584,7 @@ CpuBuildOnCpuStatistics(
 	ASSERT(StackFile != NULL);
 
 	MaxPcCount = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
-	OnCpu = (PCPU_ONCPU_STATISTICS)ApsMalloc(FIELD_OFFSET(CPU_ONCPU_STATISTICS, Pc[MaxPcCount]));
+	OnCpu = (PCPU_COUNTERS)ApsMalloc(FIELD_OFFSET(CPU_COUNTERS, Pc[MaxPcCount]));
 	OnCpu->AllocationCount = MaxPcCount;
 
 	//
@@ -1651,7 +1672,7 @@ CpuBuildOnCpuStatistics(
 				Ptr = TextEntry->Text;
 			}
 
-			CpuUpdateOnCpuCounter(OnCpu, Sample, PcEntry, TextEntry);
+			CpuUpdateOnCpuCounter(OnCpu, Sample, PcEntry);
 
 			ApsDebugTrace("TID %u: K %u U %u IP %s", Sample->ThreadId, 
 						(ULONG)Sample->KernelTime, (ULONG)Sample->UserTime, Ptr);
@@ -1693,9 +1714,27 @@ CpuOnCpuPcSortCallback(
 	return (T2->KernelTime + T2->UserTime) - (T1->KernelTime + T1->UserTime);
 }
 
+int __cdecl
+CpuOnCpuCounterSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
+	)
+{
+	PCPU_COUNTERS T1, T2;
+
+	T1 = (PCPU_COUNTERS)Entry1;
+	T2 = (PCPU_COUNTERS)Entry2;
+
+	//
+	// N.B. we need a decreasing order
+	//
+
+	return (T1->TotalKernelTime + T1->TotalUserTime) - (T2->TotalKernelTime + T2->TotalUserTime);
+}
+
 VOID
 CpuDebugOnCpuStatistics(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PBTR_TEXT_TABLE TextTable
 	)
 {
@@ -1706,6 +1745,10 @@ CpuDebugOnCpuStatistics(
 	PCSTR Ptr;
 	double TotalTime;
 	double Percent;
+
+	if (OnCpu->ThreadId != 0) {
+		ApsDebugTrace("OnCpu Statistics: TID =%u", OnCpu->ThreadId);
+	}
 
 	TotalTime = (OnCpu->TotalKernelTime + OnCpu->TotalUserTime) * 1.0;
 
@@ -1728,7 +1771,7 @@ CpuDebugOnCpuStatistics(
 
 float
 CpuComputeOnCpuPercent(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PCPU_PC_ENTRY Pc,
 	IN BOOLEAN ByTime
 	)
@@ -1736,10 +1779,354 @@ CpuComputeOnCpuPercent(
 	float Percent;
 
 	if (ByTime) {
-		Percent = (Pc->KernelTime + Pc->UserTime) * 100.0 / (OnCpu->TotalKernelTime + OnCpu->TotalUserTime);
+		Percent = (Pc->KernelTime + Pc->UserTime) * 100.0f / (OnCpu->TotalKernelTime + OnCpu->TotalUserTime);
 	}
 	else {
-		Percent = Pc->Count * 100.0 / OnCpu->TotalCount;
+		Percent = Pc->Count * 100.0f / OnCpu->TotalCount;
 	}
 	return Percent;
 }
+
+int
+CpuGetMarkStep(
+	IN PPF_REPORT_HEAD Head
+	)
+{
+	PPF_STREAM_SYSTEM Info;
+
+	Info = (PPF_STREAM_SYSTEM)ApsGetStreamPointer(Head, STREAM_SYSTEM);
+	ASSERT(Info != NULL);
+	ASSERT(Info->Attr.SamplingPeriod != 0);
+	ASSERT(Info->Attr.SamplingPeriod < 1000);
+	return (1000 / Info->Attr.SamplingPeriod);
+}
+
+PCPU_COUNTERS
+CpuAllocateThreadTable(
+	IN PPF_REPORT_HEAD Head
+	)
+{
+	PCPU_COUNTERS Counter;
+	return NULL;
+}
+
+VOID
+CpuFreeThreadTable(
+	IN PCPU_COUNTERS Counters
+)
+{
+	ApsFree(Counters);
+}
+
+PCPU_COUNTERS
+CpuGetCounterPerThread(
+	IN PCPU_COUNTERS Counters,
+	IN ULONG CounterSize,
+	IN ULONG ThreadId
+	)
+{
+	int i;
+	PCPU_COUNTERS Entry;
+
+	ASSERT(ThreadId != 0);
+
+	//
+	// Skip first entry which is reserved for global counter
+	//
+
+	Entry = (PCPU_COUNTERS)((PUCHAR)Counters + CounterSize);
+
+	for (i = 0; i < CPU_MAX_THREAD - 1; i++) {
+		if (Entry->ThreadId == 0) {
+
+			//
+			// Allocate new thread entry for ThreadId
+			//
+
+			Entry->ThreadId = ThreadId;
+			Counters->ThreadCount += 1;
+			return Entry;
+		}
+		else if (Entry->ThreadId == ThreadId) {
+			return Entry;
+		}
+		Entry = (PCPU_COUNTERS)((PUCHAR)Entry + CounterSize);
+	}
+
+	ASSERT(0);
+	return NULL;
+}
+
+VOID
+CpuUpdateOffCpuCounter(
+	IN PCPU_COUNTERS Counter,
+	IN PBTR_CPU_SAMPLE Sample,
+	IN PBTR_PC_ENTRY PcEntry
+	)
+{
+	ULONG i;
+	PCPU_PC_ENTRY CpuPc;
+
+	for (i = 0; i < Counter->AllocationCount; i++) {
+		CpuPc = &Counter->Pc[i];
+		if (!CpuPc->Pc.Address) {
+
+			//
+			// Scan an empty slot and allocate for current sample
+			//
+
+			CpuPc->Pc = *PcEntry;
+			CpuPc->Count = 1;
+
+			Counter->PcCount += 1;
+			Counter->TotalCount += 1;
+			break;
+		}
+		else if ((LONG_PTR)CpuPc->Pc.Address == (LONG_PTR)PcEntry->Address) {
+
+			//
+			// Find the match PcEntry, update its counters
+			//
+
+			CpuPc->Count += 1;
+			Counter->TotalCount += 1;
+			break;
+		}
+	}
+}
+
+ULONG
+CpuScanOnCpuThreaded(
+	IN PPF_REPORT_HEAD Head,
+	IN CPU_COUNTER_TYPE Type,
+	OUT PCPU_COUNTERS* Stat
+	)
+{
+	PBTR_FILE_INDEX Index;
+	PBTR_CPU_RECORD Record;
+	PBTR_CPU_SAMPLE Sample;
+	ULONG Number;
+	ULONG Count;
+	ULONG ThreadCount;
+	ULONG i;
+	PBTR_STACK_RECORD StackTrace;
+	PBTR_STACK_RECORD StackFile;
+	PBTR_DLL_FILE DllFile;
+	PBTR_DLL_ENTRY DllEntry;
+	PBTR_FUNCTION_ENTRY FuncEntry;
+	PBTR_LINE_ENTRY LineEntry;
+	PBTR_PC_TABLE PcTable;
+	PBTR_PC_ENTRY PcEntry;
+	PBTR_TEXT_TABLE TextTable;
+	PBTR_TEXT_FILE TextFile;
+	PBTR_TEXT_ENTRY TextEntry;
+
+	int MaxPcCount;
+	int AllocationCount;
+	int CounterSize;
+	int MarkStep;
+	PCPU_COUNTERS Counter;
+	PCPU_COUNTERS Thread;
+	PCPU_COUNTERS Entry;
+
+	//
+	// Require PC stream is available
+	//
+
+	if (!Head->Streams[STREAM_PC].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	if (!Head->Streams[STREAM_INDEX].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	if (!Head->Streams[STREAM_RECORD].Offset) {
+		return APS_STATUS_ERROR;
+	}
+
+	Index = (PBTR_FILE_INDEX)ApsGetStreamPointer(Head, STREAM_INDEX);
+	Record = (PBTR_CPU_RECORD)ApsGetStreamPointer(Head, STREAM_RECORD);
+	Count = (ULONG)(Head->Streams[STREAM_INDEX].Length / sizeof(BTR_FILE_INDEX));
+
+	StackFile = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
+	ASSERT(StackFile != NULL);
+
+	//
+	// Allocated CPU_COUNTER structure by fixed number of Pc entries by
+	// compare minimum of number of stack records and number of index
+	//
+
+	MaxPcCount = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
+	//MarkStep = CpuGetMarkStep(Head);
+	//MaxPcCount = min(Count / (MarkStep + 1), MaxPcCount);
+
+	//
+	// Support up to 1024 threads limit
+	//
+
+	CounterSize = FIELD_OFFSET(CPU_COUNTERS, Pc[MaxPcCount]);
+	Counter = (PCPU_COUNTERS)ApsMalloc(CounterSize * CPU_MAX_THREAD);
+	for (Number = 0; Number < CPU_MAX_THREAD; Number += 1) {
+		Entry = (PCPU_COUNTERS)((PUCHAR)Counter + Number * CounterSize);
+		Entry->AllocationCount = MaxPcCount;
+		Entry->Type = Type;
+	}
+
+	//
+	// First counter entry is reserved for total summary
+	//
+
+	Counter[0].ThreadCount = 0;
+
+	//
+	// Build symbol table
+	//
+
+	TextFile = (PBTR_TEXT_FILE)ApsGetStreamPointer(Head, STREAM_SYMBOL);
+	TextTable = ApsBuildSymbolTable(TextFile, 4093);
+
+	//
+	// Get DLL entry base address 
+	//
+
+	DllFile = (PBTR_DLL_FILE)ApsGetStreamPointer(Head, STREAM_DLL);
+	DllEntry = &DllFile->Dll[0];
+
+	//
+	// Get function entry base address
+	//
+
+	FuncEntry = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
+
+	//
+	// Get line entry base address
+	//
+
+	LineEntry = (PBTR_LINE_ENTRY)ApsGetStreamPointer(Head, STREAM_LINE);
+
+	//
+	// Create Pc table from STREAM_PC
+	//
+
+	ApsCreatePcTableFromStream(Head, &PcTable);
+
+	int MarkIndex = 0;
+	for (Number = 0; Number < Count; Number += 1) {
+
+		//
+		// Get next CPU profiling record
+		//
+
+		Record = CpuGetNextCpuRecord(Record, Number);
+		if (CpuIsMarkRecord(Record)) {
+			ApsDebugTrace("CPU Mark #%u: K %u U %u Usage: %.2f %%", MarkIndex,
+				(ULONG)Record->KernelTime, (ULONG)Record->UserTime, Record->CpuUsage);
+			MarkIndex += 1;
+			continue;
+		}
+		else {
+			ApsDebugTrace("CPU Record #%u: Active %u Retire %u K %u U %u", Number,
+				Record->ActiveCount, Record->RetireCount,
+				(ULONG)Record->KernelTime, (ULONG)Record->UserTime);
+		}
+
+		//
+		// Get number of total threads include retired ones
+		//
+
+		ThreadCount = Record->ActiveCount + Record->RetireCount;
+
+		for (i = 0; i < ThreadCount; i++) {
+
+			CHAR Name[MAX_PATH];
+			PSTR Ptr;
+
+			Sample = &Record->Sample[i];
+			if (Sample->KernelTime == 0 && Sample->UserTime == 0) {
+				continue;
+			}
+
+			//
+			// Lookup thread
+			//
+
+			Thread = CpuGetCounterPerThread(Counter, CounterSize, Sample->ThreadId);
+			if (!Thread) {
+
+				//
+				// This indicate thread number overflow and we need ignore this thread
+				//
+
+				continue;
+			}
+
+			StackTrace = &StackFile[Sample->StackId];
+			PcEntry = ApsLookupPcEntry(StackTrace->Frame[0], PcTable);
+			ASSERT(PcEntry != NULL);
+			TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Address);
+			if (!TextEntry) {
+				sprintf_s(Name, MAX_PATH, "0x%I64x", (ULONG64)PcEntry->Address);
+				Ptr = Name;
+			}
+			else {
+				Ptr = TextEntry->Text;
+			}
+
+			CpuUpdateOnCpuCounter(Thread, Sample, PcEntry);
+			CpuUpdateOnCpuCounter(Counter, Sample, PcEntry);
+		}
+	}
+
+	//
+	// Sort the On CPU Pc in decrease order by its time percent
+	// Sort each counter for each thread
+	//
+
+	Entry = CpuGetFirstCounter(Counter);
+	qsort(Entry, Counter->ThreadCount, CounterSize, CpuOnCpuCounterSortCallback);
+	
+	for (i = 1; i < Counter->ThreadCount + 1; i++) {
+		Entry = (PCPU_COUNTERS)((PUCHAR)Counter + i * CounterSize);
+		if (Entry->PcCount > 1) {
+			qsort(&Entry->Pc[0], Entry->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
+		}
+	}
+
+#ifdef _DEBUG
+	for (i = 1; i < Counter->ThreadCount + 1; i++) {
+		Entry = (PCPU_COUNTERS)((PUCHAR)Counter + i * CounterSize);
+		CpuDebugOnCpuStatistics(Entry, TextTable);
+	}
+#endif
+
+	*Stat = Counter;
+
+	ApsDestroySymbolTable(TextTable);
+	ApsDestroyPcTableFromStream(PcTable);
+	return APS_STATUS_OK;
+}
+
+PCPU_COUNTERS
+CpuGetFirstCounter(
+	IN PCPU_COUNTERS Counter
+	)
+{
+	int Size;
+	Size = FIELD_OFFSET(CPU_COUNTERS, Pc[Counter->AllocationCount]);
+	return (PCPU_COUNTERS)((PUCHAR)Counter + Size);
+}
+
+PCPU_COUNTERS
+CpuGetNextCounter(
+	IN PCPU_COUNTERS Counter,
+	IN PCPU_COUNTERS Current
+	)
+{
+	int Size;
+	Size = FIELD_OFFSET(CPU_COUNTERS, Pc[Counter->AllocationCount]);
+	if (((ULONG_PTR)Current - (ULONG_PTR)Counter) / Size < Counter->ThreadCount) {
+		return (PCPU_COUNTERS)((PUCHAR)Current + Size);
+	}
+	return NULL;
+} 

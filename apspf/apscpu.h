@@ -46,6 +46,8 @@ typedef struct _CPU_THREAD_PC_TABLE {
 #define CPU_THREAD_STATE_RUNNING  0
 #define CPU_THREAD_STATE_RETIRED  1
 
+#define CPU_MAX_THREAD 1024
+
 //
 // Stack record per thread
 //
@@ -158,9 +160,13 @@ typedef struct _CPU_THREAD_TABLE {
 
 } CPU_THREAD_TABLE, *PCPU_THREAD_TABLE;
 
-//
-// For On CPU analysis
-//
+typedef enum _CPU_COUNTER_TYPE {
+	CPU_COUNTER_ONCPU,
+	CPU_COUNTER_ONCPU_THREADED,
+	CPU_COUNTER_OFFCPU,
+	CPU_COUNTER_OFFCPU_THREADED,
+	CPU_COUNTER_MIXED_THREADED,
+} CPU_COUNTER_TYPE;
 
 typedef struct _CPU_PC_ENTRY {
 	BTR_PC_ENTRY Pc;
@@ -169,14 +175,17 @@ typedef struct _CPU_PC_ENTRY {
 	ULONG UserTime;
 } CPU_PC_ENTRY, *PCPU_PC_ENTRY;
 
-typedef struct _CPU_ONCPU_STATISTICS {
+typedef struct _CPU_COUNTERS {
+	CPU_COUNTER_TYPE Type;
 	ULONG TotalKernelTime;
 	ULONG TotalUserTime;
 	ULONG TotalCount;
+	ULONG ThreadId;
 	ULONG PcCount;
 	ULONG AllocationCount;
+	ULONG ThreadCount; 
 	CPU_PC_ENTRY Pc[ANYSIZE_ARRAY];
-} CPU_ONCPU_STATISTICS, *PCPU_ONCPU_STATISTICS;
+} CPU_COUNTERS, *PCPU_COUNTERS;
 
 ULONG
 ApsCreateCpuProfile(
@@ -306,6 +315,18 @@ CpuGetBtrThreadObject(
 	__in ULONG ThreadId
     );
 
+ULONG
+CpuGetThreadPriority(
+	PPF_REPORT_HEAD Head,
+	ULONG ThreadId
+	);
+
+BOOLEAN
+CpuIsThreadRetired(
+	PPF_REPORT_HEAD Head,
+	ULONG ThreadId
+	);
+
 VOID
 CpuCreateThreadStateHistory(
 	__in PCPU_THREAD Thread, 
@@ -363,15 +384,14 @@ CpuPcToThreadState(
 ULONG
 CpuBuildOnCpuStatistics(
 	IN PPF_REPORT_HEAD Head,
-	OUT PCPU_ONCPU_STATISTICS* Stat
+	OUT PCPU_COUNTERS* Stat
 	);
 
 VOID
 CpuUpdateOnCpuCounter(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PBTR_CPU_SAMPLE Sample,
-	IN PBTR_PC_ENTRY PcEntry,
-	IN PBTR_TEXT_ENTRY TextEntry
+	IN PBTR_PC_ENTRY PcEntry
 	);
 
 BOOLEAN
@@ -381,7 +401,7 @@ CpuIsMarkRecord(
 
 VOID
 CpuDebugOnCpuStatistics(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PBTR_TEXT_TABLE TextTable
 	);
 
@@ -391,11 +411,54 @@ CpuOnCpuPcSortCallback(
 	IN const void* Entry2
 	);
 
+int __cdecl
+CpuOnCpuCounterSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
+	);
+
 float
 CpuComputeOnCpuPercent(
-	IN PCPU_ONCPU_STATISTICS OnCpu,
+	IN PCPU_COUNTERS OnCpu,
 	IN PCPU_PC_ENTRY Pc,
 	IN BOOLEAN ByTime
+	);
+
+int
+CpuGetMarkStep(
+	IN PPF_REPORT_HEAD Head
+	);
+
+PCPU_COUNTERS
+CpuGetCounterPerThread(
+	IN PCPU_COUNTERS Counters,
+	IN ULONG CounterSize,
+	IN ULONG ThreadId
+	);
+
+VOID
+CpuUpdateOffCpuCounter(
+	IN PCPU_COUNTERS Counter,
+	IN PBTR_CPU_SAMPLE Sample,
+	IN PBTR_PC_ENTRY PcEntry
+	);
+
+ULONG
+CpuScanOnCpuThreaded(
+	IN PPF_REPORT_HEAD Head,
+	IN CPU_COUNTER_TYPE Type,
+	OUT PCPU_COUNTERS* Stat
+	);
+
+PCPU_COUNTERS
+CpuGetFirstCounter(
+	IN PCPU_COUNTERS Counter
+	);
+
+PCPU_COUNTERS
+CpuGetNextCounter(
+	IN PCPU_COUNTERS Counter,
+	IN PCPU_COUNTERS Current
 	);
 
 #ifdef __cplusplus 
