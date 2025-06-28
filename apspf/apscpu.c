@@ -2072,7 +2072,7 @@ CpuScanOnCpuThreaded(
 
 	//
 	// Sort the On CPU Pc in decrease order by its time percent
-	// Sort each counter for each thread
+	// Sort each counter for each thread by its time percent
 	//
 
 	Entry = CpuGetFirstCounter(Counter);
@@ -2084,14 +2084,6 @@ CpuScanOnCpuThreaded(
 			qsort(&Entry->Pc[0], Entry->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
 		}
 	}
-
-	/*
-	for (i = 1; i < Counter->ThreadCount + 1; i++) {
-		Entry = (PCPU_COUNTERS)((PUCHAR)Counter + i * CounterSize);
-		if (Entry->PcCount > 1) {
-			qsort(&Entry->Pc[0], Entry->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
-		}
-	}*/
 
 #ifdef _DEBUG
 	for (i = 1; i < Counter->ThreadCount + 1; i++) {
