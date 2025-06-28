@@ -783,7 +783,7 @@ CpuCollectSample(
 
 	Length = FIELD_OFFSET(BTR_CPU_RECORD, Sample[CpuActiveCount]);
 	Record = CpuAllocateRecord(Length);
-    RtlZeroMemory(Record, sizeof(BTR_CPU_RECORD));
+	RtlZeroMemory(Record, Length);
 
     //
     // Mark timestamp of the record
