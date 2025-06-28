@@ -1958,8 +1958,6 @@ CpuScanOnCpuThreaded(
 	//
 
 	MaxPcCount = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
-	//MarkStep = CpuGetMarkStep(Head);
-	//MaxPcCount = min(Count / (MarkStep + 1), MaxPcCount);
 
 	//
 	// Support up to 1024 threads limit
@@ -1972,12 +1970,6 @@ CpuScanOnCpuThreaded(
 		Entry->AllocationCount = MaxPcCount;
 		Entry->Type = Type;
 	}
-
-	//
-	// First counter entry is reserved for total summary
-	//
-
-	Counter[0].ThreadCount = 0;
 
 	//
 	// Build symbol table
@@ -2086,12 +2078,20 @@ CpuScanOnCpuThreaded(
 	Entry = CpuGetFirstCounter(Counter);
 	qsort(Entry, Counter->ThreadCount, CounterSize, CpuOnCpuCounterSortCallback);
 	
+	for (Entry = CpuGetFirstCounter(Counter); Entry != NULL;
+		Entry = CpuGetNextCounter(Counter, Entry)) {
+		if (Entry->PcCount > 1) {
+			qsort(&Entry->Pc[0], Entry->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
+		}
+	}
+
+	/*
 	for (i = 1; i < Counter->ThreadCount + 1; i++) {
 		Entry = (PCPU_COUNTERS)((PUCHAR)Counter + i * CounterSize);
 		if (Entry->PcCount > 1) {
 			qsort(&Entry->Pc[0], Entry->PcCount, sizeof(CPU_PC_ENTRY), CpuOnCpuPcSortCallback);
 		}
-	}
+	}*/
 
 #ifdef _DEBUG
 	for (i = 1; i < Counter->ThreadCount + 1; i++) {
