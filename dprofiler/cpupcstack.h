@@ -20,6 +20,9 @@ extern "C" {
 typedef struct _CPU_PCSTACK_CONTEXT {
 	PCPU_PC_ENTRY Pc;
 	ULONG ThreadId;
+	FLOAT ThreadPercent;
+	FLOAT PcPercent;
+	ULONG PcCount;
 	PCPU_PC_STACKTRACE Stack;
 } CPU_PCSTACK_CONTEXT, *PCPU_PCSTACK_CONTEXT;
 
@@ -29,7 +32,10 @@ CpuPcStackCreate(
 	IN ULONG CtrlId,
 	IN PPF_REPORT_HEAD Head,
 	IN PCPU_PC_ENTRY Pc,
-	IN ULONG ThreadId
+	IN ULONG ThreadId,
+	IN FLOAT ThreadPercent,
+	IN FLOAT PcPercent,
+	IN ULONG PcCount
 	);
 
 LRESULT

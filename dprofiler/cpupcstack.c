@@ -18,6 +18,7 @@
 #include "ccrstack.h"
 #include "apsbtr.h"
 #include "cpupcstack.h"
+#include <commdlg.h>
 
 
 static
@@ -67,7 +68,10 @@ CpuPcStackCreate(
 	IN ULONG CtrlId,
 	IN PPF_REPORT_HEAD Head,
 	IN PCPU_PC_ENTRY Pc,
-	IN ULONG ThreadId
+	IN ULONG ThreadId,
+	IN FLOAT ThreadPercent,
+	IN FLOAT PcPercent,
+	IN ULONG PcCount
 	)
 {
 	DIALOG_OBJECT Object = { 0 };
@@ -76,6 +80,9 @@ CpuPcStackCreate(
 
 	PcContext.Pc = Pc;
 	PcContext.ThreadId = ThreadId;
+	PcContext.ThreadPercent = ThreadPercent;
+	PcContext.PcPercent = PcPercent;
+	PcContext.PcCount = PcCount;
 
 	Context.CtrlId = CtrlId;
 	Context.Head = Head;
@@ -173,7 +180,7 @@ CpuPcStackOnInitDialog(
 	CpuPcStackInsertPcCount(hWnd, Context->Head);
 	CpuPcStackInsertBackTrace(hWnd, 0);
 
-	SdkCenterWindow(NULL);
+	SdkCenterWindow(hWnd);
 	return TRUE;
 }
 
@@ -261,6 +268,99 @@ CpuPcStackOnExport(
 	__in LPARAM lp
 )
 {
+	ULONG Status;
+	OPENFILENAME Ofn;
+	PFRAME_OBJECT Frame;
+	PDIALOG_OBJECT Object;
+	PCPU_FORM_CONTEXT Context;
+	WCHAR Path[MAX_PATH];
+	WCHAR Name[MAX_PATH];
+	WCHAR PcName[STACK_TEXT_LIMIT];
+	WCHAR DllName[64];
+	PCPU_PCSTACK_CONTEXT PcContext;
+	PWCHAR Ptr;
+	PCHAR Buffer;
+	FILE* file;
+	int Count;
+	HWND hWndLeft;
+	HWND hWndRight;
+
+	ZeroMemory(&Ofn, sizeof Ofn);
+
+	Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
+	Context = (PCPU_FORM_CONTEXT)SdkGetContext(Object, PCPU_FORM_CONTEXT);
+	PcContext = (PCPU_PCSTACK_CONTEXT)Context->Context;
+
+	Frame = FrameGetObject();
+	Ptr = wcsrchr(Frame->FilePath, L'\\');
+	wcscpy_s(Name, MAX_PATH, Ptr);
+
+	//
+	// Get selectecd stack frame names
+	//
+
+	HWND hWndList = GetDlgItem(hWnd, IDC_LIST_PCSTACK_RIGHT);
+	ListView_GetItemText(hWndList, 0, 1, PcName, STACK_TEXT_LIMIT);
+	ListView_GetItemText(hWndList, 0, 2, DllName, 64);
+
+	StringCchPrintf(Path, MAX_PATH, L"%s__TID_%u_IP_%s_%s__StackTrace.txt",
+					Name, PcContext->ThreadId, DllName, PcName);
+
+	Ofn.lStructSize = sizeof(Ofn);
+	Ofn.hwndOwner = hWnd;
+	Ofn.hInstance = SdkInstance;
+	Ofn.lpstrFilter = Ofn.lpstrFilter = L"Text File (*.txt)\0*.txt\0\0";
+	Ofn.lpstrFile = Path;
+	Ofn.nMaxFile = sizeof(Path);
+	Ofn.lpstrTitle = APP_TITLE;
+	Ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+
+	Status = GetSaveFileName(&Ofn);
+	if (!Status) {
+		return 0;
+	}
+
+	StringCchCopy(Path, MAX_PATH, Ofn.lpstrFile);
+
+	//
+	// Output stack trace to specified file path
+	//
+
+	Buffer = ApsMalloc(1024);
+	StringCchPrintfA(Buffer, 1024, "%S", Path);
+
+	file = fopen(Buffer, "w");
+	ASSERT(file != NULL);
+	if (!file) {
+		return 0;
+	}
+
+	fprintf(file, "On CPU: ThreadId %u, Thread time percent %.2f %%, IP time percent %.2f %% of this thread \n\n",
+				PcContext->ThreadId, PcContext->ThreadPercent, PcContext->PcPercent);
+
+	hWndLeft = GetDlgItem(hWnd, IDC_LIST_PCSTACK_LEFT);
+	hWndRight = GetDlgItem(hWnd, IDC_LIST_PCSTACK_RIGHT);
+
+	Count = ListView_GetItemCount(hWndLeft);
+	for (int i = 0; i < Count; i++) {
+
+		ListView_GetItemText(hWndLeft, i, 0, DllName, 16);
+		ListView_GetItemText(hWndLeft, i, 1, Name, 16);
+		fprintf(file, "\t StackId %S Count %S \n", DllName, Name);
+
+		int FrameCount = ListView_GetItemCount(hWndRight); 
+		for (int i = 0; i < FrameCount; i++) {
+			ListView_GetItemText(hWndRight, i, 2, DllName, 64);
+			ListView_GetItemText(hWndRight, i, 1, Name, STACK_TEXT_LIMIT);
+			ListView_GetItemText(hWndRight, i, 3, Path, MAX_PATH);
+			fprintf(file, "\t\t %S!%S \t\t %S \n", DllName, Name, Path);
+		}
+
+		fprintf(file, "\n");
+	}
+
+	fclose(file);
+	ApsFree(Buffer);
 	return 0;
 }
 

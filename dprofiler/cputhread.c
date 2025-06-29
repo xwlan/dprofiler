@@ -894,7 +894,7 @@ CpuThreadInsertThreads(
 		lvi.mask = LVIF_TEXT;
 
 		Milliseconds = ApsNanoUnitToMilliseconds(Thread->TotalKernelTime + Thread->TotalUserTime);
-		StringCchPrintf(Buffer, MAX_PATH, L"%.3f", Milliseconds);
+		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", Milliseconds);
 
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
@@ -905,7 +905,7 @@ CpuThreadInsertThreads(
 
 		lvi.iSubItem = 3;
 		lvi.mask = LVIF_TEXT;
-		StringCchPrintf(Buffer, MAX_PATH, L"%.3f", (Milliseconds * 100.0) / TotalTimes);
+		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", (Milliseconds * 100.0) / TotalTimes);
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -1068,6 +1068,9 @@ CpuThreadOnStackTrace(
 	PCPU_COUNTERS Thread;
 	HWND hWndList;
 	LONG Index;
+	ULONG PcCount;
+	FLOAT PcPercent;
+	FLOAT ThreadPercent;
 
 	//
 	// Get currently selected Pc entry
@@ -1085,6 +1088,13 @@ CpuThreadOnStackTrace(
 	if (!PcEntry) {
 		return 0;
 	}
+
+	WCHAR Buffer[64];
+	ListView_GetItemText(hWndList, Index, 1, Buffer, 64);
+	PcCount = (ULONG)_wtoi(Buffer);
+
+	ListView_GetItemText(hWndList, Index, 2, Buffer, 64);
+	PcPercent = (FLOAT)_wtof(Buffer);
 
 	//
 	// Get current selected thread id
@@ -1104,6 +1114,9 @@ CpuThreadOnStackTrace(
 		return 0;
 	}
 
+	ListView_GetItemText(hWndList, Index, 3, Buffer, 64);
+	ThreadPercent = (FLOAT)_wtof(Buffer);
+
 	//
 	// Create PcStack dialog
 	//
@@ -1112,6 +1125,8 @@ CpuThreadOnStackTrace(
 	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
 	ASSERT(Object->Context != NULL);
 
-	CpuPcStackCreate(hWnd, 0, Context->Head, PcEntry, Thread->ThreadId);
+	CpuPcStackCreate(hWnd, 0, Context->Head, PcEntry, 
+					Thread->ThreadId, ThreadPercent,
+					PcPercent, PcCount);
 	return 0;
 }
