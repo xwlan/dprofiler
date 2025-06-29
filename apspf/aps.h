@@ -759,6 +759,19 @@ ApsSockaddrToPort(
 
 #endif
 
+
+VOID
+ApsNormalizeSymbolNameW(
+	IN PWSTR Name,
+	IN WCHAR Replace
+	);
+
+VOID
+ApsNormalizeSymbolNameA(
+	IN PSTR Name,
+	IN CHAR Replace
+	);
+
 VOID
 ApsFailFast(
 	VOID

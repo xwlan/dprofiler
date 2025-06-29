@@ -293,19 +293,27 @@ CpuPcStackOnExport(
 
 	Frame = FrameGetObject();
 	Ptr = wcsrchr(Frame->FilePath, L'\\');
-	wcscpy_s(Name, MAX_PATH, Ptr);
+	wcscpy_s(Name, MAX_PATH, Ptr + 1);
 
 	//
 	// Get selectecd stack frame names
 	//
 
-	HWND hWndList = GetDlgItem(hWnd, IDC_LIST_PCSTACK_RIGHT);
-	ListView_GetItemText(hWndList, 0, 1, PcName, STACK_TEXT_LIMIT);
-	ListView_GetItemText(hWndList, 0, 2, DllName, 64);
+	hWndRight = GetDlgItem(hWnd, IDC_LIST_PCSTACK_RIGHT);
+	ListView_GetItemText(hWndRight, 0, 1, PcName, STACK_TEXT_LIMIT);
+	ListView_GetItemText(hWndRight, 0, 2, DllName, 64);
 
-	StringCchPrintf(Path, MAX_PATH, L"%s__TID_%u_IP_%s_%s__StackTrace.txt",
+	StringCchPrintf(Path, MAX_PATH, L"%s__TID_%u_IP_[%s_%s]_StackTrace.txt",
 					Name, PcContext->ThreadId, DllName, PcName);
 
+	//
+	// replace ':' with '_' in C++ symbol names as file system path
+	// name forbid colon
+	//
+
+	ApsNormalizeSymbolNameW(Path, L'_');
+
+	//wcscpy_s(Path, MAX_PATH, L"test.txt");
 	Ofn.lStructSize = sizeof(Ofn);
 	Ofn.hwndOwner = hWnd;
 	Ofn.hInstance = SdkInstance;
@@ -313,7 +321,7 @@ CpuPcStackOnExport(
 	Ofn.lpstrFile = Path;
 	Ofn.nMaxFile = sizeof(Path);
 	Ofn.lpstrTitle = APP_TITLE;
-	Ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR;
+	Ofn.Flags = OFN_HIDEREADONLY | OFN_NOCHANGEDIR | OFN_OVERWRITEPROMPT;
 
 	Status = GetSaveFileName(&Ofn);
 	if (!Status) {

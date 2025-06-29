@@ -575,3 +575,45 @@ ApsSockaddrToPort(
 	}
 	return S;
 }
+
+VOID
+ApsNormalizeSymbolNameW(
+	IN PWSTR Name,
+	IN WCHAR Replace
+	)
+{
+	PWCHAR Pointer;
+
+	//
+	// replace C++ symbol's colon with given character
+	//
+
+	Pointer = (PWCHAR)Name;
+	while (*Pointer) {
+		if (*Pointer == L':') {
+			*Pointer = Replace;
+		}
+		Pointer += 1;
+	}
+}
+
+VOID
+ApsNormalizeSymbolNameA(
+	IN PSTR Name,
+	IN CHAR Replace
+	)
+{
+	PWCHAR Pointer;
+
+	//
+	// replace C++ symbol's colon with given character
+	//
+
+	Pointer = (PCHAR)Name;
+	while (*Pointer) {
+		if (*Pointer == ':') {
+			*Pointer = Replace;
+		}
+		Pointer += 1;
+	}
+}
