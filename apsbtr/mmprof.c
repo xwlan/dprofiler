@@ -20,6 +20,8 @@
 #include "cache.h"
 #include "stream.h"
 #include "marker.h"
+#include "iatpatch.h"
+#include "mmheapiat.h"
 
 //
 // N.B. MmSkipAllocators is used to when profile session
@@ -878,6 +880,10 @@ MmDllCanUnload(
 	ULONG i;
 	PBTR_CALLBACK Callback;
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		return TRUE;
+	}
+
 	//
 	// This routine is called with all other threads suspended
 	//
@@ -1059,6 +1065,7 @@ MmInitialize(
 	Object->ThreadAttach = MmThreadAttach;
 	Object->ThreadDetach = MmThreadDetach;
 	Object->IsRuntimeThread = MmIsRuntimeThread;
+	Object->DllLoadCallback = MmHeapDllLoadCallback;
 	
 	//
 	// Initialize mark list
@@ -1095,6 +1102,12 @@ MmStartProfile(
 		return GetLastError();
 	}
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrInitializeIatMode();
+		MmHeapIatApplyPatch();
+		BtrRegisterDllLoadCallback(TRUE);
+	}
+
 	return S_OK;
 }
 
@@ -1104,9 +1117,14 @@ MmStopProfile(
 	)
 {
 	//
-	// Mark skip allocator flag
+	// After profile thread ends, rollback all patch for IAT mode
 	//
-	
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrRegisterDllLoadCallback(FALSE);
+		BtrRollbackAndCleanup();
+	}
+
 	InterlockedExchange(&MmSkipAllocators, (ULONG)1);
 	Sleep(MmSkipDuration);
 
@@ -1348,6 +1366,16 @@ MmQueryHotpatch(
 	ULONG Status;
 	ULONG CallbackCount;
 	PBTR_HOTPATCH_ENTRY Hotpatch;
+
+	//
+	// For IAT mode, we do patch by ourselves
+	//
+
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		*Entry = NULL;
+		*Count = 0;
+		return S_OK;
+	}
 
 	Valid = 0;
 

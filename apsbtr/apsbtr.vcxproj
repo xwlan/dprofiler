@@ -337,6 +337,7 @@
     <ClCompile Include="mmgdi.c" />
     <ClCompile Include="mmhandle.c" />
     <ClCompile Include="mmheap.c" />
+    <ClCompile Include="mmheapiat.c" />
     <ClCompile Include="mmpage.c" />
     <ClCompile Include="mmprof.c" />
     <ClCompile Include="perf.c" />
@@ -388,6 +389,7 @@
     <ClInclude Include="mmgdi.h" />
     <ClInclude Include="mmhandle.h" />
     <ClInclude Include="mmheap.h" />
+    <ClInclude Include="mmheapiat.h" />
     <ClInclude Include="mmpage.h" />
     <ClInclude Include="mmprof.h" />
     <ClInclude Include="ntioapi.h" />

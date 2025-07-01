@@ -927,6 +927,7 @@ typedef struct _PF_STREAM_IO_IRP {
 
 #pragma pack(pop)
 
+
 #ifdef __cplusplus
 }
 #endif
