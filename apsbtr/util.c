@@ -605,3 +605,41 @@ BtrInterlockedAdd64(
 
 	return Result;
 }
+
+VOID
+BtrGetBaseNameW(
+	IN PWSTR FullPath,
+	OUT PWCHAR Buffer,
+	IN ULONG Length
+	)
+{
+	WCHAR BaseName[64];
+	WCHAR ExtName[64];
+
+	_wsplitpath(FullPath, NULL, NULL, BaseName, ExtName);
+	if (ExtName[0] != 0) {
+		StringCchPrintfW(Buffer, Length, L"%s%s", BaseName, ExtName);
+	}
+	else {
+		StringCchPrintfW(Buffer, Length, L"%s", BaseName);
+	}
+}
+
+VOID
+BtrGetBaseNameA(
+	IN PSTR FullPath,
+	OUT PCHAR Buffer,
+	IN ULONG Length
+	)
+{
+	CHAR BaseName[64];
+	CHAR ExtName[64];
+
+	_splitpath(FullPath, NULL, NULL, BaseName, ExtName);
+	if (ExtName[0] != 0) {
+		StringCchPrintfA(Buffer, Length, "%s%s", BaseName, ExtName);
+	}
+	else {
+		StringCchPrintfA(Buffer, Length, "%s", BaseName);
+	}
+}

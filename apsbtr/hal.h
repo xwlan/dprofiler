@@ -42,9 +42,11 @@ extern RTLEXITUSERTHREAD RtlExitUserThread;
 extern NTQUERYSYSTEMINFORMATION  NtQuerySystemInformation;
 extern NTQUERYINFORMATIONPROCESS NtQueryInformationProcess;
 extern NTQUERYINFORMATIONTHREAD  NtQueryInformationThread;
-
 extern double BtrNanosecondPerHardwareTick;
 extern LARGE_INTEGER BtrHardwareFrequency;
+
+extern LDRREGISTERDLLNOTIFICATION LdrRegisterDllNotification;
+extern LDRUNREGISTERDLLNOTIFICATION LdrUnregisterDllNotification;
 
 ULONG
 BtrInitializeHal(

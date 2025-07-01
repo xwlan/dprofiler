@@ -227,6 +227,8 @@
 #define IDC_LIST_PCSTACK_RIGHT          1124
 #define IDC_IO_FLAME                    1125
 #define IDC_BUTTON_PCSTACK_EXPORT       1125
+#define IDC_CHECK2                      1126
+#define IDC_CHECK_IAT_MODE              1126
 #define IDM_NEW                         32773
 #define IDM_STOP                        32774
 #define IDM_FILTER_EXECUTE              32775
@@ -275,7 +277,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        199
 #define _APS_NEXT_COMMAND_VALUE         32823
-#define _APS_NEXT_CONTROL_VALUE         1126
+#define _APS_NEXT_CONTROL_VALUE         1127
 #define _APS_NEXT_SYMED_VALUE           111
 #endif
 #endif

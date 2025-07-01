@@ -109,6 +109,8 @@
 #define BTR_E_CREATEFILE                0xE0000031
 #define BTR_E_GETMODULEHANDLE           0xE0000032
 #define BTR_E_NO_API                    0xE0000033
+#define BTR_E_PENDING_STACK             0xE0000034
+
 
 //
 // Fusion Error Code

@@ -460,6 +460,7 @@ typedef struct _BTR_PROFILE_OBJECT {
 	BTR_THREAD_DETACH_ROUTINE ThreadDetach;
 	BTR_QUERY_HOTPATCH_ROUTINE QueryHotpatch;
 	BTR_ISRUNTIMETHREAD_ROUTINE IsRuntimeThread;
+	BTR_DLL_LOAD_CALLBACK DllLoadCallback;
 
     //
     // PauseEvent supports pause and resume

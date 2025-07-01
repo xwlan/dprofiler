@@ -71,7 +71,6 @@ LIST_ENTRY CcrCallerRangeList;
 	BtrLeaveExemptionRegion(_T);\
 }
 
-FORCEINLINE
 PCCR_LOCK_TRACK
 CcrMarkThreadInAcquire(
 	_In_ PBTR_THREAD_OBJECT Thread,
@@ -174,8 +173,6 @@ CcrIsSystemDllAddress(
 	return FALSE;
 }
 
-
-FORCEINLINE
 BOOLEAN
 CcrShouldTrackLock(
 	_In_ ULONG_PTR Caller,

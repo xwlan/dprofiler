@@ -45,6 +45,7 @@ typedef enum _MDB_DATA_OFFSET {
 	//
 
 	MdbAutoAnalyze,
+	MdbIatMode,
 
 	//
 	// Symbol

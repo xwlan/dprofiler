@@ -45,6 +45,12 @@ PVOID ApsMaximumUserAddress;
 double ApsSecondPerHardwareTick;
 
 //
+// Hardware frequency
+//
+
+LARGE_INTEGER ApsHardwareFrequency;
+
+//
 // NT API
 //
 
@@ -174,8 +180,8 @@ ApsInitialize(
 	// Compute hardware clock accuracy
 	//
 
-	QueryPerformanceFrequency(&HardwareFrequency);
-	ApsSecondPerHardwareTick = 1.0 / HardwareFrequency.QuadPart;
+	QueryPerformanceFrequency(&ApsHardwareFrequency);
+	ApsSecondPerHardwareTick = 1.0 / ApsHardwareFrequency.QuadPart;
 
 	//
 	// Enable debug privilege
@@ -2428,6 +2434,18 @@ ApsComputeMilliseconds(
 	)
 {
 	return (Duration * ApsSecondPerHardwareTick) * 1000;
+}
+
+double
+ApsComputeMicrosecond(
+	IN ULONG Duration
+	)
+{
+	LARGE_INTEGER Time;
+
+	Time.QuadPart = (ULONGLONG)Duration;
+	Time.QuadPart *= 1000000;
+	return (Time.QuadPart * 1.0) / (ApsHardwareFrequency.QuadPart * 1.0);
 }
 
 VOID

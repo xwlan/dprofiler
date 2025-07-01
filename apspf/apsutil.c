@@ -603,7 +603,7 @@ ApsNormalizeSymbolNameA(
 	IN CHAR Replace
 	)
 {
-	PWCHAR Pointer;
+	PCHAR Pointer;
 
 	//
 	// replace C++ symbol's colon with given character

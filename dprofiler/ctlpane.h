@@ -383,6 +383,10 @@ CtlPaneOnAnalyze(
 	__in HWND hWnd
 	);
 
+BOOLEAN
+CtlPaneIsIatMode(
+	VOID
+	);
 
 #ifdef __cplusplus
 }

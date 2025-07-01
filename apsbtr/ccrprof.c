@@ -17,6 +17,8 @@
 #include "marker.h"
 #include "thread.h"
 #include <tlhelp32.h>
+#include "iatpatch.h"
+#include "ccrpatch.h"
 
 //
 // Ccr worker thread
@@ -180,6 +182,7 @@ CcrInitialize(
 	Object->ThreadAttach = CcrThreadAttach;
 	Object->ThreadDetach = CcrThreadDetach;
 	Object->IsRuntimeThread = CcrIsRuntimeThread;
+	Object->DllLoadCallback = CcrDllLoadCallback;
 
 	//
 	// Initialize mark list
@@ -229,6 +232,12 @@ CcrStartProfile(
 		return GetLastError();
 	}
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrInitializeIatMode();
+		CcrIatApplyPatch();
+		BtrRegisterDllLoadCallback(TRUE);
+	}
+
 	return S_OK;
 }
 
@@ -247,6 +256,15 @@ CcrStopProfile(
 	WaitForSingleObject(CcrThreadHandle, INFINITE);
 	CloseHandle(CcrThreadHandle);
 	CcrThreadHandle = NULL;
+
+	//
+	// After CPU profile thread ends, rollback all patch for IAT mode
+	//
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrRegisterDllLoadCallback(FALSE);
+		BtrRollbackAndCleanup();
+	}
 
 	return S_OK;
 }
@@ -556,34 +574,40 @@ CcrRetireAllThreads(
 {
 	LIST_ENTRY SuspendeeList;
 	ULONG Count;
+	ULONG Failure;
 	BOOLEAN Exist;
+	ULONG Status;
 
-retry:
-	Count = 0;
-	InitializeListHead(&SuspendeeList);
+	Failure = 0;
 
-	BtrSuspendProcess(&SuspendeeList, &Count);
-	BtrWalkSuspendeeStack(&SuspendeeList);
+	while (Failure < 3) {
 
-	Exist = BtrScanFrameFromSuspendeeList(&SuspendeeList);
-	if (Exist) {
+		Count = 0;
+		InitializeListHead(&SuspendeeList);
 
-		//
-		// If there's any pending runtime frame, yield the CPU and
-		// retry again.
-		//
+		BtrSuspendProcess(&SuspendeeList, &Count);
+		BtrWalkSuspendeeStack(&SuspendeeList);
 
-		BtrResumeProcess(&SuspendeeList, FALSE);
-		Sleep(1000);
-		goto retry;
+		Exist = BtrScanFrameFromSuspendeeList(&SuspendeeList);
+		if (Exist) {
+
+			//
+			// If there's any pending runtime frame, yield the CPU and
+			// retry again.
+			//
+
+			BtrResumeProcess(&SuspendeeList, FALSE);
+			Sleep(1000);
+			Failure += 1;
+		}
+		else {
+			BtrResumeProcess(&SuspendeeList, TRUE);
+			break;
+		}
 	}
 
-	//
-	// Resume other threads
-	//
-
-	BtrResumeProcess(&SuspendeeList, TRUE);
-	return S_OK;
+	Status = (Failure == 3) ? BTR_E_PENDING_STACK : S_OK;
+	return Status;
 }
 
 ULONG
@@ -744,6 +768,16 @@ CcrQueryHotpatch(
 	ULONG Status;
 	ULONG CallbackCount;
 	PBTR_HOTPATCH_ENTRY Hotpatch;
+
+	//
+	// For IAT mode, we do patch by ourselves
+	//
+
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		*Entry = NULL;
+		*Count = 0;
+		return S_OK;
+	}
 
 	Valid = 0;
 
@@ -1236,3 +1270,4 @@ CcrPrintStatistics(
 {
 	
 }
+

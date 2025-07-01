@@ -193,6 +193,20 @@ BtrInterlockedAdd64(
 	_In_ struct _BTR_SPINLOCK *Lock
 	);
 
+VOID
+BtrGetBaseNameW(
+	IN PWSTR FullPath,
+	OUT PWCHAR Buffer,
+	IN ULONG Length
+	);
+
+VOID
+BtrGetBaseNameA(
+	IN PSTR FullPath,
+	OUT PCHAR Buffer,
+	IN ULONG Length
+	);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1856,6 +1856,21 @@ CtlPaneSetButtonState(
 	}
 }
 
+BOOLEAN
+CtlPaneIsIatMode(
+	VOID
+	)
+{	
+	PMDB_DATA_ITEM Mdi;
+	int Value;
+
+	Mdi = MdbGetData(MdbIatMode);
+	ASSERT(Mdi != NULL);
+
+	Value = atoi(Mdi->Value);
+	return (BOOLEAN)Value;
+}
+
 ULONG
 CtlPaneCreateProfileByAttach(
 	__in HWND hWndCtlPane,
@@ -1887,6 +1902,8 @@ CtlPaneCreateProfileByAttach(
 	// Fill profile attributes and create corresponding
 	// profile object
 	//
+
+	Attr.PatchMode = CtlPaneIsIatMode() ? HOTPATCH_IAT : HOTPATCH_INLINE;
 
 	if (Wizard->Type == PROFILE_CPU_TYPE) {
 

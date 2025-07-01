@@ -1037,6 +1037,13 @@ OptionGeneralFillData(
 	Value = atoi(Mdi->Value);
 	Value = Value ? BST_CHECKED : BST_UNCHECKED;
 	CheckDlgButton(hWnd, IDC_CHECK_AUTOANALYZE, Value);
+	
+    Mdi = MdbGetData(MdbIatMode);
+	ASSERT(Mdi != NULL);
+
+	Value = atoi(Mdi->Value);
+	Value = Value ? BST_CHECKED : BST_UNCHECKED;
+	CheckDlgButton(hWnd, IDC_CHECK_IAT_MODE, Value);
 }
 
 VOID
@@ -1053,4 +1060,11 @@ OptionGeneralCommitData(
 	itoa(Value, Buffer, 10);
 
 	MdbSetData(MdbAutoAnalyze, Buffer);
+
+    Value = IsDlgButtonChecked(hWnd, IDC_CHECK_IAT_MODE);
+
+    Value = (Value == BST_CHECKED) ? 1 : 0;
+    itoa(Value, Buffer, 10);
+
+    MdbSetData(MdbIatMode, Buffer);
 }

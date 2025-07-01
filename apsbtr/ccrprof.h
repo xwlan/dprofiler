@@ -126,6 +126,14 @@ CcrFreePerThreadResource(
 	VOID
 	);
 
+
+VOID
+CcrDllLoadCallback(
+	IN struct _BTR_PROFILE_OBJECT* Object,
+	IN struct _BTR_MODULE* Dll,
+	IN BOOLEAN Load
+	);
+
 //
 // N.B. This routine must be called with caller's thread
 // has exemption flag set. otherwise it may trap into
@@ -152,6 +160,19 @@ CcrTrackLockAcquire(
 	_In_ PLARGE_INTEGER Start,
 	_In_ PLARGE_INTEGER End,
 	_In_ BOOLEAN Owner
+	);
+
+PCCR_LOCK_TRACK
+CcrMarkThreadInAcquire(
+	_In_ PBTR_THREAD_OBJECT Thread,
+	_In_ PVOID LockPtr,
+	_In_ CCR_LOCK_TYPE Type
+	);
+
+BOOLEAN
+CcrShouldTrackLock(
+	_In_ ULONG_PTR Caller,
+	_In_ PVOID LockPtr
 	);
 
 VOID

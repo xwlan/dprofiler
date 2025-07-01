@@ -1132,6 +1132,14 @@ ApsOnStart(
 	}
 
 	//
+	// IAT mode manage its own patch processing
+	//
+
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		return APS_STATUS_OK;
+	}
+
+	//
 	// Commit hotpatch to target process based on received hotpatch entries
 	//
 
@@ -1191,6 +1199,10 @@ ApsOnStop(
 		return Status;
 	}
 
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		goto Unload;
+	}
+
 	//
 	// Commit hotpatch to target process based on received hotpatch entries
 	//
@@ -1212,6 +1224,7 @@ ApsOnStop(
 	// Wait for unload event
 	//
 
+Unload:
 	WaitForSingleObject(Object->UnloadEvent, INFINITE);
 
 	//
@@ -1397,6 +1410,10 @@ ApsOnExitProcess(
 		return Status;
 	}
 
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		goto Exit;
+	}
+
 	//
 	// Commit hotpatch to target process based on received hotpatch entries
 	//
@@ -1418,6 +1435,7 @@ ApsOnExitProcess(
 	// Wait for unload event
 	//
 
+Exit:
 	WaitForSingleObject(Object->UnloadEvent, INFINITE);
 
 	//

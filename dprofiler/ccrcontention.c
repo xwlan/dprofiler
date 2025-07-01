@@ -44,8 +44,8 @@ LISTVIEW_COLUMN CcrContentionColumn[CcrUiColumnCount] = {
 	{ 120,  L"Try Failure", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
 	{ 120,  L"Try/Acquire Path", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
 	{ 140,  L"Try/Acquire Thread", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
-	{ 200,  L"Max Acquire Latency(ms)", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
-	{ 200,  L"Max Holding Duration(ms)", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
+	{ 200,  L"Max Acquire Latency(us)", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
+	{ 200,  L"Max Holding Duration(us)", LVCFMT_LEFT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },  
 };
 
 HWND
@@ -501,7 +501,7 @@ CcrContentionInsertListItem(
 	PCCR_LOCK_TRACK Sibling;
 	PCCR_STACKTRACE Trace;
 	LARGE_INTEGER Time;
-	double Milliseconds;
+	double Microseconds;
 	PULONG Array;
 	WCHAR Buffer[MAX_PATH];
 	int i, j;
@@ -685,8 +685,8 @@ CcrContentionInsertListItem(
 		Sibling = Sibling->SiblingAcquirers;
 	}
 
-	Milliseconds = ApsComputeMilliseconds((ULONG)Time.QuadPart);
-	StringCchPrintf(Buffer, MAX_PATH, L"%.06f", Milliseconds);
+	Microseconds = ApsComputeMicrosecond((ULONG)Time.QuadPart);
+	StringCchPrintf(Buffer, MAX_PATH, L"%.03f", Microseconds);
 	lvi.pszText = Buffer;
 	ListView_SetItem(hWndCtrl, &lvi);
 
@@ -706,8 +706,8 @@ CcrContentionInsertListItem(
 		Sibling = Sibling->SiblingAcquirers;
 	}
 
-	Milliseconds = ApsComputeMilliseconds((ULONG)Time.QuadPart);
-	StringCchPrintf(Buffer, MAX_PATH, L"%.06f", Milliseconds);
+	Microseconds = ApsComputeMicrosecond((ULONG)Time.QuadPart);
+	StringCchPrintf(Buffer, MAX_PATH, L"%.03f", Microseconds);
 	lvi.pszText = Buffer;
 	ListView_SetItem(hWndCtrl, &lvi);
 }

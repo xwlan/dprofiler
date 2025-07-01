@@ -801,7 +801,7 @@ CpuThreadInsertThreads(
 
 	CpuScanOnCpuThreaded(Head, CPU_COUNTER_ONCPU_THREADED, &Counter);
 	if (!Counter->ThreadCount || !Counter->PcCount) {
-		return 0;
+		return;
 	}
 
     TotalTimes = ApsNanoUnitToMilliseconds(

@@ -38,6 +38,8 @@ NTQUERYINFORMATIONFILE    NtQueryInformationFile;
 LDRGETPROCEDUREADDRESS LdrGetProcedureAddress;
 LDRLOCKLOADERLOCK LdrLockLoaderLock;
 LDRUNLOCKLOADERLOCK LdrUnlockLoaderLock;
+LDRREGISTERDLLNOTIFICATION LdrRegisterDllNotification;
+LDRUNREGISTERDLLNOTIFICATION LdrUnregisterDllNotification;
 
 RTLGETCURRENTPROCESSORNUMBER RtlGetCurrentProcessorNumber;
 
@@ -217,6 +219,23 @@ BtrInitializeHal(
 	}
 	
 	LdrUnlockLoaderLock = (LDRUNLOCKLOADERLOCK)Address;
+
+	//
+	// Get dll load/unload notification for IAT patch mode
+	//
+
+	Address = GetProcAddress(DllHandle, "LdrRegisterDllNotification");
+	if (!Address) {
+		return BTR_E_GETPROCADDRESS;
+	}
+	LdrRegisterDllNotification = (LDRREGISTERDLLNOTIFICATION)Address;
+
+
+	Address = GetProcAddress(DllHandle, "LdrUnregisterDllNotification");
+	if (!Address) {
+		return BTR_E_GETPROCADDRESS;
+	}
+	LdrUnregisterDllNotification = (LDRUNREGISTERDLLNOTIFICATION)Address;
 
 #if defined (_M_X64)
 

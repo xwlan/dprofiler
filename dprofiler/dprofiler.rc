@@ -510,6 +510,8 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x0
 BEGIN
     CONTROL         "Analyze automatically after data collection",IDC_CHECK_AUTOANALYZE,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,2,2,151,10
+    CONTROL         "Runtime default works in IAT mode",IDC_CHECK_IAT_MODE,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,2,20,171,10
 END
 
 IDD_FORMVIEW_CPU_TREE DIALOGEX 0, 0, 302, 184
@@ -645,6 +647,10 @@ END
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO
 BEGIN
+    IDD_DIALOG_OPTION, DIALOG
+    BEGIN
+    END
+
     IDD_PROPPAGE_MM, DIALOG
     BEGIN
     END
@@ -696,6 +702,10 @@ BEGIN
     IDD_FORMVIEW_CTL, DIALOG
     BEGIN
         RIGHTMARGIN, 306
+    END
+
+    IDD_OPTION_GENERAL, DIALOG
+    BEGIN
     END
 
     IDD_FORMVIEW_CPU_TREE, DIALOG

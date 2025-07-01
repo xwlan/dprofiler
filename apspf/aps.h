@@ -665,6 +665,11 @@ ApsComputeMilliseconds(
 	);
 
 double
+ApsComputeMicrosecond(
+	IN ULONG Duration
+	);
+
+double
 ApsNanoUnitToMilliseconds(
     __in ULONG NanoUnit
     );

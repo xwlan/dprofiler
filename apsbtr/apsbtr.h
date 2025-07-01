@@ -124,7 +124,9 @@ typedef struct _BTR_HOTPATCH_ENTRY {
 	PVOID Address;
 	ULONG Length;
 	UCHAR Code[16];
+	UCHAR Copy[16];
 } BTR_HOTPATCH_ENTRY, *PBTR_HOTPATCH_ENTRY;
+
 
 typedef struct _BTR_CALLBACK {
 	ULONG Type;
@@ -848,6 +850,13 @@ typedef BOOLEAN
 	__in ULONG ThreadId
 	);
 	
+typedef VOID
+(*BTR_DLL_LOAD_CALLBACK)(
+	IN struct _BTR_PROFILE_OBJECT *Object,
+	IN struct _BTR_MODULE *Dll,
+	IN BOOLEAN Load
+	);
+
 //
 // Profile Structures
 //
@@ -874,6 +883,20 @@ typedef enum _BTR_PROFILE_OPTION {
 	ENABLE_FILE   = 0x00000200,
 } BTR_PROFILE_OPTION;
 
+typedef enum _BTR_HOTPATCH_MODE {
+	HOTPATCH_NONE,
+	HOTPATCH_INLINE,
+	HOTPATCH_IAT
+} BTR_HOTPATCH_MODE;
+
+#define HOTPATCH_LIMIT 4096
+
+typedef struct _BTR_HOTPATCH_TABLE {
+	BTR_HOTPATCH_MODE Mode;
+	USHORT Count;
+	BTR_HOTPATCH_ENTRY Hotpatch[HOTPATCH_LIMIT];
+} BTR_HOTPATCH_TALBE, *PBTR_HOTPATCH_TABLE;
+
 //
 // Minimum CPU sample period is 10 Milliseconds
 //
@@ -884,6 +907,7 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 
 	BTR_PROFILE_TYPE Type;
 	BTR_PROFILE_MODE Mode;
+	BTR_HOTPATCH_MODE PatchMode;
 
 	//
 	// CPU Profile

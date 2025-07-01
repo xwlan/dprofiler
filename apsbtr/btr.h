@@ -44,6 +44,7 @@ BtrOnStop(
 extern PBTR_SHARED_DATA BtrSharedData;
 extern PBTR_PROFILE_OBJECT BtrProfileObject;
 extern BOOLEAN BtrIsStarted;
+extern BTR_HOTPATCH_MODE BtrPatchMode;
 
 #ifdef __cplusplus
 }

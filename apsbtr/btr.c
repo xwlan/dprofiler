@@ -41,6 +41,8 @@ PBTR_PROFILE_OBJECT BtrProfileObject;
 
 BOOLEAN BtrIsStarted;
 
+BTR_HOTPATCH_MODE BtrPatchMode;
+
 BOOL WINAPI 
 DllMain(
 	__in HMODULE DllHandle,
@@ -358,6 +360,8 @@ BtrOnStart(
 
 	}
 	
+	BtrPatchMode = Attr->PatchMode;
+
 	BtrProfileObject = (PBTR_PROFILE_OBJECT)BtrMalloc(sizeof(BTR_PROFILE_OBJECT));
 	RtlZeroMemory(BtrProfileObject, sizeof(BTR_PROFILE_OBJECT));
 	RtlCopyMemory(&BtrProfileObject->Attribute, Attr, sizeof(*Attr));

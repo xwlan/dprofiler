@@ -770,6 +770,54 @@ typedef NTSTATUS
 	);
 
 //
+// Dll load/unload notification
+//
+
+typedef struct _LDR_DLL_LOADED_NOTIFICATION_DATA {
+    ULONG Flags;                    //Reserved.
+    PUNICODE_STRING FullDllName;   //The full path name of the DLL module.
+    PUNICODE_STRING BaseDllName;   //The base file name of the DLL module.
+    PVOID DllBase;                  //A pointer to the base address for the DLL in memory.
+    ULONG SizeOfImage;              //The size of the DLL image, in bytes.
+} LDR_DLL_LOADED_NOTIFICATION_DATA, * PLDR_DLL_LOADED_NOTIFICATION_DATA;
+
+typedef struct _LDR_DLL_UNLOADED_NOTIFICATION_DATA {
+    ULONG Flags;                    //Reserved.
+    PUNICODE_STRING FullDllName;   //The full path name of the DLL module.
+    PUNICODE_STRING BaseDllName;   //The base file name of the DLL module.
+    PVOID DllBase;                  //A pointer to the base address for the DLL in memory.
+    ULONG SizeOfImage;              //The size of the DLL image, in bytes.
+} LDR_DLL_UNLOADED_NOTIFICATION_DATA, * PLDR_DLL_UNLOADED_NOTIFICATION_DATA;
+
+typedef union _LDR_DLL_NOTIFICATION_DATA {
+    LDR_DLL_LOADED_NOTIFICATION_DATA Loaded;
+    LDR_DLL_UNLOADED_NOTIFICATION_DATA Unloaded;
+} LDR_DLL_NOTIFICATION_DATA, * PLDR_DLL_NOTIFICATION_DATA;
+
+#define LDR_DLL_NOTIFICATION_REASON_LOADED   1
+#define LDR_DLL_NOTIFICATION_REASON_UNLOADED 2
+
+VOID CALLBACK 
+LdrDllNotification(
+    IN ULONG NotificationReason,
+    IN PLDR_DLL_NOTIFICATION_DATA NotificationData,
+    IN PVOID Context
+    );
+
+typedef NTSTATUS
+(NTAPI *LDRREGISTERDLLNOTIFICATION)(
+    IN ULONG Flags,
+    IN PVOID NotificationFunction,
+    IN PVOID Context,
+    IN PVOID* Cookie
+    );
+
+typedef NTSTATUS
+(NTAPI *LDRUNREGISTERDLLNOTIFICATION)(
+    IN PVOID Cookie
+    );
+
+//
 // Section 
 //
 

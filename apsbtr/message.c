@@ -151,6 +151,7 @@ BtrOnMessageStart(
 	ULONG Count;
 	PBTR_HOTPATCH_ENTRY Hotpatch;
 	PBTR_MESSAGE_START_STATUS Commit;
+	BTR_HOTPATCH_MODE PatchMode;
 
 	Ack = (PBTR_MESSAGE_START_ACK)BtrPortObject.Buffer;
 	
@@ -161,6 +162,7 @@ BtrOnMessageStart(
 	Status = BtrOnStart(Packet, &BtrProfileObject);
 	if (Status != S_OK) {
 		
+		ASSERT(0);
 		Ack->Header.Type = MESSAGE_START_ACK;
 		Ack->Header.Length = sizeof(BTR_MESSAGE_START_ACK);
 		Ack->Status = Status;
@@ -170,9 +172,25 @@ BtrOnMessageStart(
 		return Status;
 
 	}
-
+	
 	ASSERT(BtrProfileObject != NULL);
 	ASSERT(BtrProfileObject->QueryHotpatch != NULL);
+
+	//
+	// IAT mode manage our own patch processing
+	//
+
+	PatchMode = BtrProfileObject->Attribute.PatchMode;
+	if (PatchMode == HOTPATCH_IAT) {
+
+		Ack->Header.Type = MESSAGE_START_ACK;
+		Ack->Header.Length = sizeof(BTR_MESSAGE_START_ACK);
+		Ack->Status = Status;
+		Ack->Count = 0;
+		BtrSendMessage(&BtrPortObject, &Ack->Header, &Complete);
+
+		goto Start;
+	}
 
 	//
 	// Query hotpatch information
@@ -218,8 +236,10 @@ BtrOnMessageStart(
 	Ack->Status = S_OK;
 	Ack->Count = Count;
 
-	RtlCopyMemory(&Ack->Hotpatch[0], Hotpatch, sizeof(BTR_HOTPATCH_ENTRY) * Count);
-	BtrFree(Hotpatch);
+	if (PatchMode == HOTPATCH_INLINE) {
+		RtlCopyMemory(&Ack->Hotpatch[0], Hotpatch, sizeof(BTR_HOTPATCH_ENTRY) * Count);
+		BtrFree(Hotpatch);
+	}
 
 	Status = BtrSendMessage(&BtrPortObject, &Ack->Header, &Complete);	
 	if (Status != S_OK) {
@@ -244,6 +264,8 @@ BtrOnMessageStart(
 	if (Commit->Status != S_OK) {
 		return Commit->Status;
 	}
+
+Start:
 
 	//
 	// It's done, start profiling
@@ -288,6 +310,19 @@ BtrOnMessageStop(
 
 		BtrSendMessage(&BtrPortObject, &Ack->Header, &Complete);	
 		return Status;
+	}
+
+	//
+	// For IAT mode, we don't use query hotpatch message since
+	// we manage patch ourselves.
+	//
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		Ack->Header.Length = sizeof(BTR_MESSAGE_STOP_ACK);
+		Ack->Status = Status;
+		Ack->Count = 0;
+		BtrSendMessage(&BtrPortObject, &Ack->Header, &Complete);
+		goto Exit;
 	}
 
 	//
@@ -366,6 +401,7 @@ BtrOnMessageStop(
 	// BTR_S_EXITPROCESS, for this case, we don't unload runtime.
 	//
 
+Exit:
 	if (BtrProfileObject->ExitStatus != BTR_S_EXITPROCESS) {
 		BtrProfileObject->ExitStatus = BTR_S_USERSTOP;
 	}

@@ -94,8 +94,10 @@ BtrIsExemptedCall(
 		return NULL;
 	}
 
-	if (BtrIsStopped() || !BtrIsAcspValid()) {
-		return NULL;
+	if (BtrPatchMode != HOTPATCH_IAT) {
+		if (BtrIsStopped() || !BtrIsAcspValid()) {
+			return NULL;
+		}
 	}
 
 	Thread = BtrGetCurrentThread();

@@ -20,6 +20,7 @@
 #include "perf.h"
 #include "marker.h"
 #include "timer.h"
+#include "iatpatch.h"
 
 
 DECLSPEC_CACHEALIGN
@@ -94,6 +95,7 @@ CpuInitialize(
 	Object->ThreadAttach = CpuThreadAttach;
 	Object->ThreadDetach = CpuThreadDetach;
 	Object->IsRuntimeThread = CpuIsRuntimeThread;
+	Object->DllLoadCallback = CpuDllLoadCallback;
 
 	//
 	// Initialize various thread list
@@ -198,6 +200,12 @@ CpuStartProfile(
 		return GetLastError();
 	}
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrInitializeIatMode();
+		CpuIatApplyPatch();
+		BtrRegisterDllLoadCallback(TRUE);
+	}
+
 	return S_OK;
 }
 
@@ -223,6 +231,15 @@ CpuStopProfile(
 	WaitForSingleObject(CpuThreadHandle, INFINITE);
 	CloseHandle(CpuThreadHandle);
 	CpuThreadHandle = NULL;
+
+	//
+	// After CPU profile thread ends, rollback all patch for IAT mode
+	//
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrRegisterDllLoadCallback(FALSE);
+		BtrRollbackAndCleanup();
+	}
 
 	return S_OK;
 }
@@ -365,6 +382,16 @@ CpuQueryHotpatch(
 	ULONG Valid;
 	ULONG Status;
 	PBTR_HOTPATCH_ENTRY Hotpatch;
+
+	//
+	// For IAT mode, we do patch by ourselves
+	//
+
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		*Entry = NULL;
+		*Count = 0;
+		return S_OK;
+	}
 
 	Valid = 0;
 
@@ -554,6 +581,10 @@ CpuDllCanUnload(
 {
 	ULONG Number;
 	PBTR_CALLBACK Callback;
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		return TRUE;
+	}
 
 	for(Number = 0; Number < CpuCallbackCount; Number += 1) {
 		Callback = &CpuCallback[Number];
@@ -1932,3 +1963,4 @@ CpuFillAddressTable(
 
 	return Count;
 }
+

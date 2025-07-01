@@ -188,9 +188,21 @@ CpuIsRuntimeThread(
 	__in ULONG ThreadId
 	);
 
+VOID
+CpuDllLoadCallback(
+	IN struct _BTR_PROFILE_OBJECT *Object,
+	IN struct _BTR_MODULE *Dll,
+	IN BOOLEAN Load
+	);
+
 VOID WINAPI 
 CpuExitProcessCallback(
 	__in UINT ExitCode
+	);
+
+VOID
+CpuIatApplyPatch(
+	VOID
 	);
 
 //
@@ -354,6 +366,20 @@ extern LIST_ENTRY CpuActiveList;
 
 extern ULONG CpuRetireCount;
 extern ULONG CpuActiveCount;
+
+VOID
+CpuInitializeIatPatch(
+	VOID
+	);
+
+//
+// IAT Patch callback
+// 
+
+VOID WINAPI
+CpuIatExitProcess(
+	IN UINT ExitCode
+	);
 
 #ifdef __cplusplus
 }

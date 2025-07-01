@@ -94,6 +94,7 @@ MdbSetDefaultValues(
 	//
 
 	SqlExecute(MdbObject, "INSERT INTO MetaData VALUES(\"MdbAutoAnalyze\", \"0\")");
+	SqlExecute(MdbObject, "INSERT INTO MetaData VALUES(\"MdbIatMode\", \"1\")");
 
     //
     // Symbol
