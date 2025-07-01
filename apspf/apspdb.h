@@ -517,6 +517,11 @@ ApsAllocatePcEntry(
 	VOID
 	);
 
+VOID
+ApsSetCancelSymbolLoad(
+	VOID
+	);
+
 #ifdef __cplusplus
 }
 #endif

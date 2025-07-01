@@ -328,6 +328,14 @@ CtlPaneOnMark(
 	__in LPARAM lp
 	);
 
+LRESULT
+CtlPaneOnCancelSymbolLoad(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	);
+
 VOID
 CtlPaneSetButtonState(
 	__in PDIALOG_OBJECT Object

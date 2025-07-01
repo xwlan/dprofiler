@@ -211,6 +211,7 @@
 #define IDC_FULLSTACK_SUMMARY           1116
 #define IDC_BUTTON3                     1117
 #define IDC_BUTTON_EXPORT               1117
+#define IDC_BUTTON_CANCEL_SYMBOL_LOAD   1117
 #define IDC_LIST_IO_SOCKET              1118
 #define IDC_LIST_IO_FILE                1119
 #define IDC_LIST1                       1120
@@ -227,7 +228,6 @@
 #define IDC_LIST_PCSTACK_RIGHT          1124
 #define IDC_IO_FLAME                    1125
 #define IDC_BUTTON_PCSTACK_EXPORT       1125
-#define IDC_CHECK2                      1126
 #define IDC_CHECK_IAT_MODE              1126
 #define IDM_NEW                         32773
 #define IDM_STOP                        32774

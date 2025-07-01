@@ -680,3 +680,26 @@ SdkCenterWindow2(HWND hDlgA, HWND hDlgB)
 	// 设置对话框B的位置
 	SetWindowPos(hDlgB, NULL, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
 }
+
+VOID
+SdkOverlayDlgItem(
+	IN HWND hWndDlg,
+	IN int TargetId,
+	IN int OverlayId
+	)
+{
+	HWND hTarget = GetDlgItem(hWndDlg, TargetId);
+	HWND hOverlay = GetDlgItem(hWndDlg, OverlayId);
+
+	ShowWindow(hTarget, SW_HIDE);
+
+	RECT rcTarget;
+	GetWindowRect(hTarget, &rcTarget);
+	MapWindowPoints(NULL, hWndDlg, (LPPOINT)&rcTarget, 2); 
+
+	MoveWindow(hOverlay, rcTarget.left, rcTarget.top,
+			rcTarget.right - rcTarget.left, 
+			rcTarget.bottom - rcTarget.top, TRUE);
+
+	ShowWindow(hOverlay, SW_SHOW);
+}

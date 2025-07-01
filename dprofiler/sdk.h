@@ -249,6 +249,13 @@ SdkGetCopyright(
 VOID
 SdkCenterWindow2(HWND hDlgA, HWND hDlgB);
 
+VOID
+SdkOverlayDlgItem(
+	IN HWND hWndDlg,
+	IN int TargetId,
+	IN int OverlayId
+	);
+
 //
 // MessageBox Flags 
 //

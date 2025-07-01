@@ -50,7 +50,8 @@ DIALOG_SCALER_CHILD CtlPaneChildren[] = {
 	{ IDC_ANIMATE, AlignBoth, AlignNone },
 	{ IDC_BUTTON_PAUSE_RESUME, AlignBoth, AlignBoth }, 
     { IDC_BUTTON_MARK, AlignBoth, AlignBoth },
-	{ IDC_BUTTON_STOP, AlignBoth, AlignBoth }
+	{ IDC_BUTTON_STOP, AlignBoth, AlignBoth },
+	{ IDC_BUTTON_CANCEL_SYMBOL_LOAD, AlignBoth, AlignBoth }
 };
 
 DIALOG_SCALER CtlPaneScaler = {
@@ -1526,6 +1527,10 @@ CtlPaneOnCommand(
 		case IDC_BUTTON_MARK:
 			CtlPaneOnMark(hWnd, uMsg, wp, lp);
 			break;
+		
+		case IDC_BUTTON_CANCEL_SYMBOL_LOAD:
+			CtlPaneOnCancelSymbolLoad(hWnd, uMsg, wp, lp);
+			break;
 	}
 
 	return 0;
@@ -1752,6 +1757,18 @@ CtlPaneOnMark(
 	return Status;
 }
 
+
+LRESULT
+CtlPaneOnCancelSymbolLoad(
+	__in HWND hWnd,
+	__in UINT uMsg,
+	__in WPARAM wp,
+	__in LPARAM lp
+	)
+{
+	ApsSetCancelSymbolLoad();
+}
+
 VOID
 CtlPaneSetButtonState(
 	__in PDIALOG_OBJECT Object
@@ -1763,6 +1780,9 @@ CtlPaneSetButtonState(
 
 	Context = (PCTL_PANE_CONTEXT)Object->Context;
 	Profile = Context->Profile;
+
+	hWndCtrl = GetDlgItem(Object->hWnd, IDC_BUTTON_CANCEL_SYMBOL_LOAD);
+	ShowWindow(hWndCtrl, SW_HIDE);
 
 	switch (Context->State) {
 
@@ -1837,6 +1857,9 @@ CtlPaneSetButtonState(
 			
 			hWndCtrl = GetDlgItem(Object->hWnd, IDC_BUTTON_STOP);
 			ShowWindow(hWndCtrl, SW_HIDE);
+
+			hWndCtrl = GetDlgItem(Object->hWnd, IDC_BUTTON_CANCEL_SYMBOL_LOAD);
+			ShowWindow(hWndCtrl, SW_HIDE);
 			break;
 
 		case CTL_PANE_ANALYZING:
@@ -1849,6 +1872,8 @@ CtlPaneSetButtonState(
 			
 			hWndCtrl = GetDlgItem(Object->hWnd, IDC_BUTTON_STOP);
 			ShowWindow(hWndCtrl, SW_HIDE);
+
+			SdkOverlayDlgItem(Object->hWnd, IDC_BUTTON_STOP, IDC_BUTTON_CANCEL_SYMBOL_LOAD);
 			break;
 
 		default:

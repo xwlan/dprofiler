@@ -28,6 +28,8 @@ PWSTR ApsReportPath = NULL;
 PWSTR ApsCurrentReportBaseName = NULL; 
 PWSTR ApsCurrentReportFullName = NULL;
 
+ULONG ApsCancelSymbolLoad;
+
 ULONG
 ApsCreatePdbObject(
     __in HANDLE ProcessHandle,
@@ -345,6 +347,14 @@ ApsLoadAllSymbols(
 
         Info.SizeOfStruct = sizeof(Info);
         SymGetModuleInfo64(ProcessHandle, Address, &Info);
+
+        //
+        // If user cancel symbol loading, stop the loading process
+        //
+
+        if (ApsCancelSymbolLoad) {
+            return 0;
+        }
 
         if (strlen(Info.LoadedPdbName) == 0) {
 
@@ -2347,4 +2357,12 @@ ApsDestroyStackTable(
     }
 
     ApsFree(StackTable);
+}
+
+VOID
+ApsSetCancelSymbolLoad(
+    VOID
+    )
+{
+    ApsCancelSymbolLoad = TRUE;
 }
