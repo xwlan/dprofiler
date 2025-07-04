@@ -123,30 +123,6 @@ IoGetCallback(
 }
 
 //
-// TP_IO context list head
-//
-
-LIST_ENTRY IoTpContextList;
-BTR_SPINLOCK IoTpContextLock;
-
-volatile ULONG IoRequestId = (ULONG)-1;
-volatile ULONG IoObjectId = (ULONG)-1;
-
-//
-// Mark irp as synchronous
-//
-
-#define IoMarkIrpSynchronous(_I) \
-	_I->Flags.Synchronous = 1;
-
-//
-// Is irp a synchronous I/O
-//
-
-#define IoIsIrpSynchronous(_I) \
-	(_I->Flags.Synchronous != 0)
-
-//
 // _T, Thread object
 // _C, Callback
 // _I, Irp
@@ -167,7 +143,7 @@ volatile ULONG IoObjectId = (ULONG)-1;
 
 #define IO_GET_SOCKET_OBJECT(_S, _O)								\
 {																	\
-	*_O = IoLookupObjectByHandleEx(SK_HANDLE(_S), HANDLE_SOCKET);\
+	*_O = IoLookupObjectByHandleEx(SK_HANDLE(_S), HANDLE_SOCKET);   \
 	if (!(*_O)) {													\
 		*_O = IoAllocateSocketObject(SK_HANDLE(_S));				\
 		if (*_O) {													\
@@ -180,7 +156,7 @@ volatile ULONG IoObjectId = (ULONG)-1;
 {														\
 	*_O = IoLookupObjectByHandleEx(_H, HANDLE_FILE);	\
 	if (!(*_O)) {										\
-		*_O = IoAllocateSocketObject(_H));			\
+		*_O = IoAllocateFileObject(_H, _O));			\
 		if (*_O)) {										\
 			IoReferenceObject(Object);					\
 		}												\
@@ -395,18 +371,23 @@ IoGetIrpFromInternal(
 	PIO_IRP Irp;
 
 	__try {
-		Irp = (PIO_IRP)Overlapped->Internal;
+		Irp = (PIO_IRP)Overlapped->InternalHigh;
 		if (Irp != NULL) {
-			if (CAN_BE_WSA_STATUS(Irp) || CAN_NOT_BE_POINTER(Irp) || CAN_BE_NTSTATUS(Irp)) {
+			if (CAN_BE_WSA_STATUS(Irp) || CAN_NOT_BE_POINTER(Irp)) {
 				return NULL;
 			}
-			if (Irp->IrpTag == IO_IRP_TAG) {
+			if (Irp->IrpTag == IO_IRP_TAG && Irp->Original == Overlapped) {
 				return Irp;
 			}
 		}
 		return NULL;
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER) {
+
+		//
+		// Consider write a log entry for debugging
+		//
+
 		return NULL;
 	}
 }
@@ -419,7 +400,7 @@ IoHijackOverlapped(
 {
 	RtlCopyMemory(&Irp->Overlapped, lpOverlapped, sizeof(OVERLAPPED));
 	Irp->Original = lpOverlapped;
-	lpOverlapped->Internal = (ULONG_PTR)Irp;
+	lpOverlapped->InternalHigh = (ULONG_PTR)Irp;
 	return &Irp->Overlapped;
 }
 
@@ -466,10 +447,11 @@ IoRefObjectCheckOverlapped(
 	_In_ HANDLE Handle,
 	_In_ HANDLE_TYPE Type,
 	_In_ LPOVERLAPPED lpOverlapped,
-	_Out_ PIO_OBJECT *Object,
-	_Out_ BOOLEAN *IsOverlapped,
-	_Out_ BOOLEAN *SkipOnSuccess
-	)
+	_Out_ PIO_OBJECT* Object,
+	_Out_ BOOLEAN* IsOverlapped,
+	_Out_ BOOLEAN* SkipOnSuccess,
+	_In_ BOOLEAN Allocate
+)
 {
 	PIO_OBJECT IoObject;
 	BOOLEAN Overlapped;
@@ -481,6 +463,38 @@ IoRefObjectCheckOverlapped(
 	Overlapped = FALSE;
 
 	IoObject = IoLookupObjectByHandleEx(Handle, Type);
+	if (!IoObject && !Allocate) {
+		return FALSE;
+	}
+
+	if (!IoObject && Allocate) {
+		if (Type == HANDLE_FILE) {
+
+			Overlapped = HalQueryOverlapped(Handle);
+			IoObject = IoAllocateFileObject(Handle, Overlapped);
+			if(IoObject) {
+				IoReferenceObject(IoObject);
+				if (HalQuerySkipOnSuccess(Handle)) {
+					SetFlag(IoObject->Flags, OF_IOCPASSOCIATE | OF_SKIPONSUCCESS);
+				}
+			}
+		}
+		else if (Type == HANDLE_SOCKET) {
+			IoObject = IoAllocateSocketObject(Handle);
+			if (IoObject) {
+				IoReferenceObject(IoObject);
+			}
+		}
+		else {
+
+			//
+			// Ignore other type of handle
+			//
+
+			return FALSE;
+		}
+	}
+
 	if (!IoObject) {
 		return FALSE;
 	}
@@ -503,16 +517,15 @@ IoRefObjectCheckOverlapped(
 
 	if (IoIsObjectOverlapped(IoObject)) {
 		if (lpOverlapped) {
-			if (!IoCopyOverlapped(lpOverlapped, &Copy)) {
-				Overlapped = FALSE;
+			if (IoCopyOverlapped(lpOverlapped, &Copy) && IoCopyOverlapped(&Copy, lpOverlapped)) {
+				Overlapped = TRUE;
 			}
-			else if (!IoCopyOverlapped(&Copy, lpOverlapped)) {
-				Overlapped = FALSE;
-			}
-			Overlapped = TRUE;
 		} else {
 			Overlapped = FALSE;
 		}
+	}
+	else {
+		Overlapped = FALSE;
 	}
 
 	*Object = IoObject;
@@ -565,26 +578,33 @@ IoFileCompleteCallback(
 	__try {
 		
 		Irp = IoOverlappedToIrp(lpOverlapped);
-		Irp->IoStatus = dwErrorCode;
-		Irp->CompleteBytes = dwNumberOfBytesTransfered;
-		Irp->CompleteThreadId = GetCurrentThreadId();
-		QueryPerformanceCounter(&Irp->End);
 
 		//
-		// Duplicate IO status block to user's lpOverlapped 
+		// N.B. Ensure the overlapped pointer is ours
 		//
 
-		Original = Irp->Original;
-		Callback = (LPOVERLAPPED_COMPLETION_ROUTINE)Irp->ApcCallback;
-		RtlCopyMemory(&Irp->Overlapped, Original, sizeof(OVERLAPPED));
+		if (Irp != NULL) {
+			Irp->IoStatus = dwErrorCode;
+			Irp->CompleteBytes = dwNumberOfBytesTransfered;
+			Irp->CompleteThreadId = GetCurrentThreadId();
+			QueryPerformanceCounter(&Irp->End);
 
-		//
-		// Queue irp to flush list and call user's routine, note that
-		// if user provide an invalid callback, it will crash.
-		//
+			//
+			// Duplicate IO status block to user's lpOverlapped 
+			//
 
-		IoQueueFlushList(Irp);
-		(*Callback)(dwErrorCode, dwNumberOfBytesTransfered, Original);
+			Original = Irp->Original;
+			Callback = (LPOVERLAPPED_COMPLETION_ROUTINE)Irp->ApcCallback;
+			RtlCopyMemory(&Irp->Overlapped, Original, sizeof(OVERLAPPED));
+
+			//
+			// Queue irp to flush list and call user's routine, note that
+			// if user provide an invalid callback, it will crash.
+			//
+
+			IoQueueFlushList(Irp);
+			(*Callback)(dwErrorCode, dwNumberOfBytesTransfered, Original);
+		}
 
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER) {
@@ -608,43 +628,48 @@ IoNetCompleteCallback(
 	__try {
 		
 		Irp = IoOverlappedToIrp(lpOverlapped);
-		Irp->IoStatus = dwErrorCode;
-		Irp->CompleteBytes = dwNumberOfBytesTransfered;
-		Irp->CompleteThreadId = GetCurrentThreadId();
-		QueryPerformanceCounter(&Irp->End);
 
-		//
-		// Duplicate IO status block to user's lpOverlapped 
-		//
+		if (Irp != NULL) {
 
-		Original = Irp->Original;
-		Callback = (LPWSAOVERLAPPED_COMPLETION_ROUTINE)Irp->ApcCallback;
-		RtlCopyMemory(&Irp->Overlapped, Original, sizeof(OVERLAPPED));
+			Irp->IoStatus = dwErrorCode;
+			Irp->CompleteBytes = dwNumberOfBytesTransfered;
+			Irp->CompleteThreadId = GetCurrentThreadId();
+			QueryPerformanceCounter(&Irp->End);
 
-		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
-		if (Object) {
-			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-			IoUnreferenceObject(Object);
-		}
+			//
+			// Duplicate IO status block to user's lpOverlapped 
+			//
 
-		if (Irp->Operation == IO_OP_IOCONTROL && Irp->ControlCode == FIONBIO) {
-			Object = (PIO_OBJECT)Irp->ControlContext;
-			if (dwErrorCode == ERROR_SUCCESS) {
-				if (!Irp->ControlData) {
-					IoClearObjectOverlapped(Object);
-				} else {
-					IoMarkObjectOverlapped(Object);
-				}
+			Original = Irp->Original;
+			Callback = (LPWSAOVERLAPPED_COMPLETION_ROUTINE)Irp->ApcCallback;
+			RtlCopyMemory(&Irp->Overlapped, Original, sizeof(OVERLAPPED));
+
+			Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
+			if (Object) {
+				IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
+				IoUnreferenceObject(Object);
 			}
-			IoUnreferenceObject(Object);
+
+			if (Irp->Operation == IO_OP_IOCONTROL && Irp->ControlCode == FIONBIO) {
+				Object = (PIO_OBJECT)Irp->ControlContext;
+				if (dwErrorCode == ERROR_SUCCESS) {
+					if (!Irp->ControlData) {
+						IoClearObjectOverlapped(Object);
+					}
+					else {
+						IoMarkObjectOverlapped(Object);
+					}
+				}
+				IoUnreferenceObject(Object);
+			}
+
+			//
+			// Queue irp to flush list and call user's routine
+			//
+
+			IoQueueFlushList(Irp);
+			(*Callback)(dwErrorCode, dwNumberOfBytesTransfered, Original, Flags);
 		}
-
-		//
-		// Queue irp to flush list and call user's routine
-		//
-
-		IoQueueFlushList(Irp);
-		(*Callback)(dwErrorCode, dwNumberOfBytesTransfered, Original, Flags);
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER) {
 
@@ -948,10 +973,10 @@ Skip:
 	Status = (*CallbackPtr)(FileHandle, Flags);
 	if (Status) { 
 		if (Flags & FILE_SKIP_COMPLETION_PORT_ON_SUCCESS) {
-			Object->Flags |= OF_SKIPONSUCCESS;
+			Object->Flags |= OF_SKIPONSUCCESS | OF_IOCPASSOCIATE;
 		}
 		if (Flags & FILE_SKIP_SET_EVENT_ON_HANDLE) {
-			Object->Flags |= OF_SKIPSETEVENT;
+			Object->Flags |= OF_SKIPSETEVENT | OF_IOCPASSOCIATE;
 		}
 	}
 
@@ -1035,7 +1060,7 @@ Skip:
 					);
 		return Status;
 	}
-	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -1125,7 +1150,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess,TRUE)){
 		goto Skip;
 	}
 
@@ -1196,7 +1221,7 @@ Skip:
 					);
 		return Status;
 	}
-	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -1284,7 +1309,7 @@ Skip:
 					);
 		return Status;
 	}
-	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(hFile, HANDLE_FILE, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -1376,7 +1401,7 @@ Skip:
 	IoStatus = GetLastError();
 
 	ASSERT(Irp->Original == lpOverlapped);
-	if ((ULONG_PTR)Irp->Original->Internal != (ULONG_PTR)Irp) {
+	if (IoIsOverlappedChanged(Irp)) {
 
 		//
 		// This indicate that user changed his overlapped's Internal
@@ -1433,7 +1458,7 @@ Skip:
 	}
 
 	Irp->IoStatus = IoStatus;
-	Irp->CompleteBytes = IO_COMPLETE_SIZE(Irp);
+	Irp->CompleteBytes = IoGetCompletionSize(Irp);
 	Irp->CompleteThreadId = GetCurrentThreadId();
 	Irp->Flags.Completed = 1;
 
@@ -1491,6 +1516,7 @@ IoGetQueuedCompletionStatus(
 		//
 		// a failed IO packet dequeued
 		//
+
 	}
 
 	IoStatus = GetLastError();
@@ -1523,7 +1549,7 @@ IoGetQueuedCompletionStatus(
 	}
 
 	QueryPerformanceCounter(&Irp->End);
-	if ((ULONG_PTR)Irp->Original->Internal != (ULONG_PTR)Irp) {
+	if (IoIsOverlappedChanged(Irp)) {
 
 		//
 		// This indicate that user changed his overlapped's Internal
@@ -1532,8 +1558,8 @@ IoGetQueuedCompletionStatus(
 		// log
 		//
 
-		DebugTrace("IO: GQCS: RID: %d, Irp->Original->Internal %p != Irp %p, Status=%d, IoStatus=%d, O.IoStatus=%d, MS=%d", 
-			Irp->RequestId, Irp->Original->Internal, Irp, Status, IoStatus, Irp->Overlapped.Internal, dwMilliseconds);
+		DebugTrace("IO: GQCS: RID: %d, Irp->Original->InternalHigh %p != Irp %p, Status=%d, IoStatus=%d, O.IoStatus=%d, MS=%d", 
+			Irp->RequestId, Irp->Original->InternalHigh, Irp, Status, IoStatus, Irp->Overlapped.Internal, dwMilliseconds);
 	}
 	else {
 		DebugTrace("IO: GQCS: RID: %d: Irp %p, Status=%d, IoStatus=%d, O.IoStatus=%d, MS=%d", 
@@ -1548,7 +1574,7 @@ IoGetQueuedCompletionStatus(
 	IoCopyOverlapped(&Irp->Overlapped, Irp->Original);
 
 	Irp->IoStatus = IoStatus;
-	Irp->CompleteBytes = IO_COMPLETE_SIZE(Irp);
+	Irp->CompleteBytes = IoGetCompletionSize(Irp);
 	Irp->CompleteThreadId = GetCurrentThreadId();
 	Irp->Flags.Completed = 1;
 
@@ -1562,7 +1588,7 @@ IoGetQueuedCompletionStatus(
 		//
 
 		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
-		if (Object) { 
+		if (Object) {
 
 			//
 			// If this is a IO_OP_ACCEPT from AcceptEx, and successful to established
@@ -1571,12 +1597,25 @@ IoGetQueuedCompletionStatus(
 
 			if (Irp->Operation == IO_OP_ACCEPT && IoStatus == ERROR_SUCCESS) {
 				ASSERT(Irp->SkListen != 0);
-				setsockopt((SOCKET)Irp->Object, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, 
-							(char *)&Irp->SkListen, sizeof(SOCKET));
+				setsockopt((SOCKET)Irp->Object, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT,
+					(char*)&Irp->SkListen, sizeof(SOCKET));
 			}
 
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
 			IoUnreferenceObject(Object);
+		}
+
+		if (!FlagOn(Object->Flags, OF_IOCPASSOCIATE)) {
+			SetFlag(Object->Flags, OF_IOCPASSOCIATE);
+		}
+	}
+
+	if (Irp->Flags.File) {
+		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_FILE);
+		if (Object) {
+			if (!FlagOn(Object->Flags, OF_IOCPASSOCIATE)) {
+				SetFlag(Object->Flags, OF_IOCPASSOCIATE);
+			}
 		}
 	}
 
@@ -1723,7 +1762,7 @@ Skip:
 			continue;
 		}
 
-		if ((ULONG_PTR)Irp->Original->Internal != (ULONG_PTR)Irp) {
+		if (IoIsOverlappedChanged(Irp)) {
 
 			//
 			// This indicate that user changed his overlapped's Internal
@@ -1738,8 +1777,8 @@ Skip:
 		Overlapped = Irp->Original;
 		IoCopyOverlapped(&Irp->Overlapped, Overlapped);
 
-		Irp->IoStatus = (ULONG)Irp->Overlapped.Internal;
-		Irp->CompleteBytes = IO_COMPLETE_SIZE(Irp);
+		Irp->IoStatus = IoGetCompletionStatus(Irp);
+		Irp->CompleteBytes = IoGetCompletionSize(Irp);
 		Irp->End.QuadPart = End.QuadPart;
 		Irp->CompleteThreadId = GetCurrentThreadId();
 		Irp->Flags.Completed = 1;
@@ -1883,7 +1922,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -2514,7 +2553,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object,&IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object,&IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 	
@@ -2720,7 +2759,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object,&IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object,&IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -2790,7 +2829,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -2855,7 +2894,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -2925,7 +2964,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess)){
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -3006,7 +3045,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess))
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE))
 		goto Skip;
 
 	SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -3129,7 +3168,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -3262,7 +3301,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess))
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE))
 		goto Skip;
 
 	SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -3393,7 +3432,7 @@ Skip:
 	IoStatus = WSAGetLastError();
 
 	ASSERT(Irp->Original == lpOverlapped);
-	if ((ULONG_PTR)Irp->Original->Internal != (ULONG_PTR)Irp) {
+	if (IoIsOverlappedChanged(Irp)) {
 
 		//
 		// This indicate that user changed his overlapped's Internal
@@ -3402,7 +3441,7 @@ Skip:
 		// log
 		//
 
-		DebugTrace("IO: WGOR: RID: %d: Irp->Original->Internal != Irp %p", Irp->RequestId, Irp);
+		DebugTrace("IO: WGOR: RID: %d: Irp->Original->InternalHigh != Irp %p", Irp->RequestId, Irp);
 	}
 	else {
 		DebugTrace("IO: WGOR: RID: %d: Irp %p", Irp->RequestId, Irp);
@@ -3450,7 +3489,7 @@ Skip:
 	}
 
 	Irp->IoStatus = IoStatus;
-	Irp->CompleteBytes = IO_COMPLETE_SIZE(Irp);
+	Irp->CompleteBytes = IoGetCompletionSize(Irp);
 	Irp->CompleteThreadId = GetCurrentThreadId();
 	Irp->Flags.Completed = 1;
 
@@ -3498,7 +3537,7 @@ IoThreadPoolIoCallback(
 	}
 
 	lpOverlapped = Irp->Original;
-	ASSERT(lpOverlapped->Internal == (ULONG_PTR)Irp);
+	ASSERT(lpOverlapped->InternalHigh == (ULONG_PTR)Irp);
 
 	IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 
@@ -3709,7 +3748,7 @@ Skip:
 	SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 
 	if (!IoRefObjectCheckOverlapped(SK_HANDLE(sAcceptSocket), HANDLE_SOCKET, 
-									lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)){
+									lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)){
 		goto Skip;
 	}
 
@@ -3849,7 +3888,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(hSocket), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(hSocket), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -3963,7 +4002,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(hSocket), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(hSocket), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -4085,7 +4124,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -4209,7 +4248,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -4333,7 +4372,7 @@ Skip:
 		return Status;
 	}
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess)) {
+	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, lpOverlapped, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
 		goto Skip;
 	}
 
@@ -4429,6 +4468,11 @@ IoAllocateSocketObject(
 	//
 
 	Object = IoAllocateObject();
+	Object->Id = IoAcquireObjectId();
+	Object->Object = Handle;
+	Object->Type = HANDLE_SOCKET;
+	Object->Flags = OF_SOCKET;
+
 	Length = sizeof(Object->u.Socket.Local);
 	Status = getsockname((SOCKET)Handle, (struct sockaddr *)&Object->u.Socket.Local, &Length); 
 
@@ -4456,6 +4500,7 @@ IoAllocateSocketObject(
 	}
 
 	Object->Flags |= OF_LOCAL_VALID;
+	Object->Object = Handle;
 
 	//
 	// Insert object and increase its reference, we must increase reference since
@@ -4495,18 +4540,11 @@ IoAllocateFileObject(
 		SetFlag(Object->Flags, OF_OVERLAPPED);
 	}
 
-	Object->u.File.Name = (PWSTR)BtrMalloc(Size + sizeof(WCHAR));
+	Size = min(MAX_PATH - 1, Size);
+	Object->u.File.Name = (PWSTR)BtrMalloc((Size + 1) * sizeof(WCHAR));
 	Object->u.File.Name[Size] = 0;
 	Object->u.File.Length = Size + 1;
-
-	if (Size <= MAX_PATH){
-		RtlCopyMemory(Object->u.File.Name, Path, Size);
-	}
-	else {
-		Size = GetFinalPathNameByHandleW(Handle, Object->u.File.Name, 
-						Size, VOLUME_NAME_DOS|FILE_NAME_NORMALIZED);
-		ASSERT(Size == Object->u.File.Length - 1);
-	}
+	RtlCopyMemory(Object->u.File.Name, Path, Size * sizeof(WCHAR));
 
 	GetSystemTimeAsFileTime(&Object->Start);
 	IoInsertObject(Object);

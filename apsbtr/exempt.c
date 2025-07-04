@@ -192,9 +192,7 @@ BtrEnterExemptionRegion(
 	_In_ PBTR_THREAD_OBJECT Thread
 	)
 {
-	if (!FlagOn(Thread->ThreadFlag, BTR_FLAG_EXEMPTION)){
-		SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
-	}
+	SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 }
 
 VOID
@@ -202,7 +200,5 @@ BtrLeaveExemptionRegion(
 	_In_ PBTR_THREAD_OBJECT Thread
 	)
 {
-	if (FlagOn(Thread->ThreadFlag, BTR_FLAG_EXEMPTION)){
-		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
-	}
+	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 }

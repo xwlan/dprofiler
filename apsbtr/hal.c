@@ -636,18 +636,21 @@ HalGetTargetType(
 
 BOOLEAN
 HalQuerySkipOnSuccess(
-	_In_ HANDLE Handle
+	IN HANDLE Handle
 	)
 {
+	ULONG Flag = 0;
 	NTSTATUS Status;
-	IO_STATUS_BLOCK IoStatus = {0};
-	ULONG Information;
+	IO_STATUS_BLOCK StatusBlock = { 0 };
 
-	Status = (*NtQueryInformationFile)(Handle, &IoStatus, &Information, sizeof(ULONG), 
+	Status = (*NtQueryInformationFile)(Handle, &StatusBlock, &Flag, sizeof(ULONG),
 										FileIoCompletionNotificationInformation);
-	if (NT_SUCCESS(Status)){
-		return Information ? TRUE : FALSE;
+	if (NT_SUCCESS(Status)) {
+		if (FlagOn(Flag, FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
+			return TRUE;
+		}
 	}
+
 	return FALSE;
 }
 
@@ -679,25 +682,27 @@ typedef struct _FILE_COMPLETION_INFORMATION {
 
 BOOLEAN
 HalQueryOverlapped(
-	_In_ HANDLE Handle
+	IN HANDLE Handle
 	)
 {
 	NTSTATUS Status;
-	IO_STATUS_BLOCK IoStatus = {0};
-	FILE_MODE_INFORMATION Information = {0};
-	FILE_PIPE_INFORMATION Information2 = {0};
+	IO_STATUS_BLOCK IoStatus = { 0 };
+	FILE_MODE_INFORMATION Information = { 0 };
 
 	//
 	// From WDK
 	//
 
-	#define FILE_SYNCHRONOUS_IO_ALERT			0x00000010
-	#define FILE_SYNCHRONOUS_IO_NONALERT		0x00000020
+#define FILE_SYNCHRONOUS_IO_ALERT			0x00000010
+#define FILE_SYNCHRONOUS_IO_NONALERT		0x00000020
 
-	Status = (*NtQueryInformationFile)(Handle, &IoStatus, &Information, sizeof(Information), 
-										FileModeInformation);
-	if (NT_SUCCESS(Status)){
-		return !FlagOn(Information.Mode, FILE_SYNCHRONOUS_IO_NONALERT | FILE_SYNCHRONOUS_IO_ALERT);
+	Status = (*NtQueryInformationFile)(Handle, &IoStatus, &Information, sizeof(Information), FileModeInformation);
+	if (NT_SUCCESS(Status)) {
+		if (FlagOn(Information.Mode, FILE_SYNCHRONOUS_IO_NONALERT) ||
+			FlagOn(Information.Mode, FILE_SYNCHRONOUS_IO_ALERT)) {
+			return FALSE;
+		}
+		return TRUE;
 	}
 	return FALSE;
 };

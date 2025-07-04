@@ -44,19 +44,19 @@ typedef enum _IoFileColumnOrdinal{
 LISTVIEW_COLUMN IoFsColumn[] = {
 	{ 300,	L"Name",    LVCFMT_LEFT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 	{ 100,	L"IO Count",  LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 100,	L"R Count",  LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 100,	L"W Count",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 100,	L"F Count",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"R Bytes",LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"W Bytes",    LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 140,	L"Max R Latency(ms)", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 140,	L"Mean R Latency(ms)",LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 140,	L"Max W Latency(ms)", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 140,	L"Mean W Latency(ms)",LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"Max R Bytes", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"Mean R Bytes", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"Max W Bytes", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
-	{ 120,	L"Mean W Bytes", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 100,	L"Read Count",  LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 100,	L"Write Count",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 100,	L"Failed Count",  LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Read MB",LVCFMT_RIGHT, 0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Write MB",    LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 140,	L"Max Read Latency(ms)", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 140,	L"Mean Read Latency(ms)",LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 140,	L"Max Write Latency(ms)", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 140,	L"Mean Write Latency(ms)",LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Max Read KB", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Mean Read KB", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Max Write KB", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
+	{ 120,	L"Mean Write KB", LVCFMT_RIGHT,  0, TRUE, TRUE, BLACK, WHITE, BLACK, DataTypeText },
 };
 
 ULONG IoFsColumnCount = ARRAYSIZE(IoFsColumn);
@@ -577,24 +577,24 @@ IoFsInsertData(
 			ListView_SetItem(hWndCtrl, &lvi);
 
 			//
-			// R Bytes 
+			// Read MB 
 			//
 
 			lvi.iItem = j;
 			lvi.iSubItem = _FsReadBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_READ].CompleteSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%I64u", IoObject->Counters[IO_OP_READ].CompleteSize / (1024 * 1024));
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
 			//
-			// W Bytes 
+			// Write MB 
 			//
 
 			lvi.iItem = j;
 			lvi.iSubItem = _FsWriteBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_WRITE].CompleteSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%I64u", IoObject->Counters[IO_OP_WRITE].CompleteSize / (1024 * 1024));
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -647,13 +647,13 @@ IoFsInsertData(
 			ListView_SetItem(hWndCtrl, &lvi);
 
 			//
-			// Max Read Packet Bytes 
+			// Max Read Packet KB 
 			//
 
 			lvi.iItem = j;
 			lvi.iSubItem = _FsMaxReadBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_READ].MaximumSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", IoObject->Counters[IO_OP_READ].MaximumSize * 1.0 / 1024);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -664,7 +664,7 @@ IoFsInsertData(
 			lvi.iItem = j;
 			lvi.iSubItem = _FsMeanReadBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_READ].AverageSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", IoObject->Counters[IO_OP_READ].AverageSize * 1.0 / 1024);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -675,7 +675,7 @@ IoFsInsertData(
 			lvi.iItem = j;
 			lvi.iSubItem = _FsMaxWriteBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_WRITE].MaximumSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", IoObject->Counters[IO_OP_WRITE].MaximumSize * 1.0 / 1024);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -686,7 +686,7 @@ IoFsInsertData(
 			lvi.iItem = j;
 			lvi.iSubItem = _FsMeanWriteBytes;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%d", IoObject->Counters[IO_OP_WRITE].AverageSize);
+			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", IoObject->Counters[IO_OP_WRITE].AverageSize * 1.0 / 1024);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 

@@ -396,7 +396,8 @@ IoRefObjectCheckOverlapped(
 	_In_ LPOVERLAPPED lpOverlapped,
 	_Out_ PIO_OBJECT *Object,
 	_Out_ BOOLEAN *IsOverlapped,
-	_Out_ BOOLEAN *SkipOnSuccess
+	_Out_ BOOLEAN *SkipOnSuccess,
+	_In_ BOOLEAN Allocate
 	);
 
 BOOLEAN
@@ -485,6 +486,43 @@ extern IO_IRP_TABLE IoIrpTable;
 extern SLIST_HEADER IoIrpPendingSListHead;
 extern SLIST_HEADER IoIrpCompleteSListHead;
 extern BTR_SPINLOCK IoPerformanceLock;
+
+extern volatile ULONG IoRequestId;
+extern volatile ULONG IoObjectId;
+
+//
+// Mark irp as synchronous
+//
+
+#define IoMarkIrpSynchronous(_I) \
+	_I->Flags.Synchronous = 1;
+
+//
+// Is irp a synchronous I/O
+//
+
+#define IoIsIrpSynchronous(_I) \
+	(_I->Flags.Synchronous != 0)
+
+//
+// Check whether overlapped is changed
+// _I, pointer to our own IRP
+//
+
+#define IoIsOverlappedChanged(_I) \
+	((ULONG_PTR)(_I->Original->InternalHigh) != (ULONG_PTR)_I) 
+
+#define IoGetCompletionStatus(_I) \
+	((ULONG)_I->Overlapped.Internal)
+
+#define IoGetCompletionSize(_I) \
+	((ULONG)_I->Overlapped.InternalHigh)
+
+#define IoAttachIrpToOverlapped(_O, _I) \
+	(_O->InternalHigh = (ULONG_PTR)_I)
+
+extern LIST_ENTRY IoTpContextList;
+extern BTR_SPINLOCK IoTpContextLock;
 
 extern volatile ULONG IoRequestId;
 extern volatile ULONG IoObjectId;

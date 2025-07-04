@@ -23,6 +23,7 @@ MDB_DATA_ITEM MdbData[] = {
 	//
 
 	{ "MdbAutoAnalyze", NULL, MdbBoolean },
+	{ "MdbIatMode", NULL, MdbBoolean },
 
 	//
 	// Symbol

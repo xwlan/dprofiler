@@ -105,8 +105,7 @@ typedef struct _IO_TPIO_CONTEXT {
 // return address of intercepted routine
 //
 
-#define IO_COMPLETE_SIZE(_I) \
-	((ULONG)_I->Overlapped.InternalHigh)
+
 
 #define SK_HANDLE(_S) \
 	((HANDLE)(ULONG_PTR)_S)

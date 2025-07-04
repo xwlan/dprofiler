@@ -189,12 +189,12 @@ BtrIsAcspValid(
 
 BOOLEAN
 HalQuerySkipOnSuccess(
-	_In_ HANDLE Handle
+	IN HANDLE Handle
 	);
 
 BOOLEAN
 HalQueryOverlapped(
-	_In_ HANDLE Handle
+	IN HANDLE Handle
 	);
 
 #if defined(_M_X64)

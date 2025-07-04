@@ -329,6 +329,7 @@
     <ClCompile Include="iocap.c">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="ioiat.c" />
     <ClCompile Include="ioprof.c" />
     <ClCompile Include="lock.c" />
     <ClCompile Include="lookaside.c" />
@@ -381,6 +382,7 @@
     <ClInclude Include="heap.h" />
     <ClInclude Include="iatpatch.h" />
     <ClInclude Include="iodefs.h" />
+    <ClInclude Include="ioiat.h" />
     <ClInclude Include="ioprof.h" />
     <ClInclude Include="list.h" />
     <ClInclude Include="lock.h" />

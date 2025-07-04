@@ -17,6 +17,9 @@
 #include "marker.h"
 #include "iodefs.h"
 #include "thread.h"
+#include "ioiat.h"
+#include "iatpatch.h"
+
 
 //
 // IO worker thread
@@ -84,6 +87,13 @@ IO_OBJECT_TABLE IoObjectTable;
 
 DECLSPEC_CACHEALIGN
 SLIST_HEADER IoRetiredObjectList;
+
+LIST_ENTRY IoTpContextList;
+BTR_SPINLOCK IoTpContextLock;
+
+volatile ULONG IoRequestId = (ULONG)-1;
+volatile ULONG IoObjectId = (ULONG)-1;
+
 
 typedef enum _IO_COUNTER_TYPE {
 	IO_COUNTER_SUM,
@@ -1004,6 +1014,10 @@ IoDllCanUnload(
 	ULONG i;
 	PBTR_CALLBACK Callback;
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		return TRUE;
+	}
+
 	//
 	// This routine is called with all other threads suspended
 	//
@@ -1058,6 +1072,7 @@ IoInitialize(
 	Object->ThreadAttach = IoThreadAttach;
 	Object->ThreadDetach = IoThreadDetach;
 	Object->IsRuntimeThread = IoIsRuntimeThread;
+	Object->DllLoadCallback = IoDllLoadCallback;
 
 	//
 	// Initialize mark list
@@ -1117,6 +1132,12 @@ IoStartProfile(
 		return GetLastError();
 	}
 
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrInitializeIatMode();
+		IoIatApplyPatch();
+		BtrRegisterDllLoadCallback(TRUE);
+	}
+
 	return S_OK;
 }
 
@@ -1125,6 +1146,15 @@ IoStopProfile(
 	__in PBTR_PROFILE_OBJECT Object	
 	)
 {
+	//
+	// After profile thread ends, rollback all patch for IAT mode
+	//
+
+	if (BtrPatchMode == HOTPATCH_IAT) {
+		BtrRegisterDllLoadCallback(FALSE);
+		BtrRollbackAndCleanup();
+	}
+
 	InterlockedExchange(&BtrStopped, (LONG)TRUE);
 
 	//
@@ -1385,6 +1415,16 @@ IoQueryHotpatch(
 	ULONG Status;
 	ULONG CallbackCount;
 	PBTR_HOTPATCH_ENTRY Hotpatch;
+
+	//
+	// For IAT mode, we do patch by ourselves
+	//
+
+	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		*Entry = NULL;
+		*Count = 0;
+		return S_OK;
+	}
 
 	Valid = 0;
 
@@ -1807,6 +1847,13 @@ IoReferenceObject(
 	__in PIO_OBJECT Object
 	)
 {
+	//
+	// N.B. Temporarily disable object reference
+	// and test whether we can remove it
+	//
+
+	return;
+
 	IoLockObjectBucket(Object);
 	Object->References += 1;
 	IoUnlockObjectBucket(Object);
@@ -1846,6 +1893,13 @@ IoUnreferenceObject(
 	__in PIO_OBJECT Object
 	)
 {
+	//
+	// N.B. Temporarily disable object reference
+	// to test whether it can be removed
+	//
+
+	return;
+
 	IoLockObjectBucket(Object);
 	Object->References -= 1;
 	if (!Object->References) {
