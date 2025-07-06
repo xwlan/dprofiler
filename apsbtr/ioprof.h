@@ -38,9 +38,8 @@ typedef struct DECLSPEC_ALIGN(16) _IO_IRP {
 
 	SLIST_ENTRY CompleteSListEntry;    // for IoIrpCompleteSListHead;
 	LIST_ENTRY TrackListEntry;         // for IoIrpTrackListHead
-	LIST_ENTRY InCallListEntry;        // for IoIrpInCallListHead
+	LIST_ENTRY ListEntry;              // chained on IO object's IrpListHead
 
-	volatile LONG InCall;
 	volatile ULONG LastError;
 
 	ULONG IrpTag;
@@ -64,6 +63,7 @@ typedef struct DECLSPEC_ALIGN(16) _IO_IRP {
 		SOCKET SkListen;
 	};
 
+	struct _IO_OBJECT* IoObject;
 	HANDLE Object;
 	FILETIME Time;
 	LARGE_INTEGER Start;
@@ -101,7 +101,6 @@ typedef struct _IO_IRP_TABLE {
 	ULONG QueueCount;
 	ULONG PendingCount;
 	LIST_ENTRY ListHead[IO_IRP_BUCKET_COUNT];
-	LIST_ENTRY InCallListHead; 
 } IO_IRP_TABLE, *PIO_IRP_TABLE;
 
 //
@@ -253,17 +252,7 @@ IoFlushObject(
 	);
 
 ULONG
-IoFlushIrp(
-	VOID
-	);
-
-ULONG
 IoFlushRecord(
-	VOID
-	);
-
-ULONG
-IoFlushIrpOnStop(
 	VOID
 	);
 
@@ -334,6 +323,11 @@ IoQueueFlushList(
 	);
 
 VOID
+IoQueueCompletedIrp(
+	_In_ PIO_IRP Irp
+	);
+
+VOID
 IoUpdateRequestCounters(
 	_In_ PIO_IRP Irp
 	);
@@ -341,6 +335,17 @@ IoUpdateRequestCounters(
 VOID
 IoUpdateCompleteCounters(
 	_In_ PIO_IRP Irp
+	);
+
+VOID
+IoUpdateFailedCounters(
+	_In_ PIO_IRP Irp
+	);
+
+VOID
+IoUpdateFailedCountersEx(
+	_In_ HANDLE_TYPE Type,
+	_In_ IO_OPERATION Operation
 	);
 
 PIO_IRP
@@ -361,16 +366,6 @@ IoAllocateIrpTrack(
 VOID
 IoFreeIrpTrack(
 	_In_ PIO_IRP_TRACK Track
-	);
-
-VOID
-IoIrpClearInCall(
-	_In_ PIO_IRP Irp
-	);
-
-BOOLEAN
-IoIsIrpInCall(
-	_In_ PIO_IRP Irp
 	);
 
 BOOLEAN
@@ -433,6 +428,24 @@ IoCompleteSynchronousIo(
 	);
 
 VOID
+IoCompleteSkipOnSuccess(
+	_In_ PIO_IRP Irp,
+	_In_ ULONG Status,
+	_In_ ULONG IoStatus,
+	_In_ PULONG lpCompleteBytes,
+	_In_ LPOVERLAPPED lpOverlapped
+	);
+
+VOID
+IoCompleteOverlappedIo(
+	_In_ PIO_IRP Irp,
+	_In_ ULONG Status,
+	_In_ ULONG IoStatus,
+	_In_ PULONG lpCompleteBytes,
+	_In_ LPOVERLAPPED lpOverlapped
+	);
+
+VOID
 IoCompleteAcceptIo(
 	_In_ PIO_IRP Irp,
 	_In_ ULONG Status,
@@ -441,11 +454,24 @@ IoCompleteAcceptIo(
 	_In_ LPOVERLAPPED lpOverlapped
 	);
 
+ULONG
+IoFlushCompleteList(
+	VOID
+	);
+
 VOID CALLBACK 
 IoFileCompleteCallback(
 	_In_    DWORD        dwErrorCode,
 	_In_    DWORD        dwNumberOfBytesTransfered,
 	_Inout_ LPOVERLAPPED lpOverlapped
+	);
+
+VOID CALLBACK
+IoNetCompleteCallback(
+	_In_    DWORD        dwErrorCode,
+	_In_    DWORD        dwNumberOfBytesTransfered,
+	_Inout_ LPOVERLAPPED lpOverlapped,
+	_In_ DWORD Flags
 	);
 
 ULONG
@@ -520,6 +546,9 @@ extern volatile ULONG IoObjectId;
 
 #define IoAttachIrpToOverlapped(_O, _I) \
 	(_O->InternalHigh = (ULONG_PTR)_I)
+
+#define IoIrpIsQueued(_I) \
+	((BOOLEAN)_I->Flags.Queued)
 
 extern LIST_ENTRY IoTpContextList;
 extern BTR_SPINLOCK IoTpContextLock;

@@ -22,8 +22,6 @@ typedef struct _IO_OBJECT {
 		SLIST_ENTRY SListEntry;
 	};
 
-	LIST_ENTRY DuplicatedList;
-
 	HANDLE Object;
 	HANDLE_TYPE Type;
 	ULONG Id;
@@ -33,6 +31,8 @@ typedef struct _IO_OBJECT {
 
 	ULONG Flags;
 	ULONG Hash;
+
+	LIST_ENTRY IrpListHead;
 
 	union {
 		struct {
@@ -118,6 +118,18 @@ IoInitObjectTable(
 PIO_OBJECT
 IoAllocateObject(
 	VOID
+	);
+
+VOID
+IoQueueIrpToObject(
+	IN struct _IO_OBJECT *Object,
+	IN struct _IO_IRP *Irp
+	);
+
+VOID
+IoDequeueIrpFromObject(
+	IN struct _IO_OBJECT* Object,
+	IN struct _IO_IRP* Irp
 	);
 
 PIO_OBJECT

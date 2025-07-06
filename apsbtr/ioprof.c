@@ -55,11 +55,7 @@ SLIST_HEADER IoIrpCompleteSListHead;
 DECLSPEC_CACHEALIGN
 SLIST_HEADER IoIrpAcceptSListHead;
 
-LIST_ENTRY IoIrpTrackListHead;
-LIST_ENTRY IoIrpInCallListHead;
-
 ULONG IoFlushIrpCount;
-ULONG IoOrphanedIrpCount;
 
 IO_IRP_TABLE IoIrpTable;
 
@@ -109,6 +105,8 @@ typedef struct _IO_PERFORMANCE {
 	ULONG WriteCompleteCount;
 	ULONG ReadFailedCount;
 	ULONG WriteFailedCount;
+	ULONG AcceptCount;
+	ULONG AcceptFailedCount;
 	ULONG64 ReadBytes;
 	ULONG64 ReadCompleteBytes;
 	ULONG64 WriteBytes;
@@ -565,374 +563,14 @@ IoFlushObjectOnStop(
 }
 
 ULONG
-IoFlushIrpOnStop(
-	VOID
-	)
-{
-	ULONG Status;
-	PSLIST_ENTRY SListEntry;
-	PIO_IRP Irp;
-	PIO_IRP_ON_DISK Entry;
-	LONG Number;
-	ULONG Complete;
-	PLIST_ENTRY ListEntry;
-	LARGE_INTEGER Current;
-
-	//
-	// When this routine is called, no new irp generated, all irps are
-	// chained into IoIrpTrackListHead.
-	//
-
-	//
-	// N.B. Even if we decommit the hotpatch to stop intercepting new irp,
-	// and call references are 0, we still can not guarantee that the allocated
-	// irps are not accessed by host process. because asynchronous I/O. we simply
-	// don't deallocate these resources, and terminate the host process.
-	//
-
-	QueryPerformanceCounter(&Current);
-
-	//
-	// Chain all pending irp to track list
-	//
-
-	SListEntry = InterlockedFlushSList(&IoIrpPendingSListHead);
-	while (SListEntry != NULL) {
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, PendingSListEntry);
-		InsertTailList(&IoIrpTrackListHead, &Irp->TrackListEntry);
-		SListEntry = SListEntry->Next;
-	}
-
-	Status = S_OK;
-
-repeat:
-	Number = 0;
-	Entry = (PIO_IRP_ON_DISK)IoFlushCache;
-
-	while (!IsListEmpty(&IoIrpTrackListHead)) {
-
-		ListEntry = RemoveHeadList(&IoIrpTrackListHead); 
-		Irp = CONTAINING_RECORD(ListEntry, IO_IRP, TrackListEntry);
-
-		Entry[Number].RequestId = Irp->RequestId;
-		Entry[Number].ObjectId = Irp->ObjectId;
-		Entry[Number].StackId = Irp->StackId;
-		Entry[Number].Operation = Irp->Operation;
-		Entry[Number].RequestBytes = Irp->RequestBytes;
-		Entry[Number].CompletionBytes = Irp->RequestBytes;
-		Entry[Number].IoStatus = Irp->IoStatus;
-		Entry[Number].RequestThreadId = Irp->RequestThreadId;
-		Entry[Number].CompleteThreadId = Irp->CompleteThreadId;
-		Entry[Number].Time = Irp->Time;
-		Entry[Number].Duration.QuadPart = Irp->End.QuadPart - Irp->Start.QuadPart;
-		Entry[Number].Asynchronous = !Irp->Flags.Synchronous;
-		Entry[Number].UserApc = Irp->Flags.UserApc;
-		Entry[Number].Aborted = !Irp->IoStatus;
-		Entry[Number].Complete = Irp->Flags.Completed;
-
-		if (IoIsOrphanedIrp(Irp, &Current)) {
-			Entry[Number].Orphaned = 1;
-		}
-
-		Number += 1;
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			break;
-		}
-	} 
-
-	if (Number > 0) {
-		Status = WriteFile(BtrProfileObject->IoIrpFile, IoFlushCache, 
-							Number * sizeof(IO_IRP_ON_DISK), &Complete, NULL); 
-		if (!Status) {
-			return GetLastError();
-		}
-
-		//
-		// Update the flushed irp count
-		//
-
-		IoFlushIrpCount += Number;
-		DebugTrace("IO_RETIRE_IRP_COUNT: %d", IoFlushIrpCount);
-		
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			goto repeat;
-		}
-	}
-
-	DebugTrace("Total %d IO irp allocated", IoRequestId);
-	return S_OK;
-}
-
-ULONG
-IoFlushIrp(
-	VOID
-	)
-{
-	ULONG Status;
-	PSLIST_ENTRY SListEntry;
-	PIO_IRP Irp;
-	PIO_IRP_ON_DISK Entry;
-	LONG Number;
-	ULONG Complete;
-	PLIST_ENTRY ListEntry;
-	ULONG RepeatCount = 0;
-
-	//
-	// Dequeue pending irp list, and queue to track list, this list is
-	// used to avoid spinlock acquisition when insert a pending irp.
-	//
-
-	SListEntry = InterlockedFlushSList(&IoIrpPendingSListHead);
-	while (SListEntry != NULL) {
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, PendingSListEntry);
-		InsertTailList(&IoIrpTrackListHead, &Irp->TrackListEntry);
-		SListEntry = SListEntry->Next;
-	}
-
-	//
-	// Walk in call list to re-insert it into completion list
-	//
-
-	ListEntry = IoIrpInCallListHead.Flink;
-	while (ListEntry != &IoIrpInCallListHead) {
-		Irp = CONTAINING_RECORD(ListEntry, IO_IRP, InCallListEntry);
-		if (IoIsIrpInCall(Irp)) {
-			ListEntry = ListEntry->Flink;
-			continue;
-		}
-		RemoveEntryList(ListEntry);
-		InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->CompleteSListEntry);
-		ListEntry = ListEntry->Flink;
-	}
-
-	//
-	// Dequeue completed irp list
-	//
-
-	Status = S_OK;
-	SListEntry = InterlockedFlushSList(&IoIrpCompleteSListHead);
-
-repeat:
-	RepeatCount += 1;
-	Number = 0;
-	Entry = (PIO_IRP_ON_DISK)IoFlushCache;
-
-	while (SListEntry != NULL) {
-
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, CompleteSListEntry);
-		DebugTrace("IO: FlushIrp=%p", Irp);
-
-		//
-		// If I/O request thread is still using irp, chain this irp into
-		// IoIrpInCallListHead
-		//
-
-		__try {
-		if (IoIsIrpInCall(Irp)) {
-			InsertTailList(&IoIrpInCallListHead, &Irp->InCallListEntry);
-			SListEntry = SListEntry->Next;
-			continue;
-		}
-		}__except(1){
-			DebugTrace("!!!!!!!CRASH: Irp=%p", Irp);
-			SuspendThread(GetCurrentThread());
-		}
-
-		Entry[Number].RequestId = Irp->RequestId;
-		Entry[Number].ObjectId = Irp->ObjectId;
-		Entry[Number].StackId = Irp->StackId;
-		Entry[Number].Operation = Irp->Operation;
-		Entry[Number].RequestBytes = Irp->RequestBytes;
-		Entry[Number].CompletionBytes = Irp->RequestBytes;
-		Entry[Number].IoStatus = Irp->IoStatus;
-		Entry[Number].RequestThreadId = Irp->RequestThreadId;
-		Entry[Number].CompleteThreadId = Irp->CompleteThreadId;
-		Entry[Number].Time = Irp->Time;
-		Entry[Number].Duration.QuadPart = Irp->End.QuadPart - Irp->Start.QuadPart;
-		Entry[Number].Asynchronous = !Irp->Flags.Synchronous;
-		Entry[Number].UserApc = Irp->Flags.UserApc;
-		Entry[Number].Aborted = !!Irp->IoStatus;
-		Entry[Number].Complete = Irp->Flags.Completed;
-		Entry[Number].Complete = !Irp->IoStatus;
-		Entry[Number].Orphaned = 0;
-		Entry[Number].NextIrp = -1;
-		Entry[Number].ThreadedNextIrp = -1;
-
-		//
-		// Skip to next entry, remove the irp from track list and free to lookaside
-		//
-		
-		SListEntry = SListEntry->Next;
-		RemoveEntryList(&Irp->TrackListEntry);
-		IoFreeIrp(Irp);
-
-		Number += 1;
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			break;
-		}
-	} 
-
-	if (Number > 0) {
-		Status = WriteFile(BtrProfileObject->IoIrpFile, IoFlushCache, 
-							Number * sizeof(IO_IRP_ON_DISK), &Complete, NULL); 
-		if (!Status) {
-			return GetLastError();
-		}
-
-		//
-		// Update the flushed irp count
-		//
-
-		IoFlushIrpCount += Number;
-		DebugTrace("IO_RETIRE_IRP_COUNT: %d", IoFlushIrpCount);
-		
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			goto repeat;
-		}
-	}
-
-	return S_OK;
-}
-
-ULONG
-IoFlushIrp2(
-	VOID
-	)
-{
-	ULONG Status;
-	PSLIST_ENTRY SListEntry;
-	PIO_IRP Irp;
-	PIO_IRP_ON_DISK Entry;
-	LONG Number;
-	ULONG Complete;
-	PLIST_ENTRY ListEntry;
-	ULONG RepeatCount = 0;
-
-	//
-	// Dequeue pending irp list, and queue to track list, this list is
-	// used to avoid spinlock acquisition when insert a pending irp.
-	//
-
-	SListEntry = InterlockedFlushSList(&IoIrpPendingSListHead);
-	while (SListEntry != NULL) {
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, PendingSListEntry);
-		InsertTailList(&IoIrpTrackListHead, &Irp->TrackListEntry);
-		SListEntry = SListEntry->Next;
-	}
-
-	//
-	// Walk in call list to re-insert it into completion list
-	//
-
-	ListEntry = IoIrpInCallListHead.Flink;
-	while (ListEntry != &IoIrpInCallListHead) {
-		Irp = CONTAINING_RECORD(ListEntry, IO_IRP, InCallListEntry);
-		if (IoIsIrpInCall(Irp)) {
-			ListEntry = ListEntry->Flink;
-			continue;
-		}
-		RemoveEntryList(ListEntry);
-		InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->CompleteSListEntry);
-		ListEntry = ListEntry->Flink;
-	}
-
-	//
-	// Dequeue completed irp list
-	//
-
-	Status = S_OK;
-	SListEntry = InterlockedFlushSList(&IoIrpCompleteSListHead);
-
-repeat:
-	RepeatCount += 1;
-	Number = 0;
-	Entry = (PIO_IRP_ON_DISK)IoFlushCache;
-
-	while (SListEntry != NULL) {
-
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, CompleteSListEntry);
-		DebugTrace("IO: FlushIrp=%p", Irp);
-
-		//
-		// If I/O request thread is still using irp, chain this irp into
-		// IoIrpInCallListHead
-		//
-
-		__try {
-		if (IoIsIrpInCall(Irp)) {
-			InsertTailList(&IoIrpInCallListHead, &Irp->InCallListEntry);
-			SListEntry = SListEntry->Next;
-			continue;
-		}
-		}__except(1){
-			DebugTrace("!!!!!!!CRASH: Irp=%p", Irp);
-			SuspendThread(GetCurrentThread());
-		}
-
-		Entry[Number].RequestId = Irp->RequestId;
-		Entry[Number].ObjectId = Irp->ObjectId;
-		Entry[Number].StackId = Irp->StackId;
-		Entry[Number].Operation = Irp->Operation;
-		Entry[Number].RequestBytes = Irp->RequestBytes;
-		Entry[Number].CompletionBytes = Irp->RequestBytes;
-		Entry[Number].IoStatus = Irp->IoStatus;
-		Entry[Number].RequestThreadId = Irp->RequestThreadId;
-		Entry[Number].CompleteThreadId = Irp->CompleteThreadId;
-		Entry[Number].Time = Irp->Time;
-		Entry[Number].Duration.QuadPart = Irp->End.QuadPart - Irp->Start.QuadPart;
-		Entry[Number].Asynchronous = !Irp->Flags.Synchronous;
-		Entry[Number].UserApc = Irp->Flags.UserApc;
-		Entry[Number].Aborted = !!Irp->IoStatus;
-		Entry[Number].Complete = Irp->Flags.Completed;
-		Entry[Number].Complete = !Irp->IoStatus;
-		Entry[Number].Orphaned = 0;
-		Entry[Number].NextIrp = -1;
-		Entry[Number].ThreadedNextIrp = -1;
-
-		//
-		// Skip to next entry, remove the irp from track list and free to lookaside
-		//
-		
-		SListEntry = SListEntry->Next;
-		RemoveEntryList(&Irp->TrackListEntry);
-		IoFreeIrp(Irp);
-
-		Number += 1;
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			break;
-		}
-	} 
-
-	if (Number > 0) {
-		Status = WriteFile(BtrProfileObject->IoIrpFile, IoFlushCache, 
-							Number * sizeof(IO_IRP_ON_DISK), &Complete, NULL); 
-		if (!Status) {
-			return GetLastError();
-		}
-
-		//
-		// Update the flushed irp count
-		//
-
-		IoFlushIrpCount += Number;
-		DebugTrace("IO_RETIRE_IRP_COUNT: %d", IoFlushIrpCount);
-		
-		if (Number == IO_FLUSH_IRP_LIMIT) {
-			goto repeat;
-		}
-	}
-
-	return S_OK;
-}
-
-ULONG
 IoFlushRecord(
 	VOID
 	)
 {
 	ULONG Status;
 
-	Status = IoFlushIrp();
+	//Status = IoFlushIrp();
+	Status = IoFlushCompleteList();
 	if (Status != S_OK) {
 		return Status;
 	}
@@ -993,10 +631,10 @@ IoFlushRecordOnStop(
 		return Status;
 	}
 
-	Status = IoFlushIrpOnStop();
-	if (Status != S_OK) {
-		return Status;
-	}
+	//Status = IoFlushIrpOnStop();
+	//if (Status != S_OK) {
+	//	return Status;
+	//}
 	
 	IoFlushObjectOnStop();
 	if (Status != S_OK) {
@@ -1526,10 +1164,7 @@ IoInitIrpTable(
 	for(i = 0; i < IO_IRP_BUCKET_COUNT; i++) {
 		InitializeListHead(&IoIrpTable.ListHead[i]);
 	}
-	InitializeListHead(&IoIrpTable.InCallListHead);
 
-	InitializeListHead(&IoIrpTrackListHead);
-	InitializeListHead(&IoIrpInCallListHead);
 	InitializeSListHead(&IoIrpPendingSListHead);
 	InitializeSListHead(&IoIrpCompleteSListHead);
 	InitializeSListHead(&IoIrpAcceptSListHead);
@@ -1541,6 +1176,30 @@ IoInitIrpTable(
 	InitializeListHead(&IoOverlappedList);
 }
 
+VOID 
+IoQueueCompletedIrp(
+	_In_ PIO_IRP Irp
+	)
+{
+	PIO_OBJECT Object;
+	ASSERT(Irp != NULL);
+
+	Object = Irp->IoObject;
+	ASSERT(Object != NULL);
+
+	//
+	// Remove irp from IO object's irp list and
+	// insert global completed irp list
+	//
+
+	if (IoIrpIsQueued(Irp)) {
+		BtrAcquireSpinLock(&Object->Lock);
+		RemoveEntryList(&Irp->ListEntry);
+		BtrReleaseSpinLock(&Object->Lock);
+	}
+
+	InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->CompleteSListEntry);	
+}
 
 VOID 
 IoQueueFlushList(
@@ -1643,6 +1302,103 @@ IoUpdateCompleteCounters(
 		break;
 
 	case IO_OP_ACCEPT:
+		if (Irp->Flags.Socket && Irp->IoStatus == ERROR_SUCCESS) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].AcceptCount);
+		}
+		break;
+
+	case IO_OP_CONNECT:
+		break;
+
+	default:
+		break;
+	}
+}
+
+VOID
+IoUpdateFailedCounters(
+	_In_ PIO_IRP Irp
+	)
+{
+	ASSERT(Irp != NULL);
+
+	switch (Irp->Operation) {
+
+	case IO_OP_READ:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].ReadFailedCount);
+		if (Irp->Flags.File) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].ReadFailedCount);
+		}
+		else if (Irp->Flags.Socket) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].ReadFailedCount);
+		}
+		else {
+		}
+
+	case IO_OP_WRITE:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].WriteFailedCount);
+		if (Irp->Flags.File) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].WriteFailedCount);
+		}
+		else if (Irp->Flags.Socket) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].WriteFailedCount);
+		}
+		else {
+		}
+		break;
+
+	case IO_OP_ACCEPT:
+	case IO_OP_CONNECT:
+		break;
+
+	default:
+		break;
+	}
+}
+
+VOID
+IoUpdateFailedCountersEx(
+	_In_ HANDLE_TYPE Type,
+	_In_ IO_OPERATION Operation
+	)
+{
+	switch (Operation) {
+
+	case IO_OP_READ:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].ReadFailedCount);
+		if (Type == HANDLE_FILE) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].ReadFailedCount);
+		}
+		else if (Type == HANDLE_SOCKET) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].ReadFailedCount);
+		}
+		else {
+		}
+
+	case IO_OP_WRITE:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].WriteFailedCount);
+		if (Type == HANDLE_FILE) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].WriteFailedCount);
+		}
+		else if (Type == HANDLE_SOCKET) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].WriteFailedCount);
+		}
+		else {
+		}
+		break;
+
+	case IO_OP_ACCEPT:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].AcceptFailedCount);
+		if (Type == HANDLE_FILE) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].AcceptFailedCount);
+		}
+		else if (Type == HANDLE_SOCKET) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].AcceptFailedCount);
+		}
+		else {
+		}
+		break;
+
 	case IO_OP_CONNECT:
 		break;
 
@@ -2110,10 +1866,39 @@ IoAllocateObject(
 	)
 {
 	PIO_OBJECT Object;
+
 	Object = (PIO_OBJECT)BtrMalloc(sizeof(IO_OBJECT));
 	RtlZeroMemory(Object,sizeof(IO_OBJECT));
+
 	BtrInitSpinLock(&Object->Lock, 100);
+	InitializeListHead(&Object->IrpListHead);
+	Object->Id = IoAcquireObjectId();
+
 	return Object;
+}
+
+VOID
+IoQueueIrpToObject(
+	IN struct _IO_OBJECT* Object,
+	IN struct _IO_IRP* Irp
+	)
+{
+	BtrAcquireSpinLock(&Object->Lock);
+	Irp->Flags.Queued = TRUE;
+	InsertTailList(&Object->IrpListHead, &Irp->ListEntry);
+	BtrReleaseSpinLock(&Object->Lock);
+}
+
+VOID
+IoDequeueIrpFromObject(
+	IN struct _IO_OBJECT* Object,
+	IN struct _IO_IRP* Irp
+	)
+{
+	BtrAcquireSpinLock(&Object->Lock);
+	Irp->Flags.Queued = FALSE;
+	RemoveEntryList(&Irp->ListEntry);
+	BtrReleaseSpinLock(&Object->Lock);
 }
 
 VOID
@@ -2157,6 +1942,45 @@ IoDequeueThreadIrp(
 }
 
 VOID
+IoCompleteSkipOnSuccess(
+	_In_ PIO_IRP Irp,
+	_In_ ULONG Status,
+	_In_ ULONG IoStatus,
+	_In_ PULONG lpCompleteBytes,
+	_In_ LPOVERLAPPED lpOverlapped
+	)
+{
+	ASSERT(Irp != NULL);
+
+	QueryPerformanceCounter(&Irp->End);
+
+	Irp->Flags.Synchronous = 1;
+	Irp->Flags.Completed = 1;
+	Irp->IoStatus = IoStatus;
+
+	if (lpOverlapped) {
+
+		//
+		// Copy our overlapped state to user provided one
+		//
+
+		IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
+		Irp->CompleteBytes = (ULONG)lpOverlapped->InternalHigh;
+	}
+	else if (lpCompleteBytes) {
+		Irp->CompleteBytes = *lpCompleteBytes;
+	}
+	else {
+		ASSERT(0);
+	}
+
+	IoUpdateRequestCounters(Irp);
+	IoUpdateCompleteCounters(Irp);
+
+	IoQueueCompletedIrp(Irp);
+}
+
+VOID
 IoCompleteSynchronousIo(
 	_In_ PIO_IRP Irp,
 	_In_ ULONG Status,
@@ -2180,12 +2004,10 @@ IoCompleteSynchronousIo(
 		Irp->CompleteBytes = (ULONG)lpOverlapped->InternalHigh;
 	}
 
-	DebugTrace("%s, RID=%d, IRP=%p", __FUNCTION__, Irp->RequestId, Irp);
-
-	IoIrpClearInCall(Irp);
 	IoUpdateRequestCounters(Irp);
 	IoUpdateCompleteCounters(Irp);
-	IoQueueFlushList(Irp);
+
+	IoQueueCompletedIrp(Irp);
 }
 
 VOID
@@ -2224,5 +2046,123 @@ IoCompleteAcceptIo(
 	// list. after this function, the irp can not be touched anymore!
 	//
 
-	IoIrpClearInCall(Irp);
+}
+
+VOID
+IoCompleteOverlappedIo(
+	_In_ PIO_IRP Irp,
+	_In_ ULONG Status,
+	_In_ ULONG IoStatus,
+	_In_ PULONG lpCompleteBytes,
+	_In_ LPOVERLAPPED lpOverlapped
+	)
+{
+	PIO_OBJECT Object;
+
+	Object = Irp->IoObject;
+	ASSERT(Object != NULL);
+
+	QueryPerformanceCounter(&Irp->End);
+
+	if (Irp->Flags.Socket) {
+		IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
+	}
+
+	Irp->IoStatus = IoGetCompletionStatus(Irp);
+	Irp->CompleteBytes = IoGetCompletionSize(Irp);
+	Irp->CompleteThreadId = GetCurrentThreadId();
+	Irp->Flags.Completed = 1;
+
+	IoUpdateRequestCounters(Irp);
+	IoUpdateCompleteCounters(Irp);
+	IoQueueCompletedIrp(Irp);
+}
+
+ULONG
+IoFlushCompleteList(
+	VOID
+	)
+{
+	ULONG Status;
+	PSLIST_ENTRY SListEntry;
+	PIO_IRP_ON_DISK Entry;
+	PIO_IRP Irp;
+	ULONG Number;
+	ULONG Complete;
+	ULONG FlushCount;
+
+	//
+	// Dequeue completed irp list
+	//
+
+	Status = S_OK;
+	FlushCount = 0;
+
+	SListEntry = InterlockedFlushSList(&IoIrpCompleteSListHead);
+
+repeat:
+	Number = 0;
+	Entry = (PIO_IRP_ON_DISK)IoFlushCache;
+
+	while (SListEntry != NULL) {
+
+		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, CompleteSListEntry);
+
+		Entry[Number].RequestId = Irp->RequestId;
+		Entry[Number].ObjectId = Irp->ObjectId;
+		Entry[Number].StackId = Irp->StackId;
+		Entry[Number].Operation = Irp->Operation;
+		Entry[Number].RequestBytes = Irp->RequestBytes;
+		Entry[Number].CompletionBytes = Irp->RequestBytes;
+		Entry[Number].IoStatus = Irp->IoStatus;
+		Entry[Number].RequestThreadId = Irp->RequestThreadId;
+		Entry[Number].CompleteThreadId = Irp->CompleteThreadId;
+		Entry[Number].Time = Irp->Time;
+		Entry[Number].Duration.QuadPart = Irp->End.QuadPart - Irp->Start.QuadPart;
+		Entry[Number].Asynchronous = !Irp->Flags.Synchronous;
+		Entry[Number].UserApc = Irp->Flags.UserApc;
+		Entry[Number].Aborted = !!Irp->IoStatus;
+		Entry[Number].Complete = Irp->Flags.Completed;
+		Entry[Number].Orphaned = 0;
+		Entry[Number].NextIrp = -1;
+		Entry[Number].ThreadedNextIrp = -1;
+
+		//
+		// Skip to next entry, remove the irp from track list and free to lookaside
+		//
+
+		SListEntry = SListEntry->Next;
+		IoFreeIrp(Irp);
+
+		Number += 1;
+		if (Number == IO_FLUSH_IRP_LIMIT) {
+			break;
+		}
+	}
+
+	if (Number > 0) {
+
+		Status = WriteFile(BtrProfileObject->IoIrpFile, IoFlushCache,
+							Number * sizeof(IO_IRP_ON_DISK), &Complete, NULL);
+		if (!Status) {
+			return GetLastError();
+		}
+
+		//
+		// Update the flushed irp count
+		//
+
+		IoFlushIrpCount += Number;
+		FlushCount += Number;
+
+		if (Number == IO_FLUSH_IRP_LIMIT) {
+			goto repeat;
+		}
+	}
+
+	if (FlushCount) {
+		DebugTrace("IoFlushCompleteList flush %u IRP records", FlushCount);
+	}
+
+	return S_OK;
 }

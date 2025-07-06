@@ -624,6 +624,7 @@ typedef struct _IO_FLAGS {
 	BOOLEAN UserApc     : 1;
 	BOOLEAN Completed   : 1;
 	BOOLEAN Orphaned    : 1;
+	BOOLEAN Queued		: 1;
 } IO_FLAGS, *PIO_FLAG;
 
 typedef enum _IO_OBJECT_FLAG {

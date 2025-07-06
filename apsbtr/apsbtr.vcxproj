@@ -165,7 +165,7 @@
       <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
     <Link>
-      <AdditionalDependencies>psapi.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mswsock.lib;psapi.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)apsbtr.dll</OutputFile>
       <AdditionalLibraryDirectories>..\lib\x64\debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -249,7 +249,7 @@
       <EnablePREfast>false</EnablePREfast>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>psapi.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>mswsock.lib;psapi.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)apsbtr.dll</OutputFile>
       <AdditionalLibraryDirectories>..\lib\x64\release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ModuleDefinitionFile>apsbtr.def</ModuleDefinitionFile>
