@@ -536,17 +536,11 @@ IoSkInsertData(
 			// Source
 			//
 			
-			SOCKADDR_STORAGE *Address;
-			Address = IoGetSocketObjectName(Name, IoObject);
-			if (Address->ss_family == AF_UNSPEC) {
-				continue;
-			}
-
 			lvi.iItem = j;
 			lvi.iSubItem = _SkSourceAddress;
 			lvi.mask = LVIF_TEXT|LVIF_PARAM;
 			lvi.lParam = (LPARAM)IoObject;
-			ApsSockaddrToString(Address, Buffer);
+			StringCchPrintfW(Buffer, MAX_PATH, L"%S", IoObject->Socket.Local);
 			lvi.pszText = Buffer;
 			ListView_InsertItem(hWndCtrl, &lvi);
 
@@ -558,7 +552,7 @@ IoSkInsertData(
 			lvi.iSubItem = _SkSourcePort;
 			lvi.mask = LVIF_TEXT;
 			
-			ApsSockaddrToPort(Address, Buffer, MAX_PATH);
+			StringCchPrintfW(Buffer, MAX_PATH, L"%u", IoObject->Socket.LocalPort);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 			
@@ -566,12 +560,10 @@ IoSkInsertData(
 			// Destine
 			//
 
-			Address += 1;
-
 			lvi.iItem = j;
 			lvi.iSubItem = _SkDestineAddress;
 			lvi.mask = LVIF_TEXT;
-			ApsSockaddrToString(Address, Buffer);
+			StringCchPrintfW(Buffer, MAX_PATH, L"%S", IoObject->Socket.Remote);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 			
@@ -582,7 +574,7 @@ IoSkInsertData(
 			lvi.iItem = j;
 			lvi.iSubItem = _SkDestinePort;
 			lvi.mask = LVIF_TEXT;
-			ApsSockaddrToPort(Address, Buffer, MAX_PATH);
+			StringCchPrintfW(Buffer, MAX_PATH, L"%u", IoObject->Socket.RemotePort);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
