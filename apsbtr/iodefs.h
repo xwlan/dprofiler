@@ -39,11 +39,7 @@ typedef struct _IO_OBJECT {
 			ULONG Length;
 			PWSTR Name;
 		} File;
-
-		struct {
-			SOCKADDR_STORAGE Local;  // for both IPV4/IPV6
-			SOCKADDR_STORAGE Remote; // for both IPV4/IPV6
-		} Socket;
+		IO_SOCKET_ADDRESS Socket;
 	} u;
 
 	ULONG ReadCount;
@@ -140,7 +136,19 @@ IoAllocateFileObject(
 
 PIO_OBJECT
 IoAllocateSocketObject(
-	_In_ HANDLE Handle
+	_In_ HANDLE Handle,
+	_In_ BOOLEAN Overlapped
+	);
+
+PIO_OBJECT
+IoGetObjectByHandle(
+	IN HANDLE Handle,
+	IN HANDLE_TYPE Type
+	);
+
+BOOLEAN
+IoProbeOverlapped(
+	IN LPOVERLAPPED lpOverlapped
 	);
 
 VOID
@@ -216,6 +224,11 @@ IoUnreferenceObject(
 	);
 
 struct _IO_IRP;
+
+VOID
+IoSocketUpdateAcceptContext(
+	IN struct _IO_IRP *Irp
+	);
 
 VOID
 IoQueueThreadIrp(

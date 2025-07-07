@@ -1767,6 +1767,7 @@ CtlPaneOnCancelSymbolLoad(
 	)
 {
 	ApsSetCancelSymbolLoad();
+	return TRUE;
 }
 
 VOID

@@ -13,6 +13,8 @@
 #include "ioiat.h"
 #include "ioprof.h"
 #include "heap.h"
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 //
 // The following order must align with definitions in enum IO_PATCH
@@ -31,16 +33,13 @@ BTR_IAT_PATCH IoPatch[] = {
 	{ "ws2_32.dll", "accept", IatAccept },
 	{ "ws2_32.dll", "recv", IatRecv },
 	{ "ws2_32.dll", "send", IatSend },
-	{ "ws2_32.dll", "recvfrom", IatRecvFrom },
-	{ "ws2_32.dll", "sendto", IatSendTo },
 	{ "ws2_32.dll", "closesocket", IatCloseSocket },
 	{ "ws2_32.dll", "WSAAccept", IatWSAAccept },
 	{ "ws2_32.dll", "WSARecv", IatWSARecv },
 	{ "ws2_32.dll", "WSASend", IatWSASend },
-	{ "ws2_32.dll", "WSARecvFrom", IatWSARecvFrom },
-	{ "ws2_32.dll", "WSASendTo", IatWSASendTo },
 	{ "ws2_32.dll", "WSAGetOverlappedResult", IatWSAGetOverlappedResult },
-	{ "mswsock.dll", "AcceptEx", IatAcceptEx }
+	{ "mswsock.dll", "AcceptEx", IatAcceptEx },
+	{ "mswsock.dll", "TransmitFile", IatTransmitFile }
 };
 
 ULONG IoPatchCount = ARRAYSIZE(IoPatch);
@@ -570,6 +569,16 @@ IatGetQueuedCompletionStatus(
 	ASSERT(Object != NULL);
 
 	if (Irp->Flags.Socket) {
+
+		//
+		// If it's an overlapped AcceptEx operation, first update
+		// the accept socket's context 
+		//
+
+		if (Irp->Operation == IO_OP_ACCEPT) {
+			IoSocketUpdateAcceptContext(Irp);
+		}
+
 		IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
 	}
 
@@ -733,6 +742,16 @@ IatGetQueuedCompletionStatusEx(
 		Irp->Flags.Completed = 1;
 
 		if (Irp->Flags.Socket) {
+
+			//
+			// If it's an overlapped AcceptEx operation, first update
+			// the accept socket's context 
+			//
+
+			if (Irp->Operation == IO_OP_ACCEPT) {
+				IoSocketUpdateAcceptContext(Irp);
+			}
+
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
 		}
 
@@ -1282,21 +1301,17 @@ IatWSAAccept(
 	SOCKET Status;
 	ULONG IoStatus;
 	int Length;
-	int RealLength;
 	SOCKADDR_STORAGE Address;
 	PIO_IRP Irp;
 
 	Thread = BtrGetCurrentThread();
 	BtrEnterExemptionRegion(Thread);
 
-	Object = IoLookupObjectByHandleEx(SK_HANDLE(s), HANDLE_SOCKET);
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
 	if (!Object) {
-		Object = IoAllocateSocketObject(SK_HANDLE(s));
-		if (!Object) {
-			Status = WSAAccept(s, addr, addrlen, lpfnCondition, dwCallbackData);
-			BtrLeaveExemptionRegion(Thread);
-			return Status;
-		}
+		Status = WSAAccept(s, addr, addrlen, lpfnCondition, dwCallbackData);
+		BtrLeaveExemptionRegion(Thread);
+		return Status;
 	}
 
 	Length = sizeof(SOCKADDR_STORAGE);
@@ -1312,28 +1327,52 @@ IatWSAAccept(
 	Accepted->Object = SK_HANDLE(Status);
 	Accepted->Type = HANDLE_SOCKET;
 
-	SetFlag(Accepted->Flags, OF_SKTCP);
+	if (FlagOn(Object->Flags, OF_SKTCP)) {
+		Accepted->Flags |= OF_SKTCP;
+	}
+	if (FlagOn(Object->Flags, OF_SKUDP)) {
+		Accepted->Flags |= OF_SKUDP;
+	}
 	if (FlagOn(Object->Flags, OF_SKIPV4)) {
-		SetFlag(Accepted->Flags, OF_SKIPV4);
+		Accepted->Flags |= OF_SKIPV4;
 	}
-	else {
-		SetFlag(Accepted->Flags, OF_SKIPV6);
+	if (FlagOn(Object->Flags, OF_SKIPV6)) {
+		Accepted->Flags |= OF_SKIPV6;
 	}
 
 	//
-	// fill socket address
+	// fill socket address, copy from object as local address
 	//
 
-	RealLength = Length;
-	*(SOCKADDR*)&Accepted->u.Socket.Remote = *(SOCKADDR*)&Address;
-	SetFlag(Accepted->Flags, OF_REMOTE_VALID);
+	if (Length) {
 
-	Length = sizeof(SOCKADDR);
-	if (!getsockname(Status, (struct sockaddr*)&Accepted->u.Socket.Local, &Length)) {
-		SetFlag(Object->Flags, OF_LOCAL_VALID);
+		ULONG AddressLength = SOCKET_ADDRESS_LIMIT;
+
+		//
+		// Fill local and remote address
+		//
+
+		Accepted->Flags |= OF_REMOTE_VALID;
+		WSAAddressToStringA((LPSOCKADDR)&Address, Length, NULL, &Accepted->u.Socket.Remote[0], &AddressLength);
+
+		Accepted->Flags |= OF_LOCAL_VALID;
+		StringCchCopyA(&Accepted->u.Socket.Local[0], SOCKET_ADDRESS_LIMIT, &Object->u.Socket.Local[0]);
+
+		//
+		// Fill local and remote port
+		//
+
+		Accepted->u.Socket.LocalPort = Object->u.Socket.LocalPort;
+		if (FlagOn(Object->Flags, OF_SKIPV4)) {
+			Accepted->u.Socket.RemotePort = ntohs(((struct sockaddr_in*)&Address)->sin_port);
+		}
+		else {
+			Accepted->u.Socket.RemotePort = ntohs(((struct sockaddr_in6*)&Address)->sin6_port);
+		}
 	}
+
 	if (addr && addrlen) {
-		memcpy(addr, &Address, (*addrlen >= RealLength) ? RealLength : *addrlen);
+		RtlCopyMemory(addr, &Address, (*addrlen >= Length) ? Length : *addrlen);
 	}
 
 	IoInsertObject(Accepted);
@@ -1374,14 +1413,11 @@ IatAccept(
 	Thread = BtrGetCurrentThread();
 	BtrEnterExemptionRegion(Thread);
 
-	Object = IoLookupObjectByHandleEx(SK_HANDLE(s), HANDLE_SOCKET);
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
 	if (!Object) {
-		Object = IoAllocateSocketObject(SK_HANDLE(s));
-		if (!Object) {
-			Status = accept(s, addr, addrlen);
-			BtrLeaveExemptionRegion(Thread);
-			return Status;
-		}
+		Status = accept(s, addr, addrlen);
+		BtrLeaveExemptionRegion(Thread);
+		return Status;
 	}
 
 	Length = sizeof(SOCKADDR_STORAGE);
@@ -1415,10 +1451,30 @@ IatAccept(
 	//
 
 	if (Length) {
+
+		ULONG AddressLength = SOCKET_ADDRESS_LIMIT;
+
+		//
+		// Fill local and remote address
+		//
+
 		Accepted->Flags |= OF_REMOTE_VALID;
-		RtlCopyMemory(&Accepted->u.Socket.Remote, &Address, Length);
+		WSAAddressToStringA((LPSOCKADDR)&Address, Length, NULL, &Accepted->u.Socket.Remote[0], &AddressLength);
+
 		Accepted->Flags |= OF_LOCAL_VALID;
-		RtlCopyMemory(&Accepted->u.Socket.Local, &Object->u.Socket.Local, Length);
+		StringCchCopyA(&Accepted->u.Socket.Local[0], SOCKET_ADDRESS_LIMIT, &Object->u.Socket.Local[0]);
+
+		//
+		// Fill local and remote port
+		//
+
+		Accepted->u.Socket.LocalPort = Object->u.Socket.LocalPort;
+		if (FlagOn(Object->Flags, OF_SKIPV4)) {
+			Accepted->u.Socket.RemotePort = ((struct sockaddr_in*)&Address)->sin_port;
+		}
+		else {
+			Accepted->u.Socket.RemotePort = ((struct sockaddr_in6*)&Address)->sin6_port;
+		}
 	}
 
 	if (addr && addrlen) {
@@ -1460,10 +1516,6 @@ IatAcceptEx(
 	PIO_OBJECT Object;
 	BOOL Status;
 	ULONG IoStatus;
-	SOCKADDR* Local;
-	SOCKADDR* Remote;
-	int LocalLength;
-	int RemoteLength;
 	PIO_IRP Irp;
 	BOOLEAN IsOverlapped;
 	BOOLEAN SkipOnSuccess;
@@ -1492,6 +1544,7 @@ IatAcceptEx(
 	Irp->CallType = _IoAcceptEx;
 	Irp->SkListen = sListenSocket;
 	Irp->RequestBytes = dwReceiveDataLength;
+	Irp->AcceptSocket = sAcceptSocket;
 
 	Patch = IoGetPatch(_IatAcceptEx);
 	IoCaptureStackTrace(Thread, Patch->Address, Irp);
@@ -1546,26 +1599,21 @@ IatAcceptEx(
 	ASSERT(Status == TRUE);
 
 	//
-	// The IO is completed immediately as synchronous mode
+	// Update accept socket's context, note that we don't call GetAcceptExSockaddrs()
+	// here, we only need get the address information when user's code call send/recv
+	// etc IO method to send/recv data, the accept socket's context is updated so
+	// getsockname() and getpeername() can successfully return desired address information.
 	//
 
-	//
-	// Retrieve socket pair addresses
-	//
-
-	GetAcceptExSockaddrs(lpOutputBuffer, dwReceiveDataLength,
-		dwLocalAddressLength, dwRemoteAddressLength,
-		&Local, &LocalLength, &Remote, &RemoteLength);
+	if (!IsOverlapped) {
+		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpdwBytesReceived, lpOverlapped);
+		IoSocketUpdateAcceptContext(Irp);
+	}
 
 	if (SkipOnSuccess && IsOverlapped) {
-
-		RtlCopyMemory(&Object->u.Socket.Local, Local, LocalLength);
-		SetFlag(Object->Flags, OF_LOCAL_VALID);
-		RtlCopyMemory(&Object->u.Socket.Remote, Remote, RemoteLength);
-		SetFlag(Object->Flags, OF_REMOTE_VALID);
-
 		IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpdwBytesReceived, lpOverlapped);
+		IoSocketUpdateAcceptContext(Irp);
 	}
 
 	WSASetLastError(IoStatus);
@@ -1586,17 +1634,15 @@ IatRecv(
 	PIO_IRP Irp;
 	ULONG IoStatus;
 	PIO_OBJECT Object;
-	BOOLEAN IsOverlapped;
 	LARGE_INTEGER Start;
 	FILETIME Time;
-	BOOLEAN SkipOnSuccess;
 	PBTR_IAT_PATCH Patch;
 
 	Thread = BtrGetCurrentThread();
 	BtrEnterExemptionRegion(Thread);
 
-	Status = recv(s, buf, len, flags);
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
+	if (!Object) {
 		Status = recv(s, buf, len, flags);
 		BtrLeaveExemptionRegion(Thread);
 		return Status;
@@ -1608,7 +1654,7 @@ IatRecv(
 	Status = recv(s, buf, len, flags);
 	IoStatus = WSAGetLastError();
 	if (Status == SOCKET_ERROR) {
-		IoUpdateFailedCountersEx(HANDLE_SOCKET, IO_OP_ACCEPT);
+		IoUpdateFailedCountersEx(HANDLE_SOCKET, IO_OP_READ);
 		BtrLeaveExemptionRegion(Thread);
 		return Status;
 	}
@@ -1709,17 +1755,16 @@ IatSend(
 	PIO_IRP Irp;
 	ULONG IoStatus;
 	PIO_OBJECT Object;
-	BOOLEAN IsOverlapped;
 	LARGE_INTEGER Start;
 	LARGE_INTEGER End;
 	FILETIME Time;
-	BOOLEAN SkipOnSuccess;
 	PBTR_IAT_PATCH Patch;
 
 	Thread = BtrGetCurrentThread();
 	BtrEnterExemptionRegion(Thread);
 
-	if (!IoRefObjectCheckOverlapped(SK_HANDLE(s), HANDLE_SOCKET, NULL, &Object, &IsOverlapped, &SkipOnSuccess, TRUE)) {
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
+	if (!Object) {
 		Status = send(s, buf, len, flags);
 		BtrLeaveExemptionRegion(Thread);
 		return Status;
@@ -1752,7 +1797,6 @@ IatSend(
 	IoCaptureStackTrace(Thread, Patch->Address, Irp);
 
 	IoQuerySocketAddress(Object, s);
-
 	IoCompleteSynchronousIo(Irp, 0, 0, NULL, NULL);
 
 	WSASetLastError(IoStatus);
@@ -1819,4 +1863,141 @@ IatSendTo(
 	WSASetLastError(IoStatus);
 	BtrLeaveExemptionRegion(Thread);
 	return Status;
+}
+
+BOOL WINAPI
+IatTransmitFile(
+	IN SOCKET hSocket,
+	IN HANDLE hFile,
+	DWORD nNumberOfBytesToWrite,
+	DWORD nNumberOfBytesPerSend,
+	LPOVERLAPPED lpOverlapped,
+	LPTRANSMIT_FILE_BUFFERS lpTransmitBuffers,
+	DWORD dwFlags
+	)
+{
+	int Status;
+	PBTR_THREAD_OBJECT Thread;
+	PIO_IRP Irp;
+	DWORD IoStatus;
+	BOOLEAN IsOverlapped;
+	PIO_OBJECT Object;
+	LPOVERLAPPED Overlapped;
+	BOOLEAN SkipOnSuccess;
+	LARGE_INTEGER Size;
+	BOOLEAN FileValid;
+	PBTR_IAT_PATCH Patch;
+	ULONG Complete;
+
+	Thread = BtrGetCurrentThread();
+	BtrEnterExemptionRegion(Thread);
+
+	Object = IoGetObjectByHandle(SK_HANDLE(hSocket), HANDLE_SOCKET);
+	if (!Object) {
+		Status = TransmitFile(hSocket, hFile, nNumberOfBytesToWrite, nNumberOfBytesPerSend,
+							lpOverlapped, lpTransmitBuffers, dwFlags);
+		return Status;
+	}
+
+	Size.QuadPart = 0;
+	FileValid = FALSE;
+
+	//
+	// Check whether file handle is valid
+	//
+
+	if (hFile) {
+		if (GetFileSizeEx(hFile, &Size)) {
+			FileValid = TRUE;
+		}
+	}
+
+	Irp = IoAllocateIrp(Object);
+	Irp->Operation = IO_OP_TRANSMITFILE;
+	Irp->CallType = _IoTransmitFile;
+	Irp->RequestBytes = 0;
+	Irp->Flags.Queued = FALSE;
+	
+	//
+	// If file handle is valid and nNumberOfBytesToWrite is 0,
+	// this call transmit all file data
+	//
+
+	//
+	// The maximum number of bytes that can be transmitted using a single call to 
+	// the TransmitFile function is 2,147,483,646, the maximum value for a 32 bit integer minus 1.
+	//
+
+	if (FileValid && nNumberOfBytesToWrite == 0) {
+		Irp->RequestBytes = (ULONG64)Size.QuadPart;
+	}
+	if (FileValid && nNumberOfBytesToWrite != 0) {
+		Irp->RequestBytes = nNumberOfBytesToWrite;
+	}
+	if (lpTransmitBuffers) {
+		Irp->RequestBytes += lpTransmitBuffers->HeadLength + lpTransmitBuffers->TailLength;
+	}
+
+	Patch = IoGetPatch(_IatTransmitFile);
+	IoCaptureStackTrace(Thread, Patch->Address, Irp);
+
+	if (IoProbeOverlapped(lpOverlapped)) {
+		IsOverlapped = TRUE;
+		Overlapped = IoHijackOverlapped(Irp, lpOverlapped);
+	}
+	else {
+		IsOverlapped = FALSE;
+		IoMarkIrpSynchronous(Irp);
+		Overlapped = NULL;
+	}
+
+	GetSystemTimeAsFileTime(&Irp->Time);
+	QueryPerformanceCounter(&Irp->Start);
+
+	if (IsOverlapped) {
+		IoQueueIrpToObject(Object, Irp);
+		Status = TransmitFile(hSocket, hFile, nNumberOfBytesToWrite, nNumberOfBytesPerSend,
+								Overlapped, lpTransmitBuffers, dwFlags);
+	}
+	else {
+		Status = TransmitFile(hSocket, hFile, nNumberOfBytesToWrite, nNumberOfBytesPerSend,
+								lpOverlapped, lpTransmitBuffers, dwFlags);
+	}
+
+	IoStatus = WSAGetLastError();
+	Irp->LastError = IoStatus;
+	if (Status == FALSE && IoStatus != WSA_IO_PENDING) {
+
+		IoUpdateFailedCountersEx(HANDLE_SOCKET, IO_OP_TRANSMITFILE);
+
+		IoDequeueIrpFromObject(Object, Irp);
+		IoFreeIrp(Irp);
+
+		BtrLeaveExemptionRegion(Thread);
+		WSASetLastError(IoStatus);
+		return Status;
+	}
+
+	if (Status == FALSE) {
+		Complete = 0;
+	}
+	else {
+		Complete = (ULONG)Irp->RequestBytes;
+	}
+
+	if (!IsOverlapped) {
+		IoQuerySocketAddress(Object, hSocket);
+		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Complete, NULL);
+	}
+	else {
+		SkipOnSuccess = HalQuerySkipOnSuccess(SK_HANDLE(hSocket));
+		if (SkipOnSuccess && IoStatus != WSA_IO_PENDING) {
+			IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
+			IoCompleteSynchronousIo(Irp, Status, IoStatus, NULL, lpOverlapped);
+		}
+	}
+
+	BtrLeaveExemptionRegion(Thread);
+	WSASetLastError(IoStatus);
+	return Status;;
 }

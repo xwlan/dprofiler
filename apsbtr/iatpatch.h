@@ -42,6 +42,11 @@ BtrBuildModuleList(
 	VOID
 	);
 
+BOOLEAN
+BtrIsIgnoreDll(
+	IN PCWSTR Name
+	);
+
 PBTR_MODULE
 BtrGetModule(
 	IN PCWSTR BaseName

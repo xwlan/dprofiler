@@ -27,28 +27,19 @@ extern "C" {
 
 typedef struct DECLSPEC_ALIGN(16) _IO_IRP {
 
-	//
-	// N.B. We need manual padding on x86, otherwise CompleteSListEntry is not 8 bytes aligned.
-	//
+	union {
+		LIST_ENTRY ListEntry;
+		SLIST_ENTRY SListEntry;
+	};
 
-	SLIST_ENTRY PendingSListEntry;     // for IoIrpPendingSListHead;
-#if defined(_M_IX86)
-	PVOID Padding;
-#endif
-
-	SLIST_ENTRY CompleteSListEntry;    // for IoIrpCompleteSListHead;
-	LIST_ENTRY TrackListEntry;         // for IoIrpTrackListHead
-	LIST_ENTRY ListEntry;              // chained on IO object's IrpListHead
-
-	volatile ULONG LastError;
-
+	ULONG LastError;
 	ULONG IrpTag;
 	ULONG RequestId;
 	ULONG ObjectId;
 	ULONG StackId;
 	ULONG IoStatus;
-	ULONG RequestBytes;
-	ULONG CompleteBytes;
+	ULONG64 RequestBytes;
+	ULONG64 CompleteBytes;
 	ULONG RequestThreadId;
 	ULONG CompleteThreadId;
 
@@ -61,6 +52,10 @@ typedef struct DECLSPEC_ALIGN(16) _IO_IRP {
 	union {
 		PVOID ControlContext;
 		SOCKET SkListen;
+	};
+
+	union {
+		SOCKET AcceptSocket;
 	};
 
 	struct _IO_OBJECT* IoObject;

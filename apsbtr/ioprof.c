@@ -19,7 +19,8 @@
 #include "thread.h"
 #include "ioiat.h"
 #include "iatpatch.h"
-
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 //
 // IO worker thread
@@ -107,6 +108,8 @@ typedef struct _IO_PERFORMANCE {
 	ULONG WriteFailedCount;
 	ULONG AcceptCount;
 	ULONG AcceptFailedCount;
+	ULONG TransmitFileCount;
+	ULONG TransmitFileFailedCount;
 	ULONG64 ReadBytes;
 	ULONG64 ReadCompleteBytes;
 	ULONG64 WriteBytes;
@@ -424,18 +427,8 @@ repeat:
 			NamePtr += NameLengthInBytes;
 			BtrTrace("IO: file object retired %S", Object->u.File.Name);
 		}
-		else if (Object->Flags & (OF_SKIPV4|OF_SKIPV6)) {
-
-			//
-			// N.B. We need carefully copy SOCKADDR_STORAGE, it's a structure inside a structure,
-			// we can not copy the whole structure, its size may not be same as 2 SOCKADDR_STORAGE.
-			//
-
-			RtlCopyMemory(NamePtr, (PVOID)&Object->u.Socket.Local, sizeof(SOCKADDR_STORAGE));
-			NamePtr += sizeof(SOCKADDR_STORAGE);
-			RtlCopyMemory(NamePtr, (PVOID)&Object->u.Socket.Remote, sizeof(SOCKADDR_STORAGE));
-			NamePtr += sizeof(SOCKADDR_STORAGE);
-			NameLengthInBytes = sizeof(SOCKADDR_STORAGE) * 2;
+		else if (Object->Flags & OF_SOCKET) {
+			Entry->Socket = Object->u.Socket;
 			BtrTrace("IO: socket object retired, %d", Object->Object);
 		}
 		else {
@@ -1198,7 +1191,7 @@ IoQueueCompletedIrp(
 		BtrReleaseSpinLock(&Object->Lock);
 	}
 
-	InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->CompleteSListEntry);	
+	InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->SListEntry);	
 }
 
 VOID 
@@ -1207,7 +1200,7 @@ IoQueueFlushList(
 	)
 {
 	ASSERT(Irp != NULL);
-	InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->CompleteSListEntry);	
+	InterlockedPushEntrySList(&IoIrpCompleteSListHead, &Irp->SListEntry);	
 }
 
 VOID
@@ -1222,15 +1215,15 @@ IoUpdateRequestCounters(
 	case IO_OP_READ:
 
 		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].ReadCount);
-		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].ReadBytes, Irp->RequestBytes, &IoPerformanceLock);
+		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].ReadBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 
 		if (Irp->Flags.File) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].ReadCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].ReadBytes, Irp->RequestBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].ReadBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 		}
 		else if (Irp->Flags.Socket) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].ReadCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].ReadBytes, Irp->RequestBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].ReadBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 		}
 		else {
 		}
@@ -1239,15 +1232,15 @@ IoUpdateRequestCounters(
 	case IO_OP_WRITE:
 
 		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].WriteCount);
-		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].WriteBytes, Irp->RequestBytes, &IoPerformanceLock);
+		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].WriteBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 
 		if (Irp->Flags.File) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].WriteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].WriteBytes, Irp->RequestBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].WriteBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 		}
 		else if (Irp->Flags.Socket) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].WriteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].WriteBytes, Irp->RequestBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].WriteBytes, (ULONG)Irp->RequestBytes, &IoPerformanceLock);
 		} 
 		else {
 		}
@@ -1274,28 +1267,28 @@ IoUpdateCompleteCounters(
 
 	case IO_OP_READ:
 		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].ReadCompleteCount);
-		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].ReadCompleteBytes, Irp->CompleteBytes, &IoPerformanceLock);
+		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].ReadCompleteBytes, (ULONG)Irp->CompleteBytes, &IoPerformanceLock);
 		if (Irp->Flags.File) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].ReadCompleteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].ReadCompleteBytes, Irp->CompleteBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].ReadCompleteBytes, (ULONG)Irp->CompleteBytes, &IoPerformanceLock);
 		}
 		else if (Irp->Flags.Socket) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].ReadCompleteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].ReadCompleteBytes, Irp->CompleteBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].ReadCompleteBytes, (ULONG)Irp->CompleteBytes, &IoPerformanceLock);
 		}
 		else {
 		}
 
 	case IO_OP_WRITE:
 		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].WriteCompleteCount);
-		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].WriteCompleteBytes, Irp->CompleteBytes,&IoPerformanceLock);
+		BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_SUM].WriteCompleteBytes, (ULONG)Irp->CompleteBytes,&IoPerformanceLock);
 		if (Irp->Flags.File) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].WriteCompleteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].WriteCompleteBytes, Irp->CompleteBytes, &IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_FILE].WriteCompleteBytes, (ULONG)Irp->CompleteBytes, &IoPerformanceLock);
 		}
 		else if (Irp->Flags.Socket) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].WriteCompleteCount);
-			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].WriteCompleteBytes, Irp->CompleteBytes,&IoPerformanceLock);
+			BtrInterlockedAdd64(&IoPerformance[IO_COUNTER_NET].WriteCompleteBytes, (ULONG)Irp->CompleteBytes,&IoPerformanceLock);
 		} 
 		else {
 		}
@@ -1389,11 +1382,17 @@ IoUpdateFailedCountersEx(
 
 	case IO_OP_ACCEPT:
 		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].AcceptFailedCount);
-		if (Type == HANDLE_FILE) {
-			InterlockedIncrement(&IoPerformance[IO_COUNTER_FILE].AcceptFailedCount);
-		}
-		else if (Type == HANDLE_SOCKET) {
+		if (Type == HANDLE_SOCKET) {
 			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].AcceptFailedCount);
+		}
+		else {
+		}
+		break;
+
+	case IO_OP_TRANSMITFILE:
+		InterlockedIncrement(&IoPerformance[IO_COUNTER_SUM].TransmitFileFailedCount);
+		if (Type == HANDLE_SOCKET) {
+			InterlockedIncrement(&IoPerformance[IO_COUNTER_NET].TransmitFileFailedCount);
 		}
 		else {
 		}
@@ -1895,9 +1894,13 @@ IoDequeueIrpFromObject(
 	IN struct _IO_IRP* Irp
 	)
 {
+	if (!Irp->Flags.Queued) {
+		return;
+	}
+
 	BtrAcquireSpinLock(&Object->Lock);
-	Irp->Flags.Queued = FALSE;
 	RemoveEntryList(&Irp->ListEntry);
+	Irp->Flags.Queued = FALSE;
 	BtrReleaseSpinLock(&Object->Lock);
 }
 
@@ -1923,7 +1926,7 @@ IoQueueThreadIrp(
 	ASSERT(Irp != NULL);
 
 	BtrAcquireSpinLock(&Thread->IrpLock); 
-	InsertHeadList(&Thread->IrpList, &Irp->TrackListEntry);
+	InsertHeadList(&Thread->IrpList, &Irp->ListEntry);
 	BtrReleaseSpinLock(&Thread->IrpLock);
 }
 
@@ -1937,7 +1940,7 @@ IoDequeueThreadIrp(
 	ASSERT(Irp != NULL);
 
 	BtrAcquireSpinLock(&Thread->IrpLock); 
-	RemoveEntryList(&Irp->TrackListEntry);
+	RemoveEntryList(&Irp->ListEntry);
 	BtrReleaseSpinLock(&Thread->IrpLock);
 }
 
@@ -2106,14 +2109,14 @@ repeat:
 
 	while (SListEntry != NULL) {
 
-		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, CompleteSListEntry);
+		Irp = CONTAINING_RECORD(SListEntry, IO_IRP, SListEntry);
 
 		Entry[Number].RequestId = Irp->RequestId;
 		Entry[Number].ObjectId = Irp->ObjectId;
 		Entry[Number].StackId = Irp->StackId;
 		Entry[Number].Operation = Irp->Operation;
-		Entry[Number].RequestBytes = Irp->RequestBytes;
-		Entry[Number].CompletionBytes = Irp->RequestBytes;
+		Entry[Number].RequestBytes = (ULONG)Irp->RequestBytes;
+		Entry[Number].CompletionBytes = (ULONG)Irp->RequestBytes;
 		Entry[Number].IoStatus = Irp->IoStatus;
 		Entry[Number].RequestThreadId = Irp->RequestThreadId;
 		Entry[Number].CompleteThreadId = Irp->CompleteThreadId;
@@ -2165,4 +2168,237 @@ repeat:
 	}
 
 	return S_OK;
+}
+
+PIO_OBJECT
+IoAllocateSocketObject(
+	_In_ HANDLE Handle,
+	_In_ BOOLEAN Overlapped
+	)
+{
+	PIO_OBJECT Object;
+	WSAPROTOCOL_INFOA Info = { 0 };
+	SOCKADDR_STORAGE Address = { 0 };
+	int Length;
+	int Status;
+	ULONG AddressLength = SOCKET_ADDRESS_LIMIT;
+	BOOLEAN IsAddressAvailable = FALSE;
+
+	//
+	// First get socket address family, types etc
+	//
+
+	Length = sizeof(Info);
+	Status = getsockopt((SOCKET)Handle, SOL_SOCKET, SO_PROTOCOL_INFOA, (char*)&Info, &Length);
+	if (Status == SOCKET_ERROR) {
+		return NULL;
+	}
+
+	if (Info.iAddressFamily != AF_INET && Info.iAddressFamily != AF_INET6) {
+		return NULL;
+	}
+
+	if (Info.iSocketType != SOCK_STREAM && Info.iSocketType != SOCK_DGRAM) {
+		return NULL;
+	}
+
+	if (Info.iProtocol != (int)IPPROTO_TCP && Info.iProtocol != (int)IPPROTO_UDP) {
+		return NULL;
+	}
+
+	//
+	// Get socket local address
+	//
+
+	Length = sizeof(SOCKADDR_STORAGE);
+	Status = getsockname((SOCKET)Handle, (struct sockaddr*)&Address, &Length);
+	if (Status == ERROR_SUCCESS) {
+		IsAddressAvailable = TRUE;
+	}
+
+	Object = IoAllocateObject();
+	Object->Object = Handle;
+	Object->Type = HANDLE_SOCKET;
+	Object->Flags = OF_SOCKET;
+
+	//
+	// We're only interested in IPV4/IPV6
+	//
+
+	if (Info.iAddressFamily == AF_INET) {
+		Object->Flags |= OF_SKIPV4;
+	}
+	else {
+		Object->Flags |= OF_SKIPV6;
+	}
+
+	if (Info.iSocketType == SOCK_STREAM) {
+		Object->Flags |= OF_SKTCP;
+	}
+	else {
+		Object->Flags |= OF_SKUDP;
+	}
+
+	if (IsAddressAvailable) {
+
+		WSAAddressToStringA((LPSOCKADDR)&Address, Length, &Info, &Object->u.Socket.Local[0], &AddressLength);
+
+		if (Info.iAddressFamily == AF_INET) {
+			Object->u.Socket.LocalPort = ntohs(((struct sockaddr_in*)&Address)->sin_port);
+		}
+		else {
+			Object->u.Socket.LocalPort = ntohs(((struct sockaddr_in6*)&Address)->sin6_port);
+		}
+
+		Object->Flags |= OF_LOCAL_VALID;
+	}
+
+	Object->Object = Handle;
+
+	if (Overlapped) {
+		SetFlag(Object->Flags, OF_OVERLAPPED);
+	}
+
+	//
+	// Insert object and increase its reference, we must increase reference since
+	// the following region will unreference it.
+	//
+
+	IoInsertObject(Object);
+	return Object;
+}
+
+PIO_OBJECT
+IoAllocateFileObject(
+	_In_ HANDLE Handle,
+	_In_ BOOLEAN Overlapped
+	)
+{
+	PIO_OBJECT Object;
+	DWORD Size;
+	WCHAR Path[MAX_PATH];
+
+	//
+	// Size is number of WCHAR without terminated NULL
+	//
+
+	Size = GetFinalPathNameByHandleW(Handle, Path, MAX_PATH, VOLUME_NAME_DOS | FILE_NAME_NORMALIZED);
+	if (!Size) {
+		return NULL;
+	}
+
+	Object = IoAllocateObject();
+	Object->Object = Handle;
+	Object->Type = HANDLE_FILE;
+	Object->Flags = OF_FILE;
+
+	if (Overlapped) {
+		SetFlag(Object->Flags, OF_OVERLAPPED);
+	}
+
+	//
+	// Increase size to add trailing null and limit it to MAX_PATH
+	//
+
+	Size += 1;
+	Size = min(MAX_PATH, Size);
+
+	Object->u.File.Name = (PWSTR)BtrMalloc(Size * sizeof(WCHAR));
+	Object->u.File.Name[Size - 1] = 0;
+	Object->u.File.Length = Size;
+	RtlCopyMemory(Object->u.File.Name, Path, (Size - 1) * sizeof(WCHAR));
+
+	GetSystemTimeAsFileTime(&Object->Start);
+	IoInsertObject(Object);
+	return Object;
+}
+
+PIO_OBJECT
+IoGetObjectByHandle(
+	IN HANDLE Handle,
+	IN HANDLE_TYPE Type
+	)
+{
+	PIO_OBJECT Object;
+	BOOLEAN Overlapped;
+
+	Object = IoLookupObjectByHandleEx(Handle, Type);
+	if (Object) {
+		return Object;
+	}
+
+	Overlapped = HalQueryOverlapped(Handle);
+
+	if (Type == HANDLE_FILE) {
+		Object = IoAllocateFileObject(Handle, Overlapped);
+	}
+	else if (Type == HANDLE_SOCKET) {
+		Object = IoAllocateSocketObject(Handle, Overlapped);
+	}
+	else {
+		Object = NULL;
+	}
+
+	return Object;
+}
+
+BOOLEAN
+IoProbeOverlapped(
+	IN LPOVERLAPPED lpOverlapped
+	)
+{
+	OVERLAPPED Copy;
+
+	//
+	// Probe whether user provide overlapped is readable and writable
+	//
+
+	if (IoCopyOverlapped(lpOverlapped, &Copy) && IoCopyOverlapped(&Copy, lpOverlapped)) {
+		return TRUE;
+	}
+	return FALSE;
+}
+
+VOID
+IoSocketUpdateAcceptContext(
+	IN struct _IO_IRP *Irp
+	)
+{
+	ASSERT(Irp->Operation == IO_OP_ACCEPT);
+	ASSERT(Irp->AcceptSocket != 0);
+
+	setsockopt(Irp->AcceptSocket, SOL_SOCKET, SO_UPDATE_ACCEPT_CONTEXT, (const char*)&Irp->Object, sizeof(SOCKET));
+}
+
+VOID
+IoQuerySocketAddress(
+	_In_ PIO_OBJECT Object,
+	_In_ SOCKET s
+	)
+{
+	int Length;
+	SOCKADDR_STORAGE Address;
+	ULONG AddressLength = SOCKET_ADDRESS_LIMIT;
+
+	ASSERT(Object->Type == HANDLE_SOCKET);
+
+	Length = sizeof(SOCKADDR_STORAGE);
+	if (!FlagOn(Object->Flags, OF_LOCAL_VALID)) {
+		if (!getsockname(s, (SOCKADDR*)&Address, &Length)) {
+			WSAAddressToStringA((LPSOCKADDR)&Address, Length, NULL, &Object->u.Socket.Local[0], &AddressLength);
+			Object->u.Socket.LocalPort = ntohs(*(((PUSHORT)&Address) + 1));
+			SetFlag(Object->Flags, OF_LOCAL_VALID);
+		}
+	}
+	if (!FlagOn(Object->Flags, OF_REMOTE_VALID)) {
+		if (!getpeername(s, (SOCKADDR*)&Address, &Length)) {
+			WSAAddressToStringA((LPSOCKADDR)&Address, Length, NULL, &Object->u.Socket.Remote[0], &AddressLength);
+			Object->u.Socket.RemotePort = ntohs(*(((PUSHORT)&Address) + 1));
+			SetFlag(Object->Flags, OF_REMOTE_VALID);
+		}
+	}
+
+#ifdef _DEBUG
+	IoDebugPrintSkAddress(Object);
+#endif
 }

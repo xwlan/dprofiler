@@ -846,6 +846,15 @@ typedef struct _IO_COUNTER_METHOD {
 
 #define IO_INVALID_IRP_INDEX  ((ULONG)-1)
 
+#define SOCKET_ADDRESS_LIMIT 64
+
+typedef struct _IO_SOCKET_ADDRESS {
+	USHORT LocalPort;
+	USHORT RemotePort;
+	CHAR Local[SOCKET_ADDRESS_LIMIT]; 
+	CHAR Remote[SOCKET_ADDRESS_LIMIT];
+} IO_SOCKET_ADDRESS, *PIO_SOCKET_ADDRESS;
+
 typedef struct _IO_OBJECT_ON_DISK {
 	ULONG ObjectId;
 	ULONG StackId; 
@@ -860,6 +869,7 @@ typedef struct _IO_OBJECT_ON_DISK {
 		struct _IO_STACKTRACE *Trace;
 		ULONG CurrentIrp;
 	};
+	IO_SOCKET_ADDRESS Socket;
 	IO_COUNTER_METHOD Counters[IO_OP_NUMBER];
 } IO_OBJECT_ON_DISK, *PIO_OBJECT_ON_DISK;
 

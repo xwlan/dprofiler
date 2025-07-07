@@ -217,8 +217,7 @@ IoAllocateIrp(
 		return NULL;
 	}
 
-	ASSERT((ULONG_PTR)&Irp->PendingSListEntry % MEMORY_ALLOCATION_ALIGNMENT == 0);
-	ASSERT((ULONG_PTR)&Irp->CompleteSListEntry % MEMORY_ALLOCATION_ALIGNMENT == 0);
+	ASSERT((ULONG_PTR)&Irp->SListEntry % MEMORY_ALLOCATION_ALIGNMENT == 0);
 
 	//
 	// Sanity check that there's no problem in list manipulation with
@@ -447,10 +446,11 @@ IoRefObjectCheckOverlapped(
 		return FALSE;
 	}
 
+	Overlapped = HalQueryOverlapped(Handle);
+
 	if (!IoObject && Allocate) {
 		if (Type == HANDLE_FILE) {
 
-			Overlapped = HalQueryOverlapped(Handle);
 			IoObject = IoAllocateFileObject(Handle, Overlapped);
 			if(IoObject) {
 				if (HalQuerySkipOnSuccess(Handle)) {
@@ -459,7 +459,7 @@ IoRefObjectCheckOverlapped(
 			}
 		}
 		else if (Type == HANDLE_SOCKET) {
-			IoObject = IoAllocateSocketObject(Handle);
+			IoObject = IoAllocateSocketObject(Handle, Overlapped);
 			if (lpOverlapped) {
 
 				//
@@ -524,32 +524,6 @@ IoRefObjectCheckOverlapped(
 	return TRUE;
 }
 
-VOID
-IoQuerySocketAddress(
-	_In_ PIO_OBJECT Object,
-	_In_ SOCKET s
-	)
-{
-	int Length;
-
-	ASSERT(Object->Type == HANDLE_SOCKET);
-
-	Length = sizeof(SOCKADDR_STORAGE);
-	if (!FlagOn(Object->Flags, OF_LOCAL_VALID)) {
-		if (!getsockname(s, (SOCKADDR *)&Object->u.Socket.Local, &Length)){
-			SetFlag(Object->Flags, OF_LOCAL_VALID);
-		}
-	}
-	if (!FlagOn(Object->Flags, OF_REMOTE_VALID)) {
-		if (!getpeername(s, (SOCKADDR *)&Object->u.Socket.Remote, &Length)){
-			SetFlag(Object->Flags, OF_REMOTE_VALID);
-		}
-	}
-
-#ifdef _DEBUG
-	IoDebugPrintSkAddress(Object);
-#endif
-}
 
 VOID CALLBACK 
 IoFileCompleteCallback(
@@ -2078,7 +2052,7 @@ Skip:
 
 	SetFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 
-	IO_GET_SOCKET_OBJECT(s, &Object);
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
 	if (!Object){
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 		goto Skip;
@@ -2165,7 +2139,7 @@ IoConnect(
 	}
 	IoStatus = WSAGetLastError();
 
-	IO_GET_SOCKET_OBJECT(s, &Object);
+	Object = IoGetObjectByHandle(SK_HANDLE(s), HANDLE_SOCKET);
 	if (!Object) {
 		WSASetLastError(IoStatus);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -2642,55 +2616,22 @@ IoDebugPrintSkAddress(
 	)
 {
 #ifdef _DEBUG
-	SOCKADDR *Addr;
-	struct sockaddr_in *in;
 
 	ASSERT(Object->Type == HANDLE_SOCKET);
 
 	if (FlagOn(Object->Flags, OF_LOCAL_VALID)) {
-		Addr = (SOCKADDR *)&Object->u.Socket.Local;
-		in = (struct sockaddr_in *)Addr;
-		BtrTrace("Local: %s:%u", inet_ntoa(in->sin_addr),  ntohs(in->sin_port));
+		BtrTrace("Local: %s:%u", Object->u.Socket.Local, Object->u.Socket.LocalPort); 
 	}
 	else {
 		BtrTrace("Local: INVALID");
 	}
 	if (FlagOn(Object->Flags, OF_REMOTE_VALID)) {
-		Addr = (SOCKADDR *)&Object->u.Socket.Remote;
-		in = (struct sockaddr_in *)Addr;
-		BtrTrace("Remote: %s:%u", inet_ntoa(in->sin_addr), ntohs(in->sin_port));
+		BtrTrace("Remote: %s:%u", Object->u.Socket.Remote, Object->u.Socket.RemotePort); 
 	}
 	else {
 		BtrTrace("Remote: INVALID");
 	}
-#endif
-}
 
-VOID
-IoDebugPrintSkAddressV6(
-	_In_ PIO_OBJECT Object
-	)
-{
-#ifdef _DEBUG
-	SOCKADDR *Addr;
-	struct sockaddr_in *in;
-
-	if (FlagOn(Object->Flags, OF_LOCAL_VALID)) {
-		Addr = (SOCKADDR *)&Object->u.Socket.Local;
-		in = (struct sockaddr_in *)Addr;
-		BtrTrace("Local: %s:%u", inet_ntoa(in->sin_addr),  ntohs(in->sin_port));
-	}
-	else {
-		BtrTrace("Local: INVALID");
-	}
-	if (FlagOn(Object->Flags, OF_REMOTE_VALID)) {
-		Addr = (SOCKADDR *)&Object->u.Socket.Remote;
-		in = (struct sockaddr_in *)Addr;
-		BtrTrace("Remote: %s:%u", inet_ntoa(in->sin_addr), ntohs(in->sin_port));
-	}
-	else {
-		BtrTrace("Remote: INVALID");
-	}
 #endif
 }
 
@@ -3824,6 +3765,7 @@ IoTransmitFile(
 	PIO_OBJECT Object;
 	LPOVERLAPPED Overlapped;
 	BOOLEAN SkipOnSuccess;
+	ULONG Complete = 0;
 
 	Callback = IoGetCallback(_IoTransmitFile);
 	CallbackPtr = (TransmitFilePtr)BtrGetCallbackDestine(Callback);
@@ -3893,8 +3835,15 @@ Skip:
 
 	if (!IsOverlapped) {
 
+		if (Status) {
+			Complete = (ULONG)Irp->RequestBytes;
+		}
+		else {
+			Complete = 0;
+		}
+
 		IoQuerySocketAddress(Object, hSocket);
-		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Irp->RequestBytes, NULL);
+		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Complete, NULL);
 		IoUnreferenceObject(Object);
 
 	} else {
@@ -3937,6 +3886,7 @@ IoTransmitPackets(
 	PIO_OBJECT Object;
 	LPOVERLAPPED Overlapped;
 	BOOLEAN SkipOnSuccess;
+	ULONG Complete = 0;
 
 	Callback = IoGetCallback(_IoTransmitPackets);
 	CallbackPtr = (TransmitPacketsPtr)BtrGetCallbackDestine(Callback);
@@ -4002,8 +3952,15 @@ Skip:
 
 	if (!IsOverlapped) {
 
+		if (Status) {
+			Complete = (ULONG)Irp->RequestBytes;
+		}
+		else {
+			Complete = 0; 
+		}
+
 		IoQuerySocketAddress(Object, hSocket);
-		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Irp->RequestBytes, NULL);
+		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Complete, NULL);
 		IoUnreferenceObject(Object);
 
 	} else {
@@ -4388,116 +4345,4 @@ Skip:
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 	InterlockedDecrement(&Callback->References);
 	return Status;;
-}
-
-PIO_OBJECT
-IoAllocateSocketObject(
-	_In_ HANDLE Handle
-	)
-{
-	PIO_OBJECT Object;
-	int Length;
-	int Status;
-	int Type = 0;
-
-	//
-	// First get socket type SOCK_STREAM OR SOCK_DGRAM
-	//
-
-	Length = sizeof(int);
-	Status = getsockopt((SOCKET)Handle, SOL_SOCKET, SO_TYPE,(char*)&Type, &Length);
-	if (Status == SOCKET_ERROR || Type != SOCK_STREAM || Type != SOCK_DGRAM){
-		return NULL;
-	}
-
-	//
-	// This is a new socket object, we allocate and insert into object table
-	//
-
-	Object = IoAllocateObject();
-	Object->Object = Handle;
-	Object->Type = HANDLE_SOCKET;
-	Object->Flags = OF_SOCKET;
-
-	Length = sizeof(Object->u.Socket.Local);
-	Status = getsockname((SOCKET)Handle, (struct sockaddr *)&Object->u.Socket.Local, &Length); 
-
-	//
-	// We're only interested in IPV4/IPV6
-	//
-
-	if (Status != 0 || Object->u.Socket.Local.ss_family != AF_INET || 
-		Object->u.Socket.Local.ss_family != AF_INET6) {
-		IoFreeObject(Object);
-		return NULL;
-	}
-
-	if (Object->u.Socket.Local.ss_family == AF_INET){
-		Object->Flags |= OF_SKIPV4;
-	}
-	if (Object->u.Socket.Local.ss_family == AF_INET6){
-		Object->Flags |= OF_SKIPV6;
-	}
-
-	if (Type == SOCK_STREAM) {
-		Object->Flags |= OF_SKTCP;
-	} else {
-		Object->Flags |= OF_SKUDP;
-	}
-
-	Object->Flags |= OF_LOCAL_VALID;
-	Object->Object = Handle;
-
-	//
-	// Insert object and increase its reference, we must increase reference since
-	// the following region will unreference it.
-	//
-
-	IoInsertObject(Object);
-	return Object;
-}
-
-PIO_OBJECT
-IoAllocateFileObject(
-	_In_ HANDLE Handle,
-	_In_ BOOLEAN Overlapped
-	)
-{
-	PIO_OBJECT Object;
-	DWORD Size;
-	WCHAR Path[MAX_PATH];
-
-	//
-	// Size is number of WCHAR without terminated NULL
-	//
-
-	Size = GetFinalPathNameByHandleW(Handle, Path, MAX_PATH, VOLUME_NAME_DOS|FILE_NAME_NORMALIZED);
-	if (!Size){
-		return NULL;
-	}
-
-	Object = IoAllocateObject();
-	Object->Object = Handle;
-	Object->Type = HANDLE_FILE;
-	Object->Flags = OF_FILE;
-
-	if (Overlapped) {
-		SetFlag(Object->Flags, OF_OVERLAPPED);
-	}
-
-	//
-	// Increase size to add trailing null and limit it to MAX_PATH
-	//
-
-	Size += 1;
-	Size = min(MAX_PATH, Size);
-
-	Object->u.File.Name = (PWSTR)BtrMalloc(Size * sizeof(WCHAR));
-	Object->u.File.Name[Size - 1] = 0;
-	Object->u.File.Length = Size;
-	RtlCopyMemory(Object->u.File.Name, Path, (Size - 1) * sizeof(WCHAR));
-
-	GetSystemTimeAsFileTime(&Object->Start);
-	IoInsertObject(Object);
-	return Object;
 }

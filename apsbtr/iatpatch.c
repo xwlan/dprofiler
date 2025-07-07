@@ -15,6 +15,37 @@ BTR_MODULE BtrDllTable[MAX_DLL_COUNT];
 
 PVOID BtrLdrCookie;
 
+PCWSTR BtrIgnoreDll[] = {
+	L"ntdll.dll",
+	L"kernel32.dll",
+	L"gdi32.dll",
+	L"user32.dll",
+	L"kernelbase.dll",
+	L"advapi32.dll"
+	L"rpcrt4.dll",
+	L"ole32.dll", 
+	L"psapi.dll",
+	L"ws2_32.dll",
+	L"mswsock.dll"
+};
+
+int BtrIgnoreDllCount = ARRAYSIZE(BtrIgnoreDll);
+
+BOOLEAN
+BtrIsIgnoreDll(
+	IN PCWSTR Name
+	)
+{
+	int i;
+
+	for (i = 0; i < BtrIgnoreDllCount; i++) {
+		if (!_wcsicmp(Name, BtrIgnoreDll[i])) {
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
 
 VOID
 BtrInitializeIatMode(
@@ -40,6 +71,8 @@ BtrBuildModuleList(
 	HANDLE ProcessHandle;
 	MODULEINFO Info;
 	ULONG ProcessId;
+	WCHAR Path[MAX_PATH];
+	WCHAR BaseName[MAX_PATH];
 
 	Modules = BtrMalloc(sizeof(HMODULE) * MAX_DLL_COUNT);
 	if (!Modules) {
@@ -72,15 +105,21 @@ BtrBuildModuleList(
 			continue;
 		}
 
+		GetModuleFileNameW(Modules[i], Path, MAX_PATH);
+		BtrGetBaseNameW(Path, BaseName, 64);
+		if (BtrIsIgnoreDll(BaseName)) {
+			continue;
+		}
+
 		Dll->Base = Info.lpBaseOfDll;
 		Dll->Size = Info.SizeOfImage;
+		wcscpy_s(Dll->Path, MAX_PATH, Path);
+		wcscpy_s(Dll->BaseName, 64, BaseName);
 
-		GetModuleFileNameW(Modules[i], Dll->Path, MAX_PATH);
-		BtrGetBaseNameW(Dll->Path, Dll->BaseName, 64);
 		j += 1;
 	}
 
-	BtrDllCount = Count - 1;
+	BtrDllCount = j;
 
 	BtrFree(Modules);
 	CloseHandle(ProcessHandle);
@@ -127,6 +166,7 @@ BtrDllNotification(
 	PBTR_MODULE Entry;
 	BOOLEAN Same;
 	BOOLEAN ExecuteCallback = FALSE;
+	WCHAR BaseName[64] = { 0 };
 
 	if (Reason == LDR_DLL_NOTIFICATION_REASON_UNLOADED) {
 		for (ULONG i = 0; i < BtrDllCount; i++) {
@@ -155,6 +195,18 @@ BtrDllNotification(
 	}
 
 	if (Reason == LDR_DLL_NOTIFICATION_REASON_LOADED) {
+
+		//
+		// If it's ignored dll, nothing to do
+		//
+
+		RtlCopyMemory(BaseName, Data->Loaded.BaseDllName->Buffer, 
+						Data->Loaded.BaseDllName->Length * sizeof(WCHAR));
+
+		if (BtrIsIgnoreDll(BaseName)) {
+			return;
+		}
+
 		for (int i = 0; i < MAX_DLL_COUNT; i++) {
 			Entry = &BtrDllTable[i];
 			if (!Entry->Base) {

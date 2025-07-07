@@ -24,16 +24,22 @@ typedef enum _IO_PATCH {
 	_IatAccept,
 	_IatRecv,
 	_IatSend,
-	_IatRecvFrom,
-	_IatSendTo,
 	_IatCloseSocket,
 	_IatWSAAccept,
 	_IatWSARecv,
 	_IatWSASend,
-	_IatWSARecvFrom,
-	_IatWSASendTo,
 	_IatWSAGetOverlappedResult,
 	_IatAcceptEx,
+	_IatTransmitFile,
+
+	//
+	// UDP is default disabled
+	//
+
+	_IatRecvFrom,
+	_IatSendTo,
+	_IatWSARecvFrom,
+	_IatWSASendTo,
 } IO_PATCH;
 
 VOID
@@ -127,6 +133,15 @@ IatPostQueuedCompletionStatus(
 	_In_opt_ LPOVERLAPPED lpOverlapped
 	);
 
+SOCKET WINAPI
+IatWSAAccept(
+	_In_  SOCKET s,
+	_Out_ struct sockaddr* addr,
+	_Out_ LPINT addrlen,
+	_In_  LPCONDITIONPROC lpfnCondition,
+	_In_  DWORD dwCallbackData
+	);
+
 int WINAPI
 IatWSARecv(
 	_In_    SOCKET s,
@@ -134,19 +149,6 @@ IatWSARecv(
 	_In_    DWORD dwBufferCount,
 	_Out_   LPDWORD lpNumberOfBytesRecvd,
 	_Inout_ LPDWORD lpFlags,
-	_In_    LPWSAOVERLAPPED lpOverlapped,
-	_In_    LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-	);
-
-int WINAPI
-IatWSARecvFrom(
-	_In_    SOCKET s,
-	_Inout_ LPWSABUF lpBuffers,
-	_In_    DWORD dwBufferCount,
-	_Out_   LPDWORD lpNumberOfBytesRecvd,
-	_Inout_ LPDWORD lpFlags,
-	_Out_   struct sockaddr* lpFrom,
-	_Inout_ LPINT lpFromlen,
 	_In_    LPWSAOVERLAPPED lpOverlapped,
 	_In_    LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 	);
@@ -162,19 +164,6 @@ IatWSASend(
 	_In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 	);
 
-int WINAPI
-IatWSASendTo(
-	_In_  SOCKET s,
-	_In_  LPWSABUF lpBuffers,
-	_In_  DWORD dwBufferCount,
-	_Out_ LPDWORD lpNumberOfBytesSent,
-	_In_  DWORD dwFlags,
-	_In_  const struct sockaddr* lpTo,
-	_In_  int iToLen,
-	_In_  LPWSAOVERLAPPED lpOverlapped,
-	_In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-	);
-
 BOOL WINAPI
 IatWSAGetOverlappedResult(
 	_In_  SOCKET          s,
@@ -182,20 +171,6 @@ IatWSAGetOverlappedResult(
 	_Out_ LPDWORD         lpcbTransfer,
 	_In_  BOOL            fWait,
 	_Out_ LPDWORD         lpdwFlags
-	);
-
-SOCKET WINAPI
-IatWSAAccept(
-	_In_  SOCKET s,
-	_Out_ struct sockaddr* addr,
-	_Out_ LPINT addrlen,
-	_In_  LPCONDITIONPROC lpfnCondition,
-	_In_  DWORD dwCallbackData
-	);
-
-int WINAPI
-IatCloseSocket(
-	_In_ SOCKET s
 	);
 
 BOOL WINAPI
@@ -208,6 +183,17 @@ IatAcceptEx(
 	_In_  DWORD dwRemoteAddressLength,
 	_Out_ LPDWORD lpdwBytesReceived,
 	_In_  LPOVERLAPPED lpOverlapped
+	);
+
+BOOL WINAPI
+IatTransmitFile(
+	IN SOCKET hSocket,
+	IN HANDLE hFile,
+	DWORD nNumberOfBytesToWrite,
+	DWORD nNumberOfBytesPerSend,
+	LPOVERLAPPED lpOverlapped,
+	LPTRANSMIT_FILE_BUFFERS lpTransmitBuffers,
+	DWORD dwFlags
 	);
 
 SOCKET WINAPI
@@ -226,6 +212,19 @@ IatRecv(
 	);
 
 int WINAPI
+IatSend(
+	_In_ SOCKET s,
+	_In_ const char* buf,
+	_In_ int len,
+	_In_ int flags
+	);
+
+int WINAPI
+IatCloseSocket(
+	_In_ SOCKET s
+	);
+
+int WINAPI
 IatRecvFrom(
 	_In_  SOCKET s,
 	_Out_ char* buf,
@@ -236,14 +235,6 @@ IatRecvFrom(
 	);
 
 int WINAPI
-IatSend(
-	_In_ SOCKET s,
-	_In_ const char* buf,
-	_In_ int len,
-	_In_ int flags
-	);
-
-int WINAPI
 IatSendTo(
 	_In_  SOCKET s,
 	_In_ const char* buf,
@@ -251,6 +242,32 @@ IatSendTo(
 	_In_ int flags,
 	_In_ const struct sockaddr* to,
 	_In_ int tolen
+	);
+
+int WINAPI
+IatWSARecvFrom(
+	_In_    SOCKET s,
+	_Inout_ LPWSABUF lpBuffers,
+	_In_    DWORD dwBufferCount,
+	_Out_   LPDWORD lpNumberOfBytesRecvd,
+	_Inout_ LPDWORD lpFlags,
+	_Out_   struct sockaddr* lpFrom,
+	_Inout_ LPINT lpFromlen,
+	_In_    LPWSAOVERLAPPED lpOverlapped,
+	_In_    LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+	);
+
+int WINAPI
+IatWSASendTo(
+	_In_  SOCKET s,
+	_In_  LPWSABUF lpBuffers,
+	_In_  DWORD dwBufferCount,
+	_Out_ LPDWORD lpNumberOfBytesSent,
+	_In_  DWORD dwFlags,
+	_In_  const struct sockaddr* lpTo,
+	_In_  int iToLen,
+	_In_  LPWSAOVERLAPPED lpOverlapped,
+	_In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 	);
 
 #ifdef __cplusplus
