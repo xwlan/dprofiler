@@ -261,6 +261,16 @@ IoFlushRecordOnStop(
 	VOID
 	);
 
+ULONG
+IoCountPendingIrpForObject(
+	IN PIO_OBJECT Object
+	);
+
+ULONG
+IoScanPendingIrp(
+	VOID
+	);
+
 BOOLEAN
 IoIsOrphanedIrp(
 	_In_ PIO_IRP Irp,
@@ -269,6 +279,11 @@ IoIsOrphanedIrp(
 
 BOOLEAN
 IoDllCanUnload(
+	VOID
+	);
+
+BOOLEAN
+IoCanSafeUnload(
 	VOID
 	);
 

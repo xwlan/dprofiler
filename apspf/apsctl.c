@@ -1354,6 +1354,12 @@ Unload:
 	ApsWriteReport(Object);
 
 	//
+	// Signal ExitProcessEvent to notify runtime dll to exit
+	//
+
+	SetEvent(Object->ExitProcessEvent);
+
+	//
 	// N.B. Return APS_STATUS_UNLOAD to force exit
 	// the profile procedure
 	//

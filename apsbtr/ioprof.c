@@ -454,7 +454,8 @@ repeat:
 		if ((Object->Flags & OF_FILE) && Object->u.File.Name) {
 			BtrFree(Object->u.File.Name);
 		}
-		BtrFree(Object);
+		
+		IoFreeObject(Object);
 
 		//
 		// Check whether the buffers are full
@@ -521,16 +522,10 @@ IoFlushObjectOnStop(
 			Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
 
 			//
-			// Increase object reference to -1 to pin it
-			//
-
-			Object->References = -1;
-			
-			//
 			// Clone object and insert into retired object list
 			//
 
-			Clone = (PIO_OBJECT)BtrMalloc(sizeof(IO_OBJECT));				
+			Clone = (PIO_OBJECT)BtrMallocLookaside(LOOKASIDE_IO_OBJECT);				
 			RtlCopyMemory(Clone, Object, sizeof(IO_OBJECT));
 
 			if (Clone->Type == HANDLE_SOCKET){
@@ -562,7 +557,6 @@ IoFlushRecord(
 {
 	ULONG Status;
 
-	//Status = IoFlushIrp();
 	Status = IoFlushCompleteList();
 	if (Status != S_OK) {
 		return Status;
@@ -624,17 +618,73 @@ IoFlushRecordOnStop(
 		return Status;
 	}
 
-	//Status = IoFlushIrpOnStop();
-	//if (Status != S_OK) {
-	//	return Status;
-	//}
-	
 	IoFlushObjectOnStop();
 	if (Status != S_OK) {
 		return Status;
 	}
 
 	return S_OK;
+}
+
+ULONG
+IoCountPendingIrpForObject(
+	IN PIO_OBJECT Object
+	)
+{
+	PLIST_ENTRY ListEntry;
+	ULONG Count = 0;
+
+	BtrAcquireSpinLock(&Object->Lock);
+
+	ListEntry = Object->IrpListHead.Flink;
+	while (ListEntry != &Object->IrpListHead) {
+		Count += 1;
+		ListEntry = ListEntry->Flink;
+	}
+	
+	BtrReleaseSpinLock(&Object->Lock);
+
+	return Count;
+}
+
+ULONG
+IoScanPendingIrp(
+	VOID
+	)
+{
+	ULONG Number;
+	ULONG Count;
+	PLIST_ENTRY ListEntry;
+	PIO_OBJECT Object;
+
+	//
+	// N.B. It's possible even after stop profiling, APC callback,
+	// or other asynchronous I/O notification can access object(remove),
+	// so we must be caucious to acqure the lock before walk the bucket.
+	// to avoid duplicate object, e.g. host process may remove object
+	// after we clone it, and this object will be inserted into retired
+	// object list, we must ensure each object we access will not be 
+	// removed by host process, so we add a big reference to pin it in the table.
+	//
+
+	Count = 0;
+
+	for (Number = 0; Number < MAX_OBJECT_BUCKET; Number += 1) {
+
+		BtrAcquireSpinLock(&IoObjectTable.Entry[Number].SpinLock);
+
+		ListEntry = IoObjectTable.Entry[Number].ListHead.Flink;
+		while (ListEntry != &IoObjectTable.Entry[Number].ListHead) {
+			Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
+			Count += IoCountPendingIrpForObject(Object);
+			ListEntry = ListEntry->Flink;
+		}
+
+		BtrReleaseSpinLock(&IoObjectTable.Entry[Number].SpinLock);
+	}
+
+	DebugTrace("There're total %d pending IRPs", Count);
+	return Count;
 }
 
 BOOLEAN
@@ -898,6 +948,34 @@ IoThreadDetach(
 	return TRUE;
 }
 
+BOOLEAN
+IoCanSafeUnload(
+	VOID
+	)
+{
+	ULONG Count;
+	BOOLEAN Safe = FALSE;
+
+	Count = IoScanPendingIrp();
+	if (Count != 0) {
+
+		Sleep(2000);
+		Count = IoScanPendingIrp();
+
+		if (Count != 0) {
+			Safe = FALSE;
+		}
+		else {
+			Safe = TRUE;
+		}
+	}
+	else {
+		Safe = TRUE;
+	}
+
+	return Safe;
+}
+
 ULONG
 IoUnload(
 	__in PBTR_PROFILE_OBJECT Object
@@ -905,6 +983,8 @@ IoUnload(
 {
 	ULONG Status;
 	BOOLEAN Unload;
+	BOOLEAN Safe;
+	ULONG Count;
 
 	// Flush all allocated objects and irps.
 	//
@@ -943,14 +1023,11 @@ IoUnload(
 	BtrProfileObject->ControlEnd = NULL;
 
 	//
-	// Wait up to 6 second to check dll unload
-	//
-
-	if (!IoDllCanUnload()) {
-		Sleep(6000);
-	}
-
-	if (!IoDllCanUnload()) {
+	// Scan pending IRPs that may impact our unloading
+	// 
+	
+	Safe = IoCanSafeUnload();
+	if (!Safe) {
 
 		//
 		// If we can not unload, just terminate host process
@@ -958,11 +1035,8 @@ IoUnload(
 
 		SetEvent(BtrProfileObject->UnloadEvent);
 		CloseHandle(BtrProfileObject->UnloadEvent);
+		WaitForSingleObject(BtrProfileObject->ExitProcessEvent, INFINITE);
 		ExitProcess(0);
-
-		//
-		// never arrive here
-		//
 	}
 
 	//
@@ -1005,6 +1079,8 @@ IoUnload(
 
 		SetEvent(BtrProfileObject->UnloadEvent);
 		CloseHandle(BtrProfileObject->UnloadEvent);
+
+		WaitForSingleObject(BtrProfileObject->ExitProcessEvent, INFINITE);
 
 		if (Unload) {
 			FreeLibraryAndExitThread((HMODULE)BtrDllBase, 0);
@@ -1590,28 +1666,10 @@ IoInsertObject(
 
 	BtrAcquireSpinLock(&HashEntry->SpinLock);
 	InsertTailList(ListHead, &Object->ListEntry);
-	Object->References = 1;
 	BtrReleaseSpinLock(&HashEntry->SpinLock);
 
 	InterlockedIncrement(&IoObjectTable.Count);
 	return Object;
-}
-
-VOID
-IoReferenceObject(
-	__in PIO_OBJECT Object
-	)
-{
-	//
-	// N.B. Temporarily disable object reference
-	// and test whether we can remove it
-	//
-
-	return;
-
-	IoLockObjectBucket(Object);
-	Object->References += 1;
-	IoUnlockObjectBucket(Object);
 }
 
 VOID
@@ -1643,37 +1701,6 @@ IoUnlockObjectBucket(
 	BtrReleaseSpinLock(&HashEntry->SpinLock);
 }
 
-VOID
-IoUnreferenceObject(
-	__in PIO_OBJECT Object
-	)
-{
-	//
-	// N.B. Temporarily disable object reference
-	// to test whether it can be removed
-	//
-
-	return;
-
-	IoLockObjectBucket(Object);
-	Object->References -= 1;
-	if (!Object->References) {
-		RemoveEntryList(&Object->ListEntry);
-
-		//
-		// N.B. InterlockedPushEntrySList() must synchronize with
-		// IoFlushObjectOnStop(), otherwise we can miss the object
-		// in final report. object's remove must with the spinlock hold.
-		//
-
-		GetSystemTimeAsFileTime(&Object->End);
-		InterlockedDecrement(&IoObjectTable.Count);
-		InterlockedPushEntrySList(&IoRetiredObjectList, &Object->SListEntry);
-
-	}
-	IoUnlockObjectBucket(Object);
-}
-
 //
 // N.B. After the lookup and usage of object,
 // the caller should unreference the object,
@@ -1703,7 +1730,6 @@ IoLookupObjectByHandle(
 	while (ListEntry != ListHead) {
 		Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
 		if (Object->Object == Handle) {
-			Object->References += 1;  
 			Found = TRUE;
 			break;
 		}
@@ -1742,7 +1768,6 @@ IoLookupObjectByHandleEx(
 	while (ListEntry != ListHead) {
 		Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
 		if (Object->Object == Handle && Object->Type == Type) {
-			Object->References += 1;  
 			Found = TRUE;
 			break;
 		}
@@ -1781,23 +1806,20 @@ IoRemoveObjectByHandleEx(
 	ListEntry = ListHead->Flink;
 	while (ListEntry != ListHead) {
 		Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
-		if (Object->Object == Handle) {
-			Object->References -= 1;
-			if (!Object->References) {
+		if (Object->Object == Handle && Object->Type == Type) {
 
-				RemoveEntryList(ListEntry);
+			RemoveEntryList(ListEntry);
 
-				//
-				// N.B. We move the code here to avoid race condition
-				// with IoFlushObjectOnStop(), the remove should hold
-				// spinlock to synchronize with it.
-				//
+			//
+			// N.B. We move the code here to avoid race condition
+			// with IoFlushObjectOnStop(), the remove should hold
+			// spinlock to synchronize with it.
+			//
 
-				GetSystemTimeAsFileTime(&Object->End);
-				InterlockedDecrement(&IoObjectTable.Count);
-				InterlockedPushEntrySList(&IoRetiredObjectList, &Object->SListEntry);
-				Free = TRUE;
-			}
+			GetSystemTimeAsFileTime(&Object->End);
+			InterlockedDecrement(&IoObjectTable.Count);
+			InterlockedPushEntrySList(&IoRetiredObjectList, &Object->SListEntry);
+			Free = TRUE;
 			break;
 		}
 		ListEntry = ListEntry->Flink;
@@ -1830,22 +1852,19 @@ IoRemoveObjectByHandle(
 	while (ListEntry != ListHead) {
 		Object = CONTAINING_RECORD(ListEntry, IO_OBJECT, ListEntry);
 		if (Object->Object == Handle) {
-			Object->References -= 1;
-			if (!Object->References) {
 
-				RemoveEntryList(ListEntry);
+			RemoveEntryList(ListEntry);
 
-				//
-				// N.B. We move the code here to avoid race condition
-				// with IoFlushObjectOnStop(), the remove should hold
-				// spinlock to synchronize with it.
-				//
+			//
+			// N.B. We move the code here to avoid race condition
+			// with IoFlushObjectOnStop(), the remove should hold
+			// spinlock to synchronize with it.
+			//
 
-				GetSystemTimeAsFileTime(&Object->End);
-				InterlockedDecrement(&IoObjectTable.Count);
-				InterlockedPushEntrySList(&IoRetiredObjectList, &Object->SListEntry);
-				Free = TRUE;
-			}
+			GetSystemTimeAsFileTime(&Object->End);
+			InterlockedDecrement(&IoObjectTable.Count);
+			InterlockedPushEntrySList(&IoRetiredObjectList, &Object->SListEntry);
+			Free = TRUE;
 			break;
 		}
 		ListEntry = ListEntry->Flink;
@@ -1866,7 +1885,13 @@ IoAllocateObject(
 {
 	PIO_OBJECT Object;
 
-	Object = (PIO_OBJECT)BtrMalloc(sizeof(IO_OBJECT));
+	Object = (PIO_OBJECT)BtrMallocLookaside(LOOKASIDE_IO_OBJECT);
+	if (!Object) {
+		return NULL;
+	}
+
+	ASSERT((ULONG_PTR)&Object->SListEntry % MEMORY_ALLOCATION_ALIGNMENT == 0);
+
 	RtlZeroMemory(Object,sizeof(IO_OBJECT));
 
 	BtrInitSpinLock(&Object->Lock, 100);
@@ -1874,6 +1899,14 @@ IoAllocateObject(
 	Object->Id = IoAcquireObjectId();
 
 	return Object;
+}
+
+VOID
+IoFreeObject(
+	IN PIO_OBJECT Object
+	)
+{
+	BtrFreeLookaside(LOOKASIDE_IO_OBJECT, Object);
 }
 
 VOID
@@ -1902,18 +1935,6 @@ IoDequeueIrpFromObject(
 	RemoveEntryList(&Irp->ListEntry);
 	Irp->Flags.Queued = FALSE;
 	BtrReleaseSpinLock(&Object->Lock);
-}
-
-VOID
-IoFreeObject(
-	_In_ PIO_OBJECT Object 
-	)
-{
-	ASSERT(Object != NULL);
-	if (Object->u.File.Name) {
-		BtrFree(Object->u.File.Name);
-	}
-	BtrFree(Object);
 }
 
 VOID

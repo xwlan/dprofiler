@@ -21,6 +21,7 @@ typedef enum _BTR_LOOKASIDE_TYPE {
 	LOOKASIDE_IO_IRP = 0,
 	LOOKASIDE_IO_IRP_TRACK = 1,
 	LOOKASIDE_IO_COMPLETION = 2,
+	LOOKASIDE_IO_OBJECT = 3,
 	BTR_MAX_LOOKASIDE = 4, 
 } BTR_LOOKASIDE_TYPE;
 
@@ -46,12 +47,12 @@ BtrUninitializeHeap(
 
 PVOID 
 BtrMalloc(
-	__in ULONG ByteCount
+	IN ULONG ByteCount
 	);
 
 VOID 
 BtrFree(
-	__in PVOID Address
+	IN PVOID Address
 	);
 
 PVOID
@@ -67,7 +68,7 @@ BtrAlignedFree(
 
 BOOLEAN
 BtrIsPrivateHeap(
-	__in HANDLE Heap
+	IN HANDLE Heap
 	);
 
 VOID

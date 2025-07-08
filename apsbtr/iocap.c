@@ -141,29 +141,6 @@ IoGetCallback(
 		                   _C->Address, &_I->StackId, &Depth);\
 }
 
-#define IO_GET_SOCKET_OBJECT(_S, _O)								\
-{																	\
-	*_O = IoLookupObjectByHandleEx(SK_HANDLE(_S), HANDLE_SOCKET);   \
-	if (!(*_O)) {													\
-		*_O = IoAllocateSocketObject(SK_HANDLE(_S));				\
-		if (*_O) {													\
-			IoReferenceObject(Object);								\
-		}															\
-	}																\
-}
-
-#define IO_GET_FILE_OBJECT(_H, _O)						\
-{														\
-	*_O = IoLookupObjectByHandleEx(_H, HANDLE_FILE);	\
-	if (!(*_O)) {										\
-		*_O = IoAllocateFileObject(_H, _O));			\
-		if (*_O)) {										\
-			IoReferenceObject(Object);					\
-		}												\
-	}													\
-}
-
-
 ULONG
 IoAcquireObjectId(
 	VOID
@@ -799,7 +776,6 @@ IoDuplicateHandle(
 	Clone = IoAllocateObject();
 	Clone->Object = *lpTargetHandle;
 	Clone->Id = IoAcquireObjectId();
-	Clone->References = 0;
 	Clone->Type = Object->Type;
 	Clone->Flags = Object->Flags;
 
@@ -816,7 +792,6 @@ IoDuplicateHandle(
 	// Unreference source object and insert duplicated object
 	//
 
-	IoUnreferenceObject(Object);
 	IoInsertObject(Clone);
 
 	SetLastError(ERROR_SUCCESS);
@@ -865,7 +840,6 @@ Skip:
 	}
 
 	if (!FlagOn(Object->Flags, OF_OVERLAPPED)) {
-		IoUnreferenceObject(Object);
 		goto Skip;
 	}
 
@@ -874,7 +848,6 @@ Skip:
 		Object->Flags |= OF_IOCPASSOCIATE;
 	}
 
-	IoUnreferenceObject(Object);
 	return Status;
 }
 
@@ -919,7 +892,6 @@ Skip:
 	}
 
 	if (!FlagOn(Object->Flags, OF_OVERLAPPED)) {
-		IoUnreferenceObject(Object);
 		goto Skip;
 	}
 
@@ -933,7 +905,6 @@ Skip:
 		}
 	}
 
-	IoUnreferenceObject(Object);
 	return Status;
 }
 
@@ -1023,7 +994,6 @@ Skip:
 	Irp = IoAllocateIrp(Object);
 	Irp->Operation = IO_OP_READ;
 	Irp->RequestBytes = nNumberOfBytesToRead;
-	IoUnreferenceObject(Object);
 
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
@@ -1112,7 +1082,6 @@ Skip:
 	Irp->Operation = IO_OP_READ;
 	Irp->RequestBytes = nNumberOfBytesToRead;
 	Irp->Flags.UserApc = 1;
-	IoUnreferenceObject(Object);
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
 	IoHijackOverlapped(Irp, lpOverlapped);
@@ -1181,7 +1150,6 @@ Skip:
 	Irp = IoAllocateIrp(Object);
 	Irp->Operation = IO_OP_WRITE;
 	Irp->RequestBytes = nNumberOfBytesToWrite;
-	IoUnreferenceObject(Object);
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
 	if (IsOverlapped) {
@@ -1271,7 +1239,6 @@ Skip:
 	Irp->RequestBytes = nNumberOfBytesToWrite;
 	Irp->Flags.UserApc = 1;
 
-	IoUnreferenceObject(Object);
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
 	IoHijackOverlapped(Irp, lpOverlapped);
@@ -1390,7 +1357,6 @@ Skip:
 		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
 		if (Object) { 
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-			IoUnreferenceObject(Object);
 		}
 	}
 
@@ -1403,7 +1369,6 @@ Skip:
 				IoMarkObjectOverlapped(Object);
 			}
 		}
-		IoUnreferenceObject(Object);
 	}
 
 	Irp->IoStatus = IoStatus;
@@ -1551,7 +1516,6 @@ IoGetQueuedCompletionStatus(
 			}
 
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-			IoUnreferenceObject(Object);
 		}
 
 		if (!FlagOn(Object->Flags, OF_IOCPASSOCIATE)) {
@@ -1577,7 +1541,6 @@ IoGetQueuedCompletionStatus(
 				IoMarkObjectOverlapped(Object);
 			}
 		}
-		IoUnreferenceObject(Object);
 	}
 
 	IoUpdateRequestCounters(Irp);
@@ -1736,7 +1699,6 @@ Skip:
 			Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
 			if (Object) {
 				IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-				IoUnreferenceObject(Object);
 			}
 		}
 		if (Irp->Operation == IO_OP_IOCONTROL && Irp->ControlCode == FIONBIO) {
@@ -1747,7 +1709,6 @@ Skip:
 					IoMarkObjectOverlapped(Object);
 				}
 			}
-			IoUnreferenceObject(Object);
 		}
 		IoQueueFlushList(Irp);
 
@@ -1916,7 +1877,6 @@ Skip:
 
 	IoStatus = WSAGetLastError();
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 		return Status;
@@ -1927,7 +1887,6 @@ Skip:
 
 		IoQuerySocketAddress(Object, s);
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpNumberOfBytesRecvd, lpOverlapped);
-		IoUnreferenceObject(Object);
 
 	} else {
 
@@ -2064,7 +2023,6 @@ Skip:
 
 	IoStatus = WSAGetLastError();
 	if (Status == INVALID_SOCKET) {
-		IoUnreferenceObject(Object);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 		return Status;
 	} 
@@ -2101,7 +2059,6 @@ Skip:
 		RtlCopyMemory(addr, &Address, (*addrlen >= Length) ? Length : *addrlen);
 	}
 
-	IoUnreferenceObject(Object);
 	IoInsertObject(Accepted);
 
 	WSASetLastError(IoStatus);
@@ -2151,7 +2108,6 @@ IoConnect(
 	RtlCopyMemory(&Object->u.Socket.Remote, name, namelen);
 	SetFlag(Object->Flags, OF_REMOTE_VALID);
 
-	IoUnreferenceObject(Object);
 	WSASetLastError(IoStatus);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 	return 0;
@@ -2197,8 +2153,6 @@ Skip:
 			IoClearObjectOverlapped(Object);
 		}
 	}
-
-	IoUnreferenceObject(Object);
 
 	WSASetLastError(IoStatus);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -2249,7 +2203,6 @@ Skip:
 		*(SOCKADDR *)&Object->u.Socket.Remote = *name;
 		SetFlag(Object->Flags, OF_REMOTE_VALID);
 	} 
-	IoUnreferenceObject(Object);
 
 	WSASetLastError(IoStatus);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -2302,7 +2255,6 @@ Skip:
 
 	IoStatus = WSAGetLastError();
 	if (Status == INVALID_SOCKET) {
-		IoUnreferenceObject(Object);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 		InterlockedDecrement(&Callback->References);
 		return Status;
@@ -2336,7 +2288,6 @@ Skip:
 		memcpy(addr, &Address, (*addrlen >= RealLength) ? RealLength : *addrlen);
 	}
 
-	IoUnreferenceObject(Object);
 	IoInsertObject(Accepted);
 
 	WSASetLastError(IoStatus);
@@ -2391,7 +2342,6 @@ Skip:
 		IoMarkObjectOverlapped(Object);
 	}
 
-	IoUnreferenceObject(Object);
 	WSASetLastError(IoStatus);
 	InterlockedDecrement(&Callback->References);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -2445,7 +2395,6 @@ Skip:
 		IoMarkObjectOverlapped(Object);
 	}
 
-	IoUnreferenceObject(Object);
 	WSASetLastError(IoStatus);
 	InterlockedDecrement(&Callback->References);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -2620,13 +2569,13 @@ IoDebugPrintSkAddress(
 	ASSERT(Object->Type == HANDLE_SOCKET);
 
 	if (FlagOn(Object->Flags, OF_LOCAL_VALID)) {
-		BtrTrace("Local: %s:%u", Object->u.Socket.Local, Object->u.Socket.LocalPort); 
+		BtrTrace("Local: %s", Object->u.Socket.Local); 
 	}
 	else {
 		BtrTrace("Local: INVALID");
 	}
 	if (FlagOn(Object->Flags, OF_REMOTE_VALID)) {
-		BtrTrace("Remote: %s:%u", Object->u.Socket.Remote, Object->u.Socket.RemotePort); 
+		BtrTrace("Remote: %s", Object->u.Socket.Remote); 
 	}
 	else {
 		BtrTrace("Remote: INVALID");
@@ -2694,7 +2643,6 @@ Skip:
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
 	IoQuerySocketAddress(Object, s);
-	IoUnreferenceObject(Object);
 
 	IoCompleteSynchronousIo(Irp, 0, 0, NULL, NULL);
 
@@ -2829,7 +2777,6 @@ Skip:
 	IoCaptureStackTrace(Thread, Callback, Irp);
 
 	IoQuerySocketAddress(Object, s);
-	IoUnreferenceObject(Object);
 
 	IoCompleteSynchronousIo(Irp, 0, 0, NULL, NULL);
 
@@ -3123,7 +3070,6 @@ Skip:
 	Irp->LastError = IoStatus;
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
 		
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -3151,7 +3097,6 @@ Skip:
 		} 
 	}
 
-	IoUnreferenceObject(Object);
 	WSASetLastError(IoStatus);
 	ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 	InterlockedDecrement(&Callback->References);
@@ -3374,7 +3319,6 @@ Skip:
 		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
 		if (Object){
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-			IoUnreferenceObject(Object);
 		}
 	}
 
@@ -3387,7 +3331,6 @@ Skip:
 				IoMarkObjectOverlapped(Object);
 			}
 		}
-		IoUnreferenceObject(Object);
 	}
 
 	Irp->IoStatus = IoStatus;
@@ -3450,7 +3393,6 @@ IoThreadPoolIoCallback(
 		Object = IoLookupObjectByHandleEx(Irp->Object, HANDLE_SOCKET);
 		if (Object) { 
 			IoQuerySocketAddress(Object, (SOCKET)Irp->Object);
-			IoUnreferenceObject(Object);
 		}
 	}
 
@@ -3463,7 +3405,6 @@ IoThreadPoolIoCallback(
 				IoMarkObjectOverlapped(Object);
 			}
 		}
-		IoUnreferenceObject(Object);
 	}
 
 	Irp->IoStatus = IoResult;
@@ -3700,7 +3641,6 @@ Skip:
 		Irp->CompleteBytes = 0;
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, NULL, NULL);
 
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
 		return Status;
@@ -3736,7 +3676,6 @@ Skip:
 
 		IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpdwBytesReceived, lpOverlapped);
-		IoUnreferenceObject(Object);
 	} 
 
 	WSASetLastError(IoStatus);
@@ -3826,7 +3765,6 @@ Skip:
 	Irp->LastError = IoStatus;
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
 		
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -3844,7 +3782,6 @@ Skip:
 
 		IoQuerySocketAddress(Object, hSocket);
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Complete, NULL);
-		IoUnreferenceObject(Object);
 
 	} else {
 
@@ -3856,7 +3793,6 @@ Skip:
 		if (SkipOnSuccess && IoStatus != ERROR_IO_PENDING) {
 			//IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 			//IoCompleteSynchronousIo(Irp, Status, IoStatus, NULL, lpOverlapped);
-			IoUnreferenceObject(Object);
 		} 
 	}
 
@@ -3943,7 +3879,6 @@ Skip:
 	Irp->LastError = IoStatus;
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
 		
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -3961,7 +3896,6 @@ Skip:
 
 		IoQuerySocketAddress(Object, hSocket);
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, &Complete, NULL);
-		IoUnreferenceObject(Object);
 
 	} else {
 
@@ -3973,7 +3907,6 @@ Skip:
 		if (SkipOnSuccess && IoStatus != ERROR_IO_PENDING) {
 			IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 			//IoCompleteSynchronousIo(Irp, Status, IoStatus, NULL, lpOverlapped);
-			//IoUnreferenceObject(Object);
 		} 
 	}
 
@@ -4077,7 +4010,6 @@ Skip:
 
 	IoStatus = WSAGetLastError();
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -4092,7 +4024,6 @@ Skip:
 		IoDebugPrintSkAddress(Object);
 #endif
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpdwNumberOfBytesRecvd, lpOverlapped);
-		IoUnreferenceObject(Object);
 
 	} else {
 
@@ -4104,7 +4035,6 @@ Skip:
 		if (SkipOnSuccess && IoStatus != ERROR_IO_PENDING) {
 			IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 			IoCompleteSynchronousIo(Irp, Status, IoStatus, lpdwNumberOfBytesRecvd, lpOverlapped);
-			IoUnreferenceObject(Object);
 		} 
 	}
 
@@ -4200,7 +4130,6 @@ Skip:
 
 	IoStatus = WSAGetLastError();
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -4215,7 +4144,6 @@ Skip:
 		IoDebugPrintSkAddress(Object);
 #endif
 		IoCompleteSynchronousIo(Irp, Status, IoStatus, lpNumberOfBytesSent, lpOverlapped);
-		IoUnreferenceObject(Object);
 
 	} else {
 
@@ -4315,7 +4243,6 @@ Skip:
 	Irp->LastError = IoStatus;
 	if (Status == SOCKET_ERROR && IoStatus != WSA_IO_PENDING) {
 		
-		IoUnreferenceObject(Object);
 		WSASetLastError(IoStatus); 
 		InterlockedDecrement(&Callback->References);
 		ClearFlag(Thread->ThreadFlag, BTR_FLAG_EXEMPTION);
@@ -4337,7 +4264,6 @@ Skip:
 		if (SkipOnSuccess && IoStatus != ERROR_IO_PENDING) {
 			IoCopyOverlapped(&Irp->Overlapped, lpOverlapped);
 			//IoCompleteSynchronousIo(Irp, Status, IoStatus, NULL, lpOverlapped);
-			//IoUnreferenceObject(Object);
 		} 
 	}
 

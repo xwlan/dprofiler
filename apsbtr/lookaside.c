@@ -89,6 +89,14 @@ BtrInitializeLookaside(
 		Lookaside->TotalFrees = 0;
 		Lookaside->FreeMisses = 0;
 
+		Lookaside = &BtrLookaside[LOOKASIDE_IO_OBJECT];
+		InitializeSListHead(&Lookaside->ListHead);
+		Lookaside->MaximumDepth = 4096;
+		Lookaside->BlockSize = sizeof(IO_OBJECT);
+		Lookaside->TotalAllocates = 0;
+		Lookaside->AllocateMisses = 0;
+		Lookaside->TotalFrees = 0;
+		Lookaside->FreeMisses = 0;
 	}
 
 }

@@ -291,7 +291,6 @@ Skip:
 
 	Irp->Operation = IO_OP_READ;
 	Irp->RequestBytes = nNumberOfBytesToRead;
-	IoUnreferenceObject(Object);
 
 	Patch = IoGetPatch(_IatReadFile);
 	IoCaptureStackTrace(Thread, Patch->Address, Irp);
@@ -373,7 +372,6 @@ Skip:
 	Irp = IoAllocateIrp(Object);
 	Irp->Operation = IO_OP_WRITE;
 	Irp->RequestBytes = nNumberOfBytesToWrite;
-	IoUnreferenceObject(Object);
 
 	Patch = IoGetPatch(_IatWriteFile);
 	IoCaptureStackTrace(Thread, Patch->Address, Irp);

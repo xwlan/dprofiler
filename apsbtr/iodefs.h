@@ -15,7 +15,7 @@ extern "C" {
 #include "mmhandle.h"
 #include "ioprof.h"
 
-typedef struct _IO_OBJECT {
+typedef struct DECLSPEC_ALIGN(16) _IO_OBJECT {
 
 	union {
 		LIST_ENTRY ListEntry;
@@ -26,7 +26,6 @@ typedef struct _IO_OBJECT {
 	HANDLE_TYPE Type;
 	ULONG Id;
 	ULONG StackId;
-	LONG References;
 	BTR_SPINLOCK Lock;
 
 	ULONG Flags;
