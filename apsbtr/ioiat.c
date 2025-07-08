@@ -44,6 +44,16 @@ BTR_IAT_PATCH IoPatch[] = {
 
 ULONG IoPatchCount = ARRAYSIZE(IoPatch);
 
+BTR_IAT_PATCH IoSpecialPatch[] = {
+	{ "kernel32.dll", "GetProcAddress", IatGetProcAddress },
+};
+
+ULONG IoSpecialPatchCount = ARRAYSIZE(IoSpecialPatch);
+
+HMODULE IoKernel32Base;
+HMODULE IoWinsockBase;
+HMODULE IoMswsockBase;
+
 PBTR_IAT_PATCH FORCEINLINE
 IoGetPatch(
 	IN IO_PATCH Ordinal
@@ -60,10 +70,27 @@ IoIatInitialize(
 	ULONG i;
 	HMODULE Handle;
 
+	IoKernel32Base = GetModuleHandleA("kernel32.dll");
+	ASSERT(IoKernel32Base != NULL);
+
+	IoWinsockBase = GetModuleHandleA("ws2_32.dll");
+	ASSERT(IoWinsockBase != NULL);
+
+	IoMswsockBase = GetModuleHandleA("mswsock.dll");
+	ASSERT(IoMswsockBase != NULL);
+
 	for (i = 0; i < IoPatchCount; i++) {
 		Handle = GetModuleHandleA(IoPatch[i].From);
 		ASSERT(Handle != NULL);
 		IoPatch[i].Address = GetProcAddress(Handle, IoPatch[i].Function);
+	}
+
+	if (BtrProfileObject->Attribute.RunMode) {
+		for (i = 0; i < IoSpecialPatchCount; i++) {
+			Handle = GetModuleHandleA(IoSpecialPatch[i].From);
+			ASSERT(Handle != NULL);
+			IoSpecialPatch[i].Address = GetProcAddress(Handle, IoSpecialPatch[i].Function);
+		}
 	}
 }
 
@@ -74,6 +101,9 @@ IoIatApplyPatch(
 {
 	IoIatInitialize();
 	BtrApplyIatPatch(IoPatch, IoPatchCount, TRUE);
+	if (BtrProfileObject->Attribute.RunMode) {
+		BtrApplyIatPatch(IoSpecialPatch, IoSpecialPatchCount, TRUE);
+	}
 }
 
 VOID
@@ -85,6 +115,9 @@ IoDllLoadCallback(
 {
 	if (Load) {
 		BtrApplyPatchForDllByAddress(Dll, IoPatch, IoPatchCount, TRUE);
+		if (BtrProfileObject->Attribute.RunMode) {
+			BtrApplyPatchForDllByAddress(Dll, IoSpecialPatch, IoSpecialPatchCount, TRUE);
+		}
 		return;
 	}
 }
@@ -2000,4 +2033,73 @@ IatTransmitFile(
 	BtrLeaveExemptionRegion(Thread);
 	WSASetLastError(IoStatus);
 	return Status;;
+}
+
+PVOID WINAPI 
+IatGetProcAddress(
+	IN HMODULE hModule,
+	IN LPCSTR  lpProcName
+	)
+{
+	if (hModule == IoKernel32Base) {
+		if (!strcmp(lpProcName, "GetOverlappedResult")) {
+			DebugTrace("GetProcAddress %s", "WSAGetOverlappedResult");
+			return IatGetOverlappedResult;
+		}
+		if (!strcmp(lpProcName, "GetQueuedCompletionStatus")) {
+			DebugTrace("GetProcAddress %s", "GetQueuedCompletionStatus");
+			return IatGetQueuedCompletionStatus;
+		}
+		if (!strcmp(lpProcName, "GetQueuedCompletionStatusEx")) {
+			DebugTrace("GetProcAddress %s", "GetQueuedCompletionStatusEx");
+			return IatGetQueuedCompletionStatusEx;
+		}
+		if (!strcmp(lpProcName, "PostQueuedCompletionStatus")) {
+			return IatPostQueuedCompletionStatus;
+		}
+	}
+
+	if (hModule == IoWinsockBase) {
+
+		if (!strcmp(lpProcName, "accept")) {
+			return IatAccept;
+		}
+		if (!strcmp(lpProcName, "send")) {
+			DebugTrace("GetProcAddress %s", "send");
+			return IatSend;
+		}
+		if (!strcmp(lpProcName, "recv")) {
+			DebugTrace("GetProcAddress %s", "recv");
+			return IatRecv;
+		}
+		if (!strcmp(lpProcName, "closesocket")) {
+			return IatCloseSocket;
+		}
+		if (!strcmp(lpProcName, "WSASend")) {
+			DebugTrace("GetProcAddress %s", "WSASend");
+			return IatWSASend;
+		}
+		if (!strcmp(lpProcName, "WSARecv")) {
+			DebugTrace("GetProcAddress %s", "WSARecv");
+			return IatWSARecv;
+		}
+		if (!strcmp(lpProcName, "WSAAccept")) {
+			return IatWSAAccept;
+		}
+		if (!strcmp(lpProcName, "WSAGetOverlappedResult")) {
+			DebugTrace("GetProcAddress %s", "WSAGetOverlappedResult");
+			return IatWSAGetOverlappedResult;
+		}
+	}
+
+	if (hModule == IoMswsockBase) {
+		if (!strcmp(lpProcName, "AcceptEx")) {
+			return IatRecv;
+		}
+		if (!strcmp(lpProcName, "TransmitFile")) {
+			return IatRecv;
+		}
+	}
+
+	return GetProcAddress(hModule, lpProcName);
 }

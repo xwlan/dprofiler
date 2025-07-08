@@ -16,6 +16,7 @@
 #include "apsqueue.h"
 #include "apsport.h"
 #include "apslog.h"
+#include "apsldr.h"
 
 WCHAR ApsLogPath[MAX_PATH];
 WCHAR ApsLocalSymPath[MAX_PATH];
@@ -375,9 +376,15 @@ ApsStartProfile(
 	PAPS_QUEUE QueueObject;
 	PAPS_PORT PortObject;
 	PAPS_QUEUE_PACKET Packet;
+	PVOID CodePtr = NULL;
+	HANDLE CompleteEvent;
+	HANDLE SuccessEvent;
+	HANDLE ErrorEvent;
+	HANDLE HandleArray[2];
 
 	ProcessId = Profile->ProcessId;
 	ProcessHandle = Profile->ProcessHandle;
+	ThreadHandle = Profile->ThreadHandle;
 
 	ApsEnterCriticalSection(&Profile->Lock);
 
@@ -385,7 +392,35 @@ ApsStartProfile(
 	// Load runtime dll into target address space
 	//
 
-	Status = ApsLoadLibrary(ProcessId, ProcessHandle, ApsDllPath);
+	if (Profile->Attribute.RunMode) {
+
+		CompleteEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		SuccessEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		ErrorEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+		HandleArray[0] = SuccessEvent;
+		HandleArray[1] = ErrorEvent;
+
+		Status = ApsInjectPreExecute(ProcessId, ProcessHandle, ThreadHandle, ApsDllPath, 
+									CompleteEvent, SuccessEvent, ErrorEvent, &CodePtr);
+
+		ULONG Signal = WaitForMultipleObjects(2, HandleArray, FALSE, INFINITE);
+		if (Signal == WAIT_OBJECT_0) {
+			SetEvent(CompleteEvent);
+			Status = APS_STATUS_OK;
+		}
+		else {
+			Status = APS_STATUS_ERROR;
+		}
+
+		CloseHandle(CompleteEvent);
+		CloseHandle(SuccessEvent);
+		CloseHandle(ErrorEvent);
+	}
+	else {
+		Status = ApsLoadLibrary(ProcessId, ProcessHandle, ApsDllPath);
+	}
+
 	if (Status != APS_STATUS_OK) {
 
 		//
@@ -853,6 +888,88 @@ ApsIsExecutingPc(
 	return FALSE;
 }
 
+BOOLEAN 
+ApsIsKernel32Loaded(
+	IN DEBUG_EVENT* DebugEvent
+	) 
+{
+	TCHAR DllName[MAX_PATH];
+
+	if (DebugEvent->dwDebugEventCode == LOAD_DLL_DEBUG_EVENT) {
+		GetFinalPathNameByHandle(DebugEvent->u.LoadDll.hFile, DllName, MAX_PATH, FILE_NAME_NORMALIZED);
+		return _tcsstr(DllName, _T("kernel32.dll")) != NULL;
+	}
+	return FALSE;
+}
+
+ULONG
+ApsWaitKernel32Loaded(
+	__in ULONG ProcessId,
+	__in HANDLE ProcessHandle,
+	__in HANDLE ThreadHandle
+	)
+{
+	ULONG Status;
+	DEBUG_EVENT DebugEvent = { 0 };
+	int Count = 0;
+
+	DebugSetProcessKillOnExit(FALSE);
+
+	while (TRUE) {
+
+		Status = WaitForDebugEvent(&DebugEvent, INFINITE);
+		if (Status != TRUE) {
+			break;
+		}
+
+		switch (DebugEvent.dwDebugEventCode) {
+
+		case CREATE_PROCESS_DEBUG_EVENT:
+			break;
+
+		case EXIT_PROCESS_DEBUG_EVENT:
+			break;
+
+		case CREATE_THREAD_DEBUG_EVENT:
+			break;
+
+		case EXIT_THREAD_DEBUG_EVENT:
+			break;
+
+		case LOAD_DLL_DEBUG_EVENT:
+			if (ApsIsKernel32Loaded(&DebugEvent)) {
+				Count = 1;
+			}
+			else {
+				if (Count == 1) {
+					Count += 1;
+				}
+			}
+			break;
+
+		case UNLOAD_DLL_DEBUG_EVENT:
+			break;
+
+		case OUTPUT_DEBUG_STRING_EVENT:
+			break;
+
+		case EXCEPTION_DEBUG_EVENT:
+			break;
+		}
+
+		if (Count > 1) {
+			ApsSuspendProcess(ProcessHandle);
+			break;
+		}
+		else {
+			ContinueDebugEvent(DebugEvent.dwProcessId, DebugEvent.dwThreadId, DBG_CONTINUE);
+		}
+	}
+
+	DebugActiveProcessStop(ProcessId);
+	return Status;
+}
+
 ULONG
 ApsLoadLibrary(
 	__in ULONG ProcessId,
@@ -1136,6 +1253,9 @@ ApsOnStart(
 	//
 
 	if (Object->Attribute.PatchMode == HOTPATCH_IAT) {
+		if (Object->Attribute.RunMode) {
+			//ApsResumeProcess(Object->ProcessHandle);
+		}
 		return APS_STATUS_OK;
 	}
 

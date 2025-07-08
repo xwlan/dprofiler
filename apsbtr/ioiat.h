@@ -270,6 +270,16 @@ IatWSASendTo(
 	_In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
 	);
 
+PVOID WINAPI
+IatGetProcAddress(
+	IN HMODULE hModule,
+	IN LPCSTR  lpProcName
+	);
+
+extern HMODULE IoKernel32Base;
+extern HMODULE IoWinsockBase;
+extern HMODULE IoMswsockBase;
+
 #ifdef __cplusplus
 }
 #endif

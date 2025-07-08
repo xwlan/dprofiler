@@ -911,6 +911,8 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 	BTR_PROFILE_MODE Mode;
 	BTR_HOTPATCH_MODE PatchMode;
 
+	BOOLEAN RunMode;
+
 	//
 	// CPU Profile
 	//
@@ -941,7 +943,6 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 		ULONG EnablePage    : 1;
 		ULONG EnableHandle  : 1;
 		ULONG EnableGdi     : 1;
-		ULONG Spare0        : 28;
 
 		ULONG PrivateBytes;
 		ULONG VirtualBytes;
@@ -971,7 +972,6 @@ typedef struct _BTR_PROFILE_ATTRIBUTE {
 		ULONG EnableNet     : 1;
 		ULONG EnableFile    : 1;
 		ULONG EnableDevice  : 1;
-		ULONG Spare1        : 30;
 
 		ULONG NumberOfIoRead;
 		ULONG NumberOfIoWrite;

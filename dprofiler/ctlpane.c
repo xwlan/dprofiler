@@ -14,6 +14,7 @@
 #include "apsanalysis.h"
 #include "util.h"
 #include "apslog.h"
+#include "apsctl.h"
 
 
 typedef struct _CTL_PANE_CONTEXT {
@@ -1266,14 +1267,15 @@ CtlPaneRunApplication(
 	//
 
 	if (Suspend) {
-		Action = CREATE_SUSPENDED;
+		//Action = CREATE_SUSPENDED;
+		Action = DEBUG_ONLY_THIS_PROCESS;
 	} else {
 		Action = 0;
 	}
 
 	StartupInfo.cb = sizeof(StartupInfo);
 	Status = CreateProcess(NULL, Buffer, NULL, 
-		                   NULL, FALSE, 0, 
+		                   NULL, FALSE, Action, 
 						   NULL, WorkPath, &StartupInfo, 
 						   &ProcessInfo);
 	if (Status != TRUE) {
@@ -2022,8 +2024,11 @@ CtlPaneCreateProfileByLaunch(
     BTR_PROFILE_ATTRIBUTE Attr;
 	PDIALOG_OBJECT Pane;
 	PCTL_PANE_CONTEXT Context;
-	ULONG ProcessId;
 	WCHAR BaseName[MAX_PATH];
+	HANDLE ProcessHandle;
+	HANDLE ThreadHandle;
+	ULONG ProcessId;
+	ULONG ThreadId;
 
 	//
 	// First run application
@@ -2032,19 +2037,15 @@ CtlPaneCreateProfileByLaunch(
 	ProcessId = 0;
 
 	Status = CtlPaneRunApplication(Wizard->ImagePath, Wizard->Argument,
-								   Wizard->WorkPath, FALSE, NULL, 
-								   NULL, &ProcessId, NULL);
+								   Wizard->WorkPath, TRUE, &ProcessHandle, 
+								   &ThreadHandle, &ProcessId, &ThreadId);
 	if (Status != APS_STATUS_OK) {
 		return Status;
 	}
 
 	ASSERT(ProcessId != 0);
 
-	//
-	// Sleep 5 seconds to make target to finish its initialization
-    //
-
-    Sleep(5000);
+	//ApsWaitKernel32Loaded(ProcessId, ProcessHandle, ThreadHandle);
 
 	//
 	// Strip out process base name and build report path
@@ -2055,6 +2056,14 @@ CtlPaneCreateProfileByLaunch(
 
 	Status = APS_STATUS_OK;
 	RtlZeroMemory(&Attr, sizeof(Attr));
+
+	//
+	// Mark the RunMode, this is for IO profile to intercept
+	// socket API pointers.
+	//
+
+	Attr.PatchMode = CtlPaneIsIatMode() ? HOTPATCH_IAT : HOTPATCH_INLINE;
+	Attr.RunMode = TRUE;
 
 	//
 	// Fill profile attributes and create corresponding
@@ -2116,6 +2125,12 @@ CtlPaneCreateProfileByLaunch(
     if (Status != APS_STATUS_OK) {
         return Status;
     }
+
+	//
+	// Save the target thread handle
+	//
+
+	Profile->ThreadHandle = ThreadHandle;
 
 	//
 	// Save profile object

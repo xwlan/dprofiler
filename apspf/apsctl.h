@@ -61,6 +61,7 @@ typedef struct _APS_PROFILE_OBJECT {
 	ULONG SessionId;
 	ULONG ProcessId;
 	HANDLE ProcessHandle;
+	HANDLE ThreadHandle;
 	HANDLE ProfileThreadHandle;
 
 	//
@@ -179,6 +180,13 @@ ApsLoadLibrary(
 	__in ULONG ProcessId,
 	__in HANDLE ProcessHandle,
 	__in PWSTR DllPath
+	);
+
+ULONG
+ApsWaitKernel32Loaded(
+	__in ULONG ProcessId,
+	__in HANDLE ProcessHandle,
+	__in HANDLE ThreadHandle
 	);
 
 BOOLEAN

@@ -6,6 +6,7 @@
 #include "ntapi.h"
 #include "iatpatch.h"
 #include "heap.h"
+#include "ioiat.h"
 
 #define MAX_DLL_COUNT 512 
 
