@@ -21,6 +21,7 @@ extern "C" {
 #define APS_LOG_TEXT_LIMIT  (MAX_PATH * 2)
 
 typedef enum _APS_LOG_LEVEL {
+	LogLevelInformation,
 	LogLevelSuccess,
 	LogLevelWarning,
 	LogLevelFailure,

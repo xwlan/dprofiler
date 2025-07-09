@@ -17,6 +17,7 @@ CHAR ApsLogHead[] = "# Time  PID  Level  Text";
 ULONG ApsLogHeadSize = sizeof(ApsLogHead);
 
 CHAR *LogLevelString[] = {
+	"Information",
 	"Success",
 	"Warning",
 	"Failure",

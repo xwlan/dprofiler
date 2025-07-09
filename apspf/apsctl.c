@@ -1147,22 +1147,32 @@ ApsOnCommand(
 
 		case APS_CTL_START:
 			Status = ApsOnStart(Object, Packet);
+			ApsWriteLogEntry(Object->ProcessId, LogLevelInformation, 
+							"ApsOnStart() called, status=0x%x", Status);
 			break;
 
 		case APS_CTL_STOP:
 			Status = ApsOnStop(Object, Packet);
+			ApsWriteLogEntry(Object->ProcessId, LogLevelInformation, 
+							"ApsOnStop() called, status=0x%x", Status);
 			break;
 
 		case APS_CTL_PAUSE:
 			Status = ApsOnPause(Object, Packet);
+			ApsWriteLogEntry(Object->ProcessId, LogLevelInformation, 
+							"ApsOnPause() called, status=0x%x", Status);
 			break;
 
 		case APS_CTL_RESUME:
 			Status = ApsOnResume(Object, Packet);
+			ApsWriteLogEntry(Object->ProcessId, LogLevelInformation, 
+							"ApsOnResume() called, status=0x%x", Status);
 			break;
 		
 		case APS_CTL_MARK:
 			Status = ApsOnMark(Object, Packet);
+			ApsWriteLogEntry(Object->ProcessId, LogLevelInformation, 
+							"ApsOnMark() called, status=0x%x", Status);
 			break;
 
 		default:
@@ -1204,6 +1214,8 @@ ApsOnStart(
 	Port = Object->PortObject;
 	Status = ApsConnectPort(Port);
 	if (Status != APS_STATUS_OK) {
+		ApsWriteLogEntry(Object->ProcessId, LogLevelFailure, 
+						"ApsConnectPort() failed, status=0x%x", Status);
 		return Status;
 	}
 
@@ -1234,6 +1246,8 @@ ApsOnStart(
 
 	Status = ApsSendMessage(Port, &Request->Header, &Complete);
 	if (Status != APS_STATUS_OK) {
+		ApsWriteLogEntry(Object->ProcessId, LogLevelFailure, 
+						"ApsSendMessage(MESSAGE_START) failed, status=0x%x", Status);
 		return Status;
 	}
 
@@ -1245,6 +1259,8 @@ ApsOnStart(
 	Status = ApsGetMessage(Port, &Ack->Header, Port->BufferLength, &Complete);
 
 	if (Status != APS_STATUS_OK) {
+		ApsWriteLogEntry(Object->ProcessId, LogLevelFailure, 
+						"ApsGetMessage(MESSAGE_START_ACK) failed, status=0x%x", Status);
 		return Status;
 	}
 
@@ -1305,6 +1321,8 @@ ApsOnStop(
 
 	Status = ApsSendMessage(Port, &Request->Header, &Complete);
 	if (Status != APS_STATUS_OK) {
+		ApsWriteLogEntry(Object->ProcessId, LogLevelFailure, 
+						"ApsSendMessage(MESSAGE_STOP) failed, status=0x%x", Status);
 		return Status;
 	}
 
@@ -1316,6 +1334,8 @@ ApsOnStop(
 	Status = ApsGetMessage(Port, &Ack->Header, Port->BufferLength, &Complete);
 
 	if (Status != APS_STATUS_OK) {
+		ApsWriteLogEntry(Object->ProcessId, LogLevelFailure, 
+						"ApsGetMessage(MESSAGE_STOP_ACK) failed, status=0x%x", Status);
 		return Status;
 	}
 
