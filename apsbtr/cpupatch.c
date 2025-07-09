@@ -56,9 +56,9 @@ CpuInitializeIatPatch(
 	VOID
 	)
 {
-	PBTR_MODULE Module;
-	Module = BtrGetModule(L"kernel32.dll");
-	CpuIatPatch[0].Address = GetProcAddress(Module->Base, "ExitProcess");
+	HMODULE Handle;
+	Handle = GetModuleHandleA("kernel32.dll");
+	CpuIatPatch[0].Address = GetProcAddress(Handle, "ExitProcess");
 }
 
 VOID

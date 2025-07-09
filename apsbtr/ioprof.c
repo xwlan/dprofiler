@@ -984,8 +984,8 @@ IoUnload(
 	ULONG Status;
 	BOOLEAN Unload;
 	BOOLEAN Safe;
-	ULONG Count;
 
+	//
 	// Flush all allocated objects and irps.
 	//
 
