@@ -297,14 +297,14 @@ Skip:
 		Overlapped = lpOverlapped;
 	}
 
-	GetSystemTimeAsFileTime(&Irp->Time);
-	QueryPerformanceCounter(&Irp->Start);
-
 	//
 	// Queue IO request to IO object before issue the IO call
 	//
 
 	IoQueueIrpToObject(Object, Irp);
+
+	GetSystemTimeAsFileTime(&Irp->Time);
+	QueryPerformanceCounter(&Irp->Start);
 
 	Status = ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, Overlapped);
 	IoStatus = GetLastError();
@@ -1660,6 +1660,7 @@ IatRecv(
 	ULONG IoStatus;
 	PIO_OBJECT Object;
 	LARGE_INTEGER Start;
+	LARGE_INTEGER End;
 	FILETIME Time;
 	PBTR_IAT_PATCH Patch;
 
@@ -1684,6 +1685,8 @@ IatRecv(
 		return Status;
 	}
 
+	QueryPerformanceCounter(&End);
+
 	Irp = IoAllocateIrp(Object);
 	Irp->Operation = IO_OP_RECV;
 	Irp->RequestBytes = len;
@@ -1691,6 +1694,8 @@ IatRecv(
 	Irp->CompleteThreadId = Irp->RequestThreadId;
 	Irp->Flags.Completed = TRUE;
 	Irp->Flags.Queued = FALSE;
+	Irp->Start = Start;
+	Irp->End = End;
 
 	Patch = IoGetPatch(_IatRecv);
 	IoCaptureStackTrace(Thread, Patch->Address, Irp);
