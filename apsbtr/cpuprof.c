@@ -355,6 +355,7 @@ CpuUnload(
 
 		SetEvent(BtrProfileObject->UnloadEvent);
 		CloseHandle(BtrProfileObject->UnloadEvent);
+		WaitForSingleObject(BtrProfileObject->ExitProcessEvent, INFINITE);
 
 		if (Unload) {
 			FreeLibraryAndExitThread((HMODULE)BtrDllBase, 0);
