@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "btr.h"
+#include "iatpatch.h"
 
 //
 // Routines for IO profile work under IAT mode
@@ -59,6 +60,10 @@ IoDllLoadCallback(
 	IN BOOLEAN Load
 	);
 
+PBTR_IAT_PATCH
+IoLookupPatchByTargetAddress(
+	IN PVOID Address
+	);
 
 //
 // IAT mode routines
