@@ -29,20 +29,6 @@ BtrMessageProcedure(
 
 	BtrSetExemptionCookie(GOLDEN_RATIO, &Value);
 
-	RtlZeroMemory(&BtrPortObject, sizeof(BTR_PORT_OBJECT));
-	BtrPortObject.BufferLength = BTR_BUFFER_LENGTH;
-
-	Status = BtrCreatePort(&BtrPortObject);
-	if (Status != S_OK) {
-		
-		//
-		// If initially failed to accept connection from profiler,
-		// just exit and unload runtime library
-		//
-
-		FreeLibraryAndExitThread((HMODULE)BtrDllBase, Status);
-		return Status;
-	}
 
 	Status = BtrAcceptPort(&BtrPortObject);
 	if (Status != S_OK) {

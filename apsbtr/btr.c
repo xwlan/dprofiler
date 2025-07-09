@@ -152,6 +152,11 @@ BtrOnProcessAttach(
 		return FALSE;
 	}
 
+	Status = BtrCreatePort(&BtrPortObject);
+	if (Status != S_OK) {
+		return FALSE;
+	}
+
 	//
 	// Create message thread to wait for profiler connect to us
 	//

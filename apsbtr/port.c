@@ -42,7 +42,7 @@ BtrCreatePort(
 				                 NMPWAIT_USE_DEFAULT_WAIT,
 							     NULL);
 
-	if (PortObject == NULL) {
+	if (PortObject == INVALID_HANDLE_VALUE) {
 		return S_FALSE;
 	}
     
@@ -52,17 +52,18 @@ BtrCreatePort(
 		return S_FALSE;
 	}
 
-	Buffer = VirtualAlloc(NULL, Port->BufferLength, MEM_COMMIT, PAGE_READWRITE);
+	Buffer = VirtualAlloc(NULL, BTR_BUFFER_LENGTH, MEM_COMMIT, PAGE_READWRITE);
 	if (Buffer == NULL) {
 		CloseHandle(PortObject);
 		CloseHandle(CompleteEventObject);
 		return S_FALSE;
 	}
 	
+	RtlZeroMemory(&BtrPortObject, sizeof(BTR_PORT_OBJECT));
 	BtrPortObject.Object = PortObject;
 	BtrPortObject.Buffer = Buffer;
-	BtrPortObject.BufferLength = Port->BufferLength;
 	BtrPortObject.CompleteEvent = CompleteEventObject;
+	BtrPortObject.BufferLength = BTR_BUFFER_LENGTH;
 
 	BtrInitOverlapped();
 	return S_OK;
