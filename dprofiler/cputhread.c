@@ -358,7 +358,6 @@ CpuThreadOnContextMenu(
 {
 	POINT Screen;
 	POINT Client;
-	PDIALOG_OBJECT Object;
 	HMENU hPopupMenu = NULL;
 	HMENU hMenuLoaded;
 	RECT Rect;
@@ -460,7 +459,6 @@ CpuThreadOnItemChanged(
 	PBTR_TEXT_FILE TextFile;
 	PBTR_TEXT_ENTRY TextEntry;
     PCPU_COUNTERS Thread;
-	PCPU_PC_ENTRY PcEntry;
     PPF_REPORT_HEAD Head;
     PCPU_FORM_CONTEXT Form;
 	PBTR_LINE_ENTRY Line;
@@ -471,6 +469,9 @@ CpuThreadOnItemChanged(
 	WCHAR Buffer[MAX_PATH];
     ULONG Number;
 	double Percent;
+	PCPU_FUNCTION_COUNTERS Function;
+	PCPU_FUNCTION_ENTRY FuncEntry;
+	PBTR_FUNCTION_ENTRY FuncTable;
 
     Form = (PCPU_FORM_CONTEXT)Object->Context;
     ASSERT(Form != NULL);
@@ -490,6 +491,12 @@ CpuThreadOnItemChanged(
         ASSERT(lpNmlv->lParam != 0);
         Thread = (PCPU_COUNTERS)lpNmlv->lParam;
 
+		//
+		// Merge PCs into function if function id is available
+		//
+
+		CpuBuildOnCpuStatisticsEx(Head, Thread, &Function);
+
         //
         // Build symbol table to parse PC address 
         //
@@ -502,24 +509,35 @@ CpuThreadOnItemChanged(
 
 		Line = (PBTR_LINE_ENTRY)ApsGetStreamPointer(Head, STREAM_LINE);
 		LineEntry = Line;
+		
+		FuncTable = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
+		if (!FuncTable) {
+			return 0;
+		}
 
-		for (Number = 0; Number < Thread->PcCount; Number += 1) {
+		for (Number = 0; Number < Function->FunctionCount; Number += 1) {
 
-			PcEntry = &Thread->Pc[Number];
+			FuncEntry = &Function->Function[Number];
+			if (FuncEntry->Function.FunctionId != -1) {
+
+				//
+				// Fill real function address if function id is valid
+				//
+
+				FuncEntry->Function.Address = FuncTable[FuncEntry->Function.FunctionId].Address;
+			}
 
 			lvi.iItem = Number;
 			lvi.iSubItem = 0;
 			lvi.mask = LVIF_TEXT | LVIF_PARAM;
-			lvi.lParam = (LPARAM)PcEntry;
+			lvi.lParam = (LPARAM)FuncEntry;
 
-			ASSERT(PcEntry->Pc.Address != NULL);
-
-			TextEntry = ApsLookupSymbol(TextTable, (ULONG64)PcEntry->Pc.Address);
+			TextEntry = ApsLookupSymbol(TextTable, (ULONG64)FuncEntry->Function.Address);
 			if (TextEntry) {
 				StringCchPrintf(Buffer, MAX_PATH, L"%S", TextEntry->Text);
 			}
 			else {
-				ApsFormatAddress(Buffer, MAX_PATH, PcEntry->Pc.Address, TRUE);
+				ApsFormatAddress(Buffer, MAX_PATH, (PVOID)FuncEntry->Function.Address, TRUE);
 			}
 
 			lvi.pszText = Buffer;
@@ -531,7 +549,7 @@ CpuThreadOnItemChanged(
 
 			lvi.iSubItem = 1;
 			lvi.mask = LVIF_TEXT;
-			StringCchPrintf(Buffer, MAX_PATH, L"%u", PcEntry->Count);
+			StringCchPrintf(Buffer, MAX_PATH, L"%u", FuncEntry->Count);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -539,7 +557,7 @@ CpuThreadOnItemChanged(
 			// Time %
 			//
 
-			Percent = (PcEntry->KernelTime + PcEntry->UserTime) * 100.0 / (Thread->TotalKernelTime + Thread->TotalUserTime) * 1.0;
+			Percent = (FuncEntry->KernelTime + FuncEntry->UserTime) * 100.0 / (Function->TotalKernelTime + Function->TotalUserTime) * 1.0;
 			lvi.iSubItem = 2;
 			lvi.mask = LVIF_TEXT;
 			StringCchPrintf(Buffer, MAX_PATH, L"%.2f", Percent);
@@ -553,7 +571,7 @@ CpuThreadOnItemChanged(
 			lvi.iSubItem = 3;
 			lvi.mask = LVIF_TEXT;
 
-			ApsGetDllBaseNameById(Head, PcEntry->Pc.DllId, Buffer, MAX_PATH);
+			ApsGetDllBaseNameById(Head, FuncEntry->Function.DllId, Buffer, MAX_PATH);
 			lvi.pszText = Buffer;
 			ListView_SetItem(hWndCtrl, &lvi);
 
@@ -561,12 +579,18 @@ CpuThreadOnItemChanged(
 			// Line
 			//
 
-			if (PcEntry->Pc.LineId != -1) {
+			if (TextEntry) {
 
-				ASSERT(Line != NULL);
+				if (Line != NULL) {
+					if (TextEntry->LineId != -1) {
+						LineEntry = Line + TextEntry->LineId;
+						StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
+					}
+				}
 
-				LineEntry = Line + PcEntry->Pc.LineId;
-				StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
+				else {
+					Buffer[0] = L'\0';
+				}
 
 				lvi.iSubItem = 4;
 				lvi.mask = LVIF_TEXT;

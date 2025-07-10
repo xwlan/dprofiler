@@ -502,9 +502,17 @@ CpuPcInsertData(
 
 	FuncEntry = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
 
-	CpuBuildOnCpuStatisticsEx(Head, &OnCpu, &OnFunc);
+	CpuBuildOnCpuStatistics(Head, &OnCpu);
 	ASSERT(OnCpu != NULL);
+	if (!OnCpu) {
+		return 0;
+	}
+
+	CpuBuildOnCpuStatisticsEx(Head, OnCpu, &OnFunc);
 	ASSERT(OnFunc != NULL);
+	if (!OnFunc) {
+		return 0;
+	}
 
 	//
 	// Save OnCpu in CPU form context

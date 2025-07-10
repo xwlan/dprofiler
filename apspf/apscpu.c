@@ -1767,23 +1767,18 @@ CpuUpdateOnFunctionCounter(
 ULONG
 CpuBuildOnCpuStatisticsEx(
 	IN PPF_REPORT_HEAD Head,
-	OUT PCPU_COUNTERS *Cpu,
+	IN PCPU_COUNTERS OnCpu,
 	OUT PCPU_FUNCTION_COUNTERS* Func
 	)
 {
-	PCPU_COUNTERS OnCpu;
 	PCPU_FUNCTION_COUNTERS OnFunc;
 	PCPU_PC_ENTRY PcEntry;
 	ULONG Status;
 	ULONG Number;
 
-	*Cpu = NULL;
-	*Func = NULL;
+	ASSERT(OnCpu != NULL);
 
-	Status = CpuBuildOnCpuStatistics(Head, &OnCpu);
-	if (Status != APS_STATUS_OK) {
-		return Status;
-	}
+	*Func = NULL;
 
 	if (!OnCpu->PcCount) {
 		return APS_STATUS_OK;
@@ -1803,7 +1798,6 @@ CpuBuildOnCpuStatisticsEx(
 
 	qsort(&OnFunc->Function[0], OnFunc->FunctionCount, sizeof(CPU_FUNCTION_ENTRY), CpuOnCpuFunctionSortCallback);
 	
-	*Cpu = OnCpu;
 	*Func = OnFunc;
 
 	return APS_STATUS_OK;

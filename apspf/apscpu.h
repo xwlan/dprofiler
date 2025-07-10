@@ -441,7 +441,7 @@ CpuUpdateOnFunctionCounter(
 ULONG
 CpuBuildOnCpuStatisticsEx(
 	IN PPF_REPORT_HEAD Head,
-	OUT PCPU_COUNTERS *Cpu,
+	IN PCPU_COUNTERS OnCpu,
 	OUT PCPU_FUNCTION_COUNTERS* Func
 	);
 
