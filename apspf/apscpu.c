@@ -1535,7 +1535,7 @@ CpuUpdateOnCpuCounter(
 ULONG
 CpuBuildOnCpuStatistics(
 	IN PPF_REPORT_HEAD Head,
-	OUT PCPU_COUNTERS *Stat 
+	OUT PCPU_COUNTERS *Stat
 	)
 {
 	PBTR_FILE_INDEX Index;
@@ -1696,6 +1696,130 @@ CpuBuildOnCpuStatistics(
 	return APS_STATUS_OK;
 }
 
+VOID
+CpuUpdateOnFunctionCounter(
+	IN PCPU_FUNCTION_COUNTERS OnFunc,
+	IN PCPU_PC_ENTRY PcEntry
+	)
+{
+	ULONG i;
+	PCPU_FUNCTION_ENTRY Function;
+
+	for (i = 0; i < OnFunc->AllocationCount; i++) {
+
+		Function = &OnFunc->Function[i];
+
+		if (!Function->Function.Address) {
+
+			//
+			// Scan an empty slot and allocate for current sample
+			//
+
+			InitializeListHead(&Function->Function.ListEntry);
+			InsertTailList(&Function->Function.ListEntry,  
+							&PcEntry->Pc.ListEntry);
+
+			Function->Function.FunctionId = PcEntry->Pc.FunctionId;
+			Function->Count = PcEntry->Count;
+			Function->KernelTime = PcEntry->KernelTime;
+			Function->UserTime = PcEntry->UserTime;
+
+			OnFunc->FunctionCount += 1;
+			OnFunc->TotalCount += PcEntry->Count;
+			OnFunc->TotalKernelTime += PcEntry->KernelTime;
+			OnFunc->TotalUserTime += PcEntry->UserTime;
+
+			//
+			// Temporarily fill the function entry's address 
+			//
+
+			Function->Function.Address = (ULONG64)Function; 
+			break;
+		}
+		else if (Function->Function.FunctionId == PcEntry->Pc.FunctionId) {
+
+			//
+			// Find the match PcEntry, update its counters
+			//
+
+			InsertTailList(&Function->Function.ListEntry,  
+							&PcEntry->Pc.ListEntry);
+
+			Function->Count += PcEntry->Count;
+			Function->KernelTime += PcEntry->KernelTime;
+			Function->UserTime += PcEntry->UserTime;
+
+			OnFunc->TotalCount += PcEntry->Count;
+			OnFunc->TotalKernelTime += PcEntry->KernelTime;
+			OnFunc->TotalUserTime += PcEntry->UserTime;
+			break;
+		}
+	}
+}
+
+ULONG
+CpuBuildOnCpuStatisticsEx(
+	IN PPF_REPORT_HEAD Head,
+	OUT PCPU_COUNTERS *Cpu,
+	OUT PCPU_FUNCTION_COUNTERS* Func
+	)
+{
+	PCPU_COUNTERS OnCpu;
+	PCPU_FUNCTION_COUNTERS OnFunc;
+	PCPU_PC_ENTRY PcEntry;
+	ULONG Status;
+	ULONG Number;
+
+	*Cpu = NULL;
+	*Func = NULL;
+
+	Status = CpuBuildOnCpuStatistics(Head, &OnCpu);
+	if (Status != APS_STATUS_OK) {
+		return Status;
+	}
+
+	if (!OnCpu->PcCount) {
+		return APS_STATUS_OK;
+	}
+
+	OnFunc = (PCPU_FUNCTION_COUNTERS)ApsMalloc(FIELD_OFFSET(CPU_FUNCTION_COUNTERS, Function[OnCpu->PcCount]));
+	OnFunc->AllocationCount = OnCpu->PcCount;
+
+	for (Number = 0; Number < OnCpu->PcCount; Number += 1) {
+		PcEntry = &OnCpu->Pc[Number];
+		CpuUpdateOnFunctionCounter(OnFunc, PcEntry);
+	}
+
+	//
+	// Sort the function entries in decreasing order by its time
+	//
+
+	qsort(&OnFunc->Function[0], OnFunc->FunctionCount, sizeof(CPU_FUNCTION_ENTRY), CpuOnCpuFunctionSortCallback);
+	
+	*Cpu = OnCpu;
+	*Func = OnFunc;
+
+	return APS_STATUS_OK;
+}
+
+int __cdecl
+CpuOnCpuFunctionSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
+	)
+{
+	PCPU_FUNCTION_ENTRY T1, T2;
+
+	T1 = (PCPU_FUNCTION_ENTRY)Entry1;
+	T2 = (PCPU_FUNCTION_ENTRY)Entry2;
+
+	//
+	// N.B. we need a decreasing order
+	//
+
+	return (T2->KernelTime + T2->UserTime) - (T1->KernelTime + T1->UserTime);
+}
+
 int __cdecl
 CpuOnCpuPcSortCallback(
 	IN const void* Entry1,
@@ -1767,6 +1891,24 @@ CpuDebugOnCpuStatistics(
 		ApsDebugTrace("OnCpu Statistics: #%u IP %s , Percent %.2f %% , Count %u", 
 						i, Ptr, Percent, Pc->Count);
 	}
+}
+
+float
+CpuComputeFunctionPercent(
+	IN PCPU_FUNCTION_COUNTERS OnFunc,
+	IN PCPU_FUNCTION_ENTRY Func,
+	IN BOOLEAN ByTime
+	)
+{
+	float Percent;
+
+	if (ByTime) {
+		Percent = (Func->KernelTime + Func->UserTime) * 100.0f / (OnFunc->TotalKernelTime + OnFunc->TotalUserTime);
+	}
+	else {
+		Percent = Func->Count * 100.0f / OnFunc->TotalCount;
+	}
+	return Percent;
 }
 
 float

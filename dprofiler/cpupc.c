@@ -277,7 +277,7 @@ CpuPcOnCustomDraw(
 				
 				if (lvcd->iSubItem == CpuPcPercentColumn) {
 					CpuPcFillPercentRect((PCPU_PC_CONTEXT)Context->Context, pNmhdr->hwndFrom, lvcd->nmcd.hdc,
-									lvcd->nmcd.dwItemSpec, &lvcd->nmcd.rc,
+									(int)lvcd->nmcd.dwItemSpec, &lvcd->nmcd.rc,
 									lvcd->nmcd.uItemState & CDIS_FOCUS);
 				}
 				Status = CDRF_SKIPDEFAULT;
@@ -453,7 +453,7 @@ CpuPcSortCallback(
 	}
 
 	if (ListView->LastClickedColumn == CpuPcPercentColumn) {
-		float Percent1, Percent2;
+		double Percent1, Percent2;
 	    ListView_GetItemText(hWndList, First,  ListView->LastClickedColumn, FirstData,  MAX_PATH);
 	    ListView_GetItemText(hWndList, Second, ListView->LastClickedColumn, SecondData, MAX_PATH);
 		Percent1 = _wtof(FirstData);
@@ -471,7 +471,7 @@ CpuPcInsertData(
 	)
 {
 	LVITEM lvi = {0};
-	ULONG i, j;
+	ULONG i;
 	ULONG Count = 0;
 	ULONG Total = 0;
 	WCHAR Buffer[MAX_PATH];
@@ -483,10 +483,12 @@ CpuPcInsertData(
 	PBTR_LINE_ENTRY Line;
 	PWSTR Unicode;
 	PCPU_COUNTERS OnCpu = NULL;
-	PCPU_PC_ENTRY Pc;
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
 	PCPU_PC_CONTEXT PcContext;
+	PCPU_FUNCTION_COUNTERS OnFunc = NULL;
+	PBTR_FUNCTION_ENTRY FuncEntry;
+	PCPU_FUNCTION_ENTRY Func;
 
 	hWndCtrl = GetDlgItem(hWnd, IDC_LIST_PC);
 
@@ -498,8 +500,11 @@ CpuPcInsertData(
 		Line = NULL;
 	}
 
-	CpuBuildOnCpuStatistics(Head, &OnCpu);
+	FuncEntry = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
+
+	CpuBuildOnCpuStatisticsEx(Head, &OnCpu, &OnFunc);
 	ASSERT(OnCpu != NULL);
+	ASSERT(OnFunc != NULL);
 
 	//
 	// Save OnCpu in CPU form context
@@ -512,24 +517,28 @@ CpuPcInsertData(
 
 	TextTable = ApsBuildSymbolTable(TextFile, 4093);
 
-	for(i = 0, j = 0; i < OnCpu->PcCount; i++) {
+	for(i = 0; i < OnFunc->FunctionCount; i++) {
 
-		Pc = &OnCpu->Pc[i];
+		//Pc = &OnCpu->Pc[i];
+		Func = &OnFunc->Function[i];
+		Func->Function.Address = FuncEntry[Func->Function.FunctionId].Address;
+		Func->Function.DllId = FuncEntry[Func->Function.FunctionId].DllId;
 
 		//
 		// Symbol name
 		//
 
-		lvi.iItem = j;
+		//lvi.iItem = j;
+		lvi.iItem = i;
 		lvi.iSubItem = 0;
 		lvi.mask = LVIF_TEXT|LVIF_PARAM;
-		lvi.lParam = (LPARAM)Pc;
+		lvi.lParam = (LPARAM)Func;
 
-		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Pc->Pc.Address);
+		TextEntry = ApsLookupSymbol(TextTable, (ULONG64)Func->Function.Address);
 		if (TextEntry) {
 			StringCchPrintf(Buffer, MAX_PATH, L"%S", TextEntry->Text);
 		} else {
-            ApsFormatAddress(Buffer, MAX_PATH, Pc->Pc.Address, TRUE);
+            ApsFormatAddress(Buffer, MAX_PATH, (PVOID)Func->Function.Address, TRUE);
 		}
 
 		lvi.pszText = Buffer;
@@ -542,7 +551,7 @@ CpuPcInsertData(
         lvi.iSubItem = 1;
 		lvi.mask = LVIF_TEXT;
 
-        ApsGetDllBaseNameById(Head, Pc->Pc.DllId, Buffer, MAX_PATH);
+        ApsGetDllBaseNameById(Head, Func->Function.DllId, Buffer, MAX_PATH);
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -551,7 +560,7 @@ CpuPcInsertData(
 		//
 
 		lvi.iSubItem = 2;
-		StringCchPrintf(Buffer, MAX_PATH, L"%u", Pc->Count);
+		StringCchPrintf(Buffer, MAX_PATH, L"%u", Func->Count);
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -560,7 +569,7 @@ CpuPcInsertData(
 		//
 
 		lvi.iSubItem = 3;
-		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", CpuComputeOnCpuPercent(OnCpu, Pc, TRUE));
+		StringCchPrintf(Buffer, MAX_PATH, L"%.2f", CpuComputeFunctionPercent(OnFunc, Func, TRUE));
 		lvi.pszText = Buffer;
 		ListView_SetItem(hWndCtrl, &lvi);
 
@@ -569,20 +578,17 @@ CpuPcInsertData(
 		//
 		
 		lvi.iSubItem = 4;
+		lvi.pszText = L""; 
 
-		if (Pc->Pc.LineId != -1) {
-			ASSERT(Line != NULL);
-			LineEntry = Line + Pc->Pc.LineId;
-			StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
-			lvi.pszText = Buffer; 
-		} else {
-			lvi.pszText = L""; 
-		}
+		if (TextEntry != NULL) {
+			if (Line != NULL && TextEntry->LineId != -1) {
+				LineEntry = Line + TextEntry->LineId;
+				StringCchPrintf(Buffer, MAX_PATH, L"%S:%u", LineEntry->File, LineEntry->Line);
+				lvi.pszText = Buffer;
+			}
+		} 
 		
 		ListView_SetItem(hWndCtrl, &lvi);
-
-		j += 1;
-		Pc += 1;
 	}
 
 	ApsDestroySymbolTable(TextTable);
@@ -712,6 +718,6 @@ CpuPcFillPercentRect(
 	rcPercent.left = rcPercent.right - space;
 	
 	//SetBkMode(hdc, TRANSPARENT);
-	DrawText(hdc, Buffer, -1, &rcPercent, DT_SINGLELINE|DT_RIGHT);
+	DrawText(hdc, Buffer, -1, &rcPercent, DT_SINGLELINE|DT_RIGHT| DT_VCENTER);
 	return 0;
 }

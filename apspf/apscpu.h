@@ -207,6 +207,24 @@ typedef struct _CPU_PC_STACKTRACE {
 	ULONG UserTime;
 } CPU_PC_STACKTRACE, *PCPU_PC_STACKTRACE;
 
+typedef struct _CPU_FUNCTION_ENTRY {
+	BTR_FUNCTION_ENTRY Function;
+	ULONG Count;
+	ULONG KernelTime;
+	ULONG UserTime;
+} CPU_FUNCTION_ENTRY, *PCPU_FUNCTION_ENTRY;
+
+typedef struct _CPU_FUNCTION_COUNTERS {
+	CPU_COUNTER_TYPE Type;
+	ULONG TotalKernelTime;
+	ULONG TotalUserTime;
+	ULONG TotalCount;
+	ULONG ThreadId;
+	ULONG FunctionCount;
+	ULONG AllocationCount;
+	CPU_FUNCTION_ENTRY Function[ANYSIZE_ARRAY];
+} CPU_FUNCTION_COUNTERS, *PCPU_FUNCTION_COUNTERS;
+
 ULONG
 ApsCreateCpuProfile(
 	__in ULONG ProcessId,
@@ -401,6 +419,13 @@ CpuPcToThreadState(
 	__in ULONG_PTR Pc1
 	);
 
+VOID
+CpuUpdateOnCpuCounter(
+	IN PCPU_COUNTERS OnCpu,
+	IN PBTR_CPU_SAMPLE Sample,
+	IN PBTR_PC_ENTRY PcEntry
+	);
+
 ULONG
 CpuBuildOnCpuStatistics(
 	IN PPF_REPORT_HEAD Head,
@@ -408,10 +433,16 @@ CpuBuildOnCpuStatistics(
 	);
 
 VOID
-CpuUpdateOnCpuCounter(
-	IN PCPU_COUNTERS OnCpu,
-	IN PBTR_CPU_SAMPLE Sample,
-	IN PBTR_PC_ENTRY PcEntry
+CpuUpdateOnFunctionCounter(
+	IN PCPU_FUNCTION_COUNTERS OnFunc,
+	IN PCPU_PC_ENTRY PcEntry
+	);
+
+ULONG
+CpuBuildOnCpuStatisticsEx(
+	IN PPF_REPORT_HEAD Head,
+	OUT PCPU_COUNTERS *Cpu,
+	OUT PCPU_FUNCTION_COUNTERS* Func
 	);
 
 BOOLEAN
@@ -423,6 +454,12 @@ VOID
 CpuDebugOnCpuStatistics(
 	IN PCPU_COUNTERS OnCpu,
 	IN PBTR_TEXT_TABLE TextTable
+	);
+
+int __cdecl
+CpuOnCpuFunctionSortCallback(
+	IN const void* Entry1,
+	IN const void* Entry2
 	);
 
 int __cdecl
@@ -441,6 +478,13 @@ float
 CpuComputeOnCpuPercent(
 	IN PCPU_COUNTERS OnCpu,
 	IN PCPU_PC_ENTRY Pc,
+	IN BOOLEAN ByTime
+	);
+
+float
+CpuComputeFunctionPercent(
+	IN PCPU_FUNCTION_COUNTERS OnFunc,
+	IN PCPU_FUNCTION_ENTRY Func,
 	IN BOOLEAN ByTime
 	);
 
