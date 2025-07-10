@@ -732,7 +732,7 @@ CpuThreadSortPcCallback(
 	__in LPARAM Param
 	)
 {
-	PCPU_PC_ENTRY Pc1, Pc2;
+	PCPU_FUNCTION_ENTRY Pc1, Pc2;
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
 	LISTVIEW_OBJECT *ListView;
