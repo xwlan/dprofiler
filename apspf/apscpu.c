@@ -1711,15 +1711,15 @@ CpuUpdateOnFunctionCounter(
 
 		if (!Function->Function.Address) {
 
-			//
-			// Scan an empty slot and allocate for current sample
-			//
-
 			InitializeListHead(&Function->Function.ListEntry);
-			InsertTailList(&Function->Function.ListEntry,  
-							&PcEntry->Pc.ListEntry);
+
+			if (PcEntry->Pc.FunctionId != -1) {
+				InsertTailList(&Function->Function.ListEntry, 
+								&PcEntry->Pc.ListEntry);
+			}
 
 			Function->Function.FunctionId = PcEntry->Pc.FunctionId;
+			Function->Function.DllId = PcEntry->Pc.DllId;
 			Function->Count = PcEntry->Count;
 			Function->KernelTime = PcEntry->KernelTime;
 			Function->UserTime = PcEntry->UserTime;
@@ -1730,13 +1730,20 @@ CpuUpdateOnFunctionCounter(
 			OnFunc->TotalUserTime += PcEntry->UserTime;
 
 			//
-			// Temporarily fill the function entry's address 
+			// If function id is valid, temporarily fill the function entry's address 
+			// otherwise, fill the function address with Pc address
 			//
 
-			Function->Function.Address = (ULONG64)Function; 
+			if (PcEntry->Pc.FunctionId != -1) {
+				Function->Function.Address = (ULONG64)Function;
+			}
+			else {
+				Function->Function.Address = (ULONG64)PcEntry->Pc.Address;
+			}
+
 			break;
 		}
-		else if (Function->Function.FunctionId == PcEntry->Pc.FunctionId) {
+		else if (PcEntry->Pc.FunctionId != -1 && (Function->Function.FunctionId == PcEntry->Pc.FunctionId)) {
 
 			//
 			// Find the match PcEntry, update its counters

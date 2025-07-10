@@ -519,10 +519,15 @@ CpuPcInsertData(
 
 	for(i = 0; i < OnFunc->FunctionCount; i++) {
 
-		//Pc = &OnCpu->Pc[i];
 		Func = &OnFunc->Function[i];
-		Func->Function.Address = FuncEntry[Func->Function.FunctionId].Address;
-		Func->Function.DllId = FuncEntry[Func->Function.FunctionId].DllId;
+		if (Func->Function.FunctionId != -1) {
+
+			//
+			// Fill real function address if function id is valid
+			//
+
+			Func->Function.Address = FuncEntry[Func->Function.FunctionId].Address;
+		}
 
 		//
 		// Symbol name

@@ -418,7 +418,7 @@ ApsWriteDllStream(
 
 			Dll->BaseVa = (ULONG_PTR)Module->BaseOfImage;
 			Dll->Size = Module->SizeOfImage;
-			Dll->DllId = i;
+			Dll->DllId = (USHORT)i;
 			Dll->Count = 0;
 			Dll->Timestamp = Module->TimeDateStamp;
 			Dll->CheckSum = Module->CheckSum;
@@ -732,7 +732,6 @@ ApsWriteRecordStream(
 {
 	ULONG Status;
 	ULONG Complete;
-	ULONG Size;
 	PVOID Buffer;
 	HANDLE MappingHandle;
 
@@ -2553,6 +2552,7 @@ ApsGetDllBaseNameById(
         DllEntry = (PBTR_DLL_ENTRY)&DllFile->Dll[Id]; 
         _wsplitpath(DllEntry->Path, NULL, NULL, Name, Ext);
 		_wcslwr(Name);
+		_wcslwr(Ext);
 
         if (Ext[0] != 0) {
             swprintf_s(Buffer, Length, L"%s%s", Name, Ext);
