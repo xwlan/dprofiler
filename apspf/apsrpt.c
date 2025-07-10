@@ -2588,6 +2588,7 @@ ApsGetDllBaseNameByAddress(
 		if ((ULONG_PTR)DllEntry->BaseVa < Address && (ULONG_PTR)DllEntry->BaseVa + (ULONG_PTR)DllEntry->Size > Address) {
 			_wsplitpath(DllEntry->Path, NULL, NULL, Name, Ext);
 			_wcslwr(Name);
+			_wcslwr(Ext);
 
 			if (Ext[0] != 0) {
 				swprintf_s(Buffer, Length, L"%s%s", Name, Ext);
