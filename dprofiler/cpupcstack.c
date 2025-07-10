@@ -67,22 +67,22 @@ CpuPcStackCreate(
 	IN HWND hWndParent,
 	IN ULONG CtrlId,
 	IN PPF_REPORT_HEAD Head,
-	IN PCPU_PC_ENTRY Pc,
+	IN PCPU_FUNCTION_ENTRY Function,
 	IN ULONG ThreadId,
 	IN FLOAT ThreadPercent,
-	IN FLOAT PcPercent,
-	IN ULONG PcCount
+	IN FLOAT FuncPercent,
+	IN ULONG FuncCount
 	)
 {
 	DIALOG_OBJECT Object = { 0 };
 	CPU_FORM_CONTEXT Context = { 0 };
 	CPU_PCSTACK_CONTEXT PcContext;
 
-	PcContext.Pc = Pc;
+	PcContext.Function = Function;
 	PcContext.ThreadId = ThreadId;
 	PcContext.ThreadPercent = ThreadPercent;
-	PcContext.PcPercent = PcPercent;
-	PcContext.PcCount = PcCount;
+	PcContext.FuncPercent = FuncPercent;
+	PcContext.FuncCount = FuncCount;
 
 	Context.CtrlId = CtrlId;
 	Context.Head = Head;
@@ -104,7 +104,7 @@ CpuPcStackOnInitDialog(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
@@ -192,7 +192,7 @@ CpuPcStackHeaderProcedure(
 	__in LPARAM lp,
 	__in UINT_PTR uIdSubclass,
 	__in DWORD_PTR dwData
-)
+	)
 {
 	return 0;
 }
@@ -203,7 +203,7 @@ CpuPcStackOnSize(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	return 0;
 }
@@ -214,7 +214,7 @@ CpuPcStackOnClose(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	EndDialog(hWnd, IDOK);
 	return TRUE;
@@ -226,7 +226,7 @@ CpuPcStackProcedure(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	INT_PTR Status = FALSE;
 
@@ -254,7 +254,7 @@ CpuPcStackOnOk(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	EndDialog(hWnd, IDOK);
 	return TRUE;
@@ -266,7 +266,7 @@ CpuPcStackOnExport(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	ULONG Status;
 	OPENFILENAME Ofn;
@@ -343,8 +343,8 @@ CpuPcStackOnExport(
 		return 0;
 	}
 
-	fprintf(file, "On CPU: ThreadId %u, Thread time percent %.2f %%, IP time percent %.2f %% of this thread \n\n",
-				PcContext->ThreadId, PcContext->ThreadPercent, PcContext->PcPercent);
+	fprintf(file, "On CPU: ThreadId %u, Thread time percent %.2f %%, Function time percent %.2f %% of this thread \n\n",
+				PcContext->ThreadId, PcContext->ThreadPercent, PcContext->FuncPercent);
 
 	hWndLeft = GetDlgItem(hWnd, IDC_LIST_PCSTACK_LEFT);
 	hWndRight = GetDlgItem(hWnd, IDC_LIST_PCSTACK_RIGHT);
@@ -378,7 +378,7 @@ CpuPcStackOnCommand(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	UINT CommandId;
 
@@ -406,7 +406,7 @@ CpuPcStackOnNotify(
 	__in UINT uMsg,
 	__in WPARAM wp,
 	__in LPARAM lp
-)
+	)
 {
 	LRESULT Status = 0;
 	LPNMHDR pNmhdr = (LPNMHDR)lp;
@@ -434,7 +434,7 @@ LRESULT
 CpuPcStackOnItemChanged(
 	__in PDIALOG_OBJECT Object,
 	__in NMLISTVIEW* lpNmlv
-)
+	)
 {
 	if (lpNmlv->uNewState & LVIS_SELECTED) {
 		CpuPcStackInsertBackTrace(Object->hWnd, lpNmlv->iItem);
@@ -447,7 +447,7 @@ LRESULT
 CpuPcStackOnColumnClick(
 	__in PDIALOG_OBJECT Object,
 	__in NMLISTVIEW* lpNmlv
-)
+	)
 {
 	HWND hWndHeader;
 	int nColumnCount;
@@ -569,8 +569,8 @@ CpuPcStackInsertPcCount(
 	// Build stracktrace list for specified Pc entry
 	//
 
-	Stack = CpuBuildStackTraceListForPc(Head, PcContext->ThreadId, 
-										PcContext->Pc, TRUE);
+	Stack = CpuBuildStackTraceList(Head, PcContext->ThreadId, 
+										PcContext->Function, TRUE);
 	ASSERT(Stack != NULL);
 	PcContext->Stack = Stack;
 
@@ -620,7 +620,7 @@ VOID
 CpuPcStackInsertBackTrace(
 	__in HWND hWnd,
 	__in int Index
-)
+	)
 {
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT ObjectContext;

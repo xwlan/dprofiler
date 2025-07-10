@@ -1088,7 +1088,7 @@ CpuThreadOnStackTrace(
 {
 	PDIALOG_OBJECT Object;
 	PCPU_FORM_CONTEXT Context;
-	PCPU_PC_ENTRY PcEntry;
+	PCPU_FUNCTION_ENTRY Function;
 	PCPU_COUNTERS Thread;
 	HWND hWndList;
 	LONG Index;
@@ -1106,10 +1106,10 @@ CpuThreadOnStackTrace(
 		return 0;
 	}
 
-	PcEntry = NULL;
-	ListViewGetParam(hWndList, Index, (LPARAM*)&PcEntry);
-	ASSERT(PcEntry != NULL);
-	if (!PcEntry) {
+	Function = NULL;
+	ListViewGetParam(hWndList, Index, (LPARAM*)&Function);
+	ASSERT(Function != NULL);
+	if (!Function) {
 		return 0;
 	}
 
@@ -1149,7 +1149,7 @@ CpuThreadOnStackTrace(
 	Context = SdkGetContext(Object, CPU_FORM_CONTEXT);
 	ASSERT(Object->Context != NULL);
 
-	CpuPcStackCreate(hWnd, 0, Context->Head, PcEntry, 
+	CpuPcStackCreate(hWnd, 0, Context->Head, Function, 
 					Thread->ThreadId, ThreadPercent,
 					PcPercent, PcCount);
 	return 0;

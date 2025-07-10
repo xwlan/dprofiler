@@ -525,11 +525,17 @@ CpuGetNextCounter(
 	IN PCPU_COUNTERS Current
 	);
 
+BOOLEAN
+CpuIsPcInFunction(
+	IN PCPU_FUNCTION_ENTRY Func,
+	IN PVOID Pc
+	);
+
 PCPU_PC_STACKTRACE
-CpuBuildStackTraceListForPc(
+CpuBuildStackTraceList(
 	IN PPF_REPORT_HEAD Head,
 	IN ULONG ThreadId,
-	IN PCPU_PC_ENTRY Pc,
+	IN PCPU_FUNCTION_ENTRY Func,
 	IN BOOLEAN OnCpu
 	);
 

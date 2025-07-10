@@ -2289,14 +2289,43 @@ CpuInsertPcStackTrace(
 			Entry->UserTime += Sample->UserTime;
 			return;
 		}
+		Entry += 1;
 	}
 }
 
+BOOLEAN
+CpuIsPcInFunction(
+	IN PCPU_FUNCTION_ENTRY Func,
+	IN PVOID Pc
+	)
+{
+	PLIST_ENTRY ListEntry;
+	PBTR_PC_ENTRY PcEntry;
+
+	ASSERT(Func != NULL);
+	ASSERT(Pc != NULL);
+
+	if (Func->Function.FunctionId == -1) {
+		return Func->Function.Address == Pc ? TRUE : FALSE;
+	}
+
+	ListEntry = Func->Function.ListEntry.Flink;
+	while (ListEntry != &Func->Function.ListEntry) {
+		PcEntry = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
+		if (PcEntry->Address == Pc) {
+			return TRUE;
+		}
+		ListEntry = ListEntry->Flink;
+	}
+
+	return FALSE;
+}
+
 PCPU_PC_STACKTRACE
-CpuBuildStackTraceListForPc(
+CpuBuildStackTraceList(
 	IN PPF_REPORT_HEAD Head,
 	IN ULONG ThreadId,
-	IN PCPU_PC_ENTRY Pc,
+	IN PCPU_FUNCTION_ENTRY Func,
 	IN BOOLEAN OnCpu
 	)
 {
@@ -2366,7 +2395,8 @@ CpuBuildStackTraceListForPc(
 			}
 
 			StackRecord = &StackFile[Sample->StackId];
-			if ((ULONG_PTR)StackRecord->Frame[0] == (ULONG_PTR)Pc->Pc.Address) {
+			//if ((ULONG_PTR)StackRecord->Frame[0] == (ULONG_PTR)Pc->Pc.Address) {
+			if (CpuIsPcInFunction(Func, StackRecord->Frame[0])) {
 				CpuInsertPcStackTrace(StackTrace, StackRecord, Sample);
 			}
 		}
