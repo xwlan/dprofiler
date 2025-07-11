@@ -172,8 +172,9 @@ RebarSetType(
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Summary");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"IPs On CPU");
 			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Threads On CPU");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"IPs On Flame Graph");
+			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Total Flame Graph");
 			//SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Call Tree");
-			SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"Flame Graph");
 			//SendMessage(hWnd, CB_ADDSTRING, 0, (LPARAM)L"History");
 			SendMessage(hWnd, CB_SETCURSEL, 0, 0);
 			break;

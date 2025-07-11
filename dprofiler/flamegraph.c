@@ -1285,7 +1285,7 @@ FlameQueryNode(
 VOID
 FlameDrawNodes(
 	__in PFLAME_CONTROL Object
-	)
+)
 {
 	ULONG Number;
 	PFLAME_STACK Stack;
@@ -1296,7 +1296,7 @@ FlameDrawNodes(
 	HGDIOBJ hOldBrush;
 	RECT Rect;
 	int top, bottom;
-    WCHAR Buffer[MAX_PATH];
+	WCHAR Buffer[MAX_PATH];
 
 	FlameCreateBitmap(Object);
 	ASSERT(Object->hbmpFlame != NULL);
@@ -1305,12 +1305,21 @@ FlameDrawNodes(
 	// Draw the flames from bottom to top
 	//
 
-	top = Object->bmpRect.bottom - Object->FrameHeight;
-    bottom = Object->bmpRect.bottom;
+	if (Object->Mode == FLAME_MODE_BOTTOMUP) {
+		top = Object->bmpRect.bottom - Object->FrameHeight;
+		bottom = Object->bmpRect.bottom;
+	}
+	else if (Object->Mode == FLAME_MODE_TOPDOWN) {
+		top = Object->bmpRect.top;
+		bottom = Object->bmpRect.top + Object->FrameHeight;
+	}
+	else {
+		ASSERT(0);
+	}
 
 	Stack = Object->Flame;
-	for(Number = 0; Number < Stack->Depth; Number += 1) {
-		
+	for (Number = 0; Number < Stack->Depth; Number += 1) {
+
 		ListHead = &Stack->Level[Number].ListHead;
 		ListEntry = ListHead->Flink;
 		while (ListEntry != ListHead) {
@@ -1318,11 +1327,11 @@ FlameDrawNodes(
 			Node = CONTAINING_RECORD(ListEntry, FLAME_NODE, ListEntry);
 
 			//
-	        // Draw the flame rect
+			// Draw the flame rect
 			//
 
-	        hBrush = CreateSolidBrush(Node->Color);
-	        hOldBrush = SelectObject(Object->hdcFlame, hBrush);
+			hBrush = CreateSolidBrush(Node->Color);
+			hOldBrush = SelectObject(Object->hdcFlame, hBrush);
 
 			//
 			// track the top/bottom
@@ -1334,35 +1343,35 @@ FlameDrawNodes(
 			Rect = Node->Rect;
 			Rect.top = top;
 			Rect.bottom = bottom;
-	        FillRect(Object->hdcFlame, &Rect, hBrush);
+			FillRect(Object->hdcFlame, &Rect, hBrush);
 
-	        SelectObject(Object->hdcFlame, hOldBrush);
-	        DeleteObject(hBrush);	
+			SelectObject(Object->hdcFlame, hOldBrush);
+			DeleteObject(hBrush);
 
-            //
-            // Draw the text if the rect is big enough
-            //
+			//
+			// Draw the text if the rect is big enough
+			//
 
-            if (Rect.right - Rect.left > Object->EmptyLimit.cx) {
+			if (Rect.right - Rect.left > Object->EmptyLimit.cx) {
 
-                FlameQueryNode(Object, Node, FLAME_QUERY_SYMBOL, Buffer, MAX_PATH);
+				FlameQueryNode(Object, Node, FLAME_QUERY_SYMBOL, Buffer, MAX_PATH);
 
-                if (Buffer[0] != 0) {
+				if (Buffer[0] != 0) {
 
-                    HFONT hOldFont;
-                    RECT rc;
+					HFONT hOldFont;
+					RECT rc;
 
-                    SetBkMode(Object->hdcFlame, TRANSPARENT);
-                    hOldFont = (HFONT)SelectObject(Object->hdcFlame, Object->hNormalFont);
+					SetBkMode(Object->hdcFlame, TRANSPARENT);
+					hOldFont = (HFONT)SelectObject(Object->hdcFlame, Object->hNormalFont);
 
-                    rc = Rect;
-                    rc.left += Object->NodeHoriEdge;
-                    rc.top += 1;
+					rc = Rect;
+					rc.left += Object->NodeHoriEdge;
+					rc.top += 1;
 
-                    DrawText(Object->hdcFlame, Buffer, -1, &rc, DT_SINGLELINE|DT_WORD_ELLIPSIS);
-                    SelectObject(Object->hdcFlame, hOldFont);
-                }
-            }
+					DrawText(Object->hdcFlame, Buffer, -1, &rc, DT_SINGLELINE | DT_WORD_ELLIPSIS);
+					SelectObject(Object->hdcFlame, hOldFont);
+				}
+			}
 
 #ifdef _DEBUG
 			FlameDebugPrintNode(Object, Node);
@@ -1371,14 +1380,27 @@ FlameDrawNodes(
 			ListEntry = ListEntry->Flink;
 		}
 
-		top = top - Object->FrameHeight - 1;
-		bottom = top + Object->FrameHeight;
+		if (Object->Mode == FLAME_MODE_BOTTOMUP) {
+			top = top - Object->FrameHeight - 1;
+			bottom = top + Object->FrameHeight;
+		}
+		else {
+			top = top + Object->FrameHeight + 1;
+			bottom = top + Object->FrameHeight;
+		}
 	}
 
 	Object->ValidRect.left = 0;
 	Object->ValidRect.right = Object->ViewHoriWidth;
-	Object->ValidRect.top = top;
-	Object->ValidRect.bottom = Object->bmpRect.bottom;
+
+	if (Object->Mode == FLAME_MODE_BOTTOMUP) {
+		Object->ValidRect.top = top;
+		Object->ValidRect.bottom = Object->bmpRect.bottom;
+	}
+	else {
+		Object->ValidRect.top = 0;
+		Object->ValidRect.bottom = bottom;
+	}
 
 	SdkDebugOutputBitmap(Object->hbmpFlame, L"flame.bmp", 32);
 }

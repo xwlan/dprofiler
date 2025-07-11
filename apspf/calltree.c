@@ -113,7 +113,6 @@ ApsPcToCallNode(
             Node->Cpu.Exclusive = 0;
         }
         if (Type == PROFILE_MM_TYPE) {
-            //Node->Mm.InclusiveBytes = PcEntry->SizeOfAllocs;
             Node->Mm.InclusiveBytes = Size;
             Node->Mm.ExclusiveBytes = 0;
             Node->Mm.Count = Count;
@@ -881,4 +880,163 @@ ApsDestroyCallNode(
     }
 
     ApsFree(Node);
+}
+
+VOID
+ApsCreateCallGraphTopdown(
+    __out PCALL_GRAPH* CallGraph,
+    __in BTR_PROFILE_TYPE Type,
+    __in PBTR_STACK_RECORD Stack,
+    __in LONG Count,
+    __in PBTR_PC_TABLE PcTable,
+    __in PBTR_FUNCTION_ENTRY FuncTable,
+    __in PBTR_TEXT_TABLE TextTable
+    )
+{
+    PCALL_GRAPH Graph;
+    LONG Number;
+    SHORT Depth;
+    PBTR_PC_ENTRY PcEntry;
+    PCALL_NODE Node;
+    PCALL_NODE Parent;
+    PCALL_TREE Tree;
+    ULONG Skipped = 0;
+    PBTR_STACK_RECORD Record;
+    ULONG64 Size;
+    ULONG Ordinal = 0;
+
+    //
+    // Allocate call graph object
+    //
+
+    ApsInitCallGraph(Type, &Graph);
+    Record = Stack;
+
+    for (Number = 0; Number < Count; Number += 1) {
+
+        Record = &Stack[Number];
+
+        if ((Type == PROFILE_MM_TYPE || Type == PROFILE_IO_TYPE) && Record->SizeOfAllocs == 0) {
+
+            //
+            // If profile is MM type and there's no allocation size,
+            // e.g. HANDLE/GDI etc, just skip the record.
+            //
+
+            continue;
+        }
+
+        //
+        // Ensure the stack trace is a useful sample
+        //
+
+        if (!ApsFilterRecordForCallTree(Record)) {
+            Skipped += Record->Count;
+            continue;
+        }
+
+        //
+        // Create root node of the stack trace and find a matching tree in graph
+        //
+
+        ASSERT(Record->Committed == 1);
+        ASSERT(Record->Depth <= MAX_STACK_DEPTH);
+
+        if (Type == PROFILE_MM_TYPE || Type == PROFILE_IO_TYPE) {
+            Size = Record->SizeOfAllocs;
+        }
+        else {
+            Size = 0;
+        }
+
+        PcEntry = ApsLookupPcEntry(Record->Frame[0], PcTable);
+        ASSERT(PcEntry != NULL);
+
+        Node = ApsPcToCallNode(Type, PcEntry, 0, Record->Count, Size, FuncTable, TextTable);
+        Tree = ApsFindCallTreeByRoot(Graph, Node, FALSE);
+
+        if (Tree) {
+
+            //
+            // Increase inclusive for root node
+            //
+
+            switch (Type) {
+				case PROFILE_CPU_TYPE:
+                    Tree->RootNode->Cpu.Inclusive += Node->Cpu.Inclusive;
+                    break;
+				case PROFILE_MM_TYPE:
+                    Tree->RootNode->Mm.InclusiveBytes += Node->Mm.InclusiveBytes;
+                    Tree->RootNode->Mm.Count += Node->Mm.Count;
+                    break;
+				case PROFILE_IO_TYPE:
+                    Tree->RootNode->Io.InclusiveBytes += Node->Io.InclusiveBytes;
+                    Tree->RootNode->Io.Count += Node->Io.Count;
+                    break;
+                case PROFILE_CCR_TYPE:
+                    Tree->RootNode->Ccr.Inclusive += Node->Ccr.Inclusive;
+                    break;
+                default:
+                    ASSERT(0);
+            }
+
+            ApsFreeCallNode(Node);
+        }
+        else {
+
+            //
+            // Allocate a new call tree and insert the node as root node
+            //
+
+            Tree = ApsAllocateCallTree(Type, Graph, Node, Ordinal);
+            Tree->Mode = CALLTREE_TOPDOWN;
+            Ordinal += 1;
+
+            Tree->Number = Ordinal;
+        }
+
+        //
+        // Track the maximum stack depth
+        //
+
+        Tree->MaximumDepth = (USHORT)max(Record->Depth, Tree->MaximumDepth);
+        Graph->MaximumDepth = (USHORT)max(Tree->MaximumDepth, Graph->MaximumDepth);
+
+        Node = Tree->RootNode;
+
+        //
+        // Translate the left stack frames into call nodes and insert into call tree 
+        //
+
+        for (Depth = 1; Depth < Record->Depth; Depth += 1) {
+
+            Parent = Node;
+
+            PcEntry = ApsLookupPcEntry(Record->Frame[Depth], PcTable);
+            ASSERT(PcEntry != NULL);
+
+            Node = ApsPcToCallNode(Type, PcEntry, Depth, Record->Count, Size, FuncTable, TextTable);
+            Node = ApsInsertCallNode(Type, Tree, Parent, Node, Depth);
+        }
+
+        //
+        // Update total counters
+        //
+
+        Graph->Count += Record->Count;
+        Graph->Inclusive += Record->Count;
+        Graph->Exclusive += Record->Count;
+        Graph->InclusiveBytes += Size;
+        Graph->ExclusiveBytes += Size;
+    }
+
+    Graph->Skipped = Skipped;
+    Graph->TreeMode = CALLTREE_TOPDOWN;
+
+    //
+    // Sort the call trees
+    //
+
+    ApsSortCallGraph(Graph);
+    *CallGraph = Graph;
 }

@@ -109,6 +109,7 @@
 #define IDD_FORMVIEW4                   203
 #define IDD_FORMVIEW_IO_FLAME           203
 #define IDD_FORMVIEW5                   204
+#define IDD_FORMVIEW_CPU_ONFLAME        204
 #define IDC_STATIC_BUILD                1000
 #define IDC_LIST_VERSION                1002
 #define IDC_LIST_TASK                   1004
@@ -168,6 +169,7 @@
 #define IDC_CPU_HISTORY_REBAR           1090
 #define IDC_TREE_FULLSTACK              1090
 #define IDC_FLAME_REPORT                1090
+#define IDC_CPU_ONFLAME                 1090
 #define IDC_BUTTON1                     1091
 #define IDC_BUTTON_MARK                 1091
 #define IDC_BUTTON_CPU_SUMMARY          1091

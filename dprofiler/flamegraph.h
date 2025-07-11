@@ -55,10 +55,21 @@ typedef struct _NM_FLAME_QUERYNODE {
     WCHAR Text[MAX_PATH];
 } NM_FLAME_QUERYNODE, *PNM_FLAME_QUERYNODE; 
 
+//
+// Flame mode define how to draw graph nodes
+//
+
+typedef enum _FLAME_MODE {
+	FLAME_MODE_BOTTOMUP,
+	FLAME_MODE_TOPDOWN,
+} FLAME_MODE;
+
 typedef struct _FLAME_CONTROL {
 
 	HWND hWnd;
 	INT_PTR CtrlId;
+
+	FLAME_MODE Mode;
 
 	int TitleHeight;
 	int ViewHoriWidth;  // in pixel

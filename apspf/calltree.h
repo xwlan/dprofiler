@@ -75,9 +75,15 @@ typedef struct _CALL_NODE {
 // Call Tree structure
 //
 
+typedef enum _CALL_TREE_MODE {
+    CALLTREE_BOTTOMUP,
+    CALLTREE_TOPDOWN,
+} CALL_TREE_MODE;
+
 typedef struct _CALL_TREE {
 
     BTR_PROFILE_TYPE Type;
+    CALL_TREE_MODE Mode;
 
     BOOLEAN Stream;
     BOOLEAN Parallel;
@@ -99,6 +105,7 @@ typedef struct _CALL_TREE {
 typedef struct _CALL_GRAPH {
 
     BTR_PROFILE_TYPE Type;
+    CALL_TREE_MODE TreeMode;
     USHORT MaximumDepth;
     ULONG Count;
 	ULONG Skipped;
@@ -216,6 +223,17 @@ ApsCreateCallGraphCpuPerThread(
     __out PCALL_GRAPH *CallGraph,
     __in PCPU_THREAD Thread,
     __in PBTR_STACK_RECORD Stack,
+    __in PBTR_PC_TABLE PcTable,
+    __in PBTR_FUNCTION_ENTRY FuncTable,
+    __in PBTR_TEXT_TABLE TextTable
+    );
+
+VOID
+ApsCreateCallGraphTopdown(
+    __out PCALL_GRAPH* CallGraph,
+    __in BTR_PROFILE_TYPE Type,
+    __in PBTR_STACK_RECORD Stack,
+    __in LONG Count,
     __in PBTR_PC_TABLE PcTable,
     __in PBTR_FUNCTION_ENTRY FuncTable,
     __in PBTR_TEXT_TABLE TextTable

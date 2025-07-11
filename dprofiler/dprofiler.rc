@@ -639,6 +639,13 @@ BEGIN
     PUSHBUTTON      "Export",IDC_BUTTON_PCSTACK_EXPORT,223,237,50,14
 END
 
+IDD_FORMVIEW_CPU_ONFLAME DIALOGEX 0, 0, 450, 276
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CHILD
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    CONTROL         "CpuOnFlameGraph",IDC_CPU_ONFLAME,"SdkFlame",0x0,7,7,436,262
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -821,6 +828,14 @@ BEGIN
         RIGHTMARGIN, 340
         TOPMARGIN, 7
         BOTTOMMARGIN, 251
+    END
+
+    IDD_FORMVIEW_CPU_ONFLAME, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 443
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 269
     END
 END
 #endif    // APSTUDIO_INVOKED

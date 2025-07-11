@@ -51,6 +51,7 @@
 #include "ccrsummary.h"
 #include "ccrcontention.h"
 #include "ccrflame.h"
+#include "cpuonflame.h"
 
 
 PWSTR SdkFrameClass = L"SdkFrame";
@@ -607,6 +608,21 @@ FrameOnSwitchView(
 
 					Object->CpuForm.Current = (CPU_FORM_TYPE)Current;
 					Object->hWndCurrent = Object->CpuForm.hWndForm[CPU_FORM_FLAME];
+
+					ShowWindow(Object->hWndCurrent, SW_SHOW);
+					PostMessage(hWnd, WM_SIZE, 0, 0);
+					break;
+
+				case CPU_FORM_ONCPU_FLAME:
+
+					if (Object->CpuForm.hWndForm[CPU_FORM_ONCPU_FLAME] == NULL) {
+						hWndForm = CpuOnFlameCreate(hWnd, CPU_FORM_ONCPU_FLAME);
+						Object->CpuForm.hWndForm[CPU_FORM_ONCPU_FLAME] = hWndForm;
+						CpuOnFlameInsertData(hWndForm, Object->Head);
+					}
+
+					Object->CpuForm.Current = (CPU_FORM_TYPE)Current;
+					Object->hWndCurrent = Object->CpuForm.hWndForm[CPU_FORM_ONCPU_FLAME];
 
 					ShowWindow(Object->hWndCurrent, SW_SHOW);
 					PostMessage(hWnd, WM_SIZE, 0, 0);
