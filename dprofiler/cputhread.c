@@ -472,6 +472,7 @@ CpuThreadOnItemChanged(
 	PCPU_FUNCTION_COUNTERS Function;
 	PCPU_FUNCTION_ENTRY FuncEntry;
 	PBTR_FUNCTION_ENTRY FuncTable;
+	PLISTVIEW_OBJECT ListView;
 
     Form = (PCPU_FORM_CONTEXT)Object->Context;
     ASSERT(Form != NULL);
@@ -607,6 +608,10 @@ CpuThreadOnItemChanged(
 		}
 
 		ApsDestroySymbolTable(TextTable);
+		
+		ListView = Form->ListView;
+		ListView->LastClickedColumn = 2;
+		ListView_SortItemsEx(hWndCtrl, CpuThreadSortPcCallback, (LPARAM)Object->hWnd);
     }
 
     return 0L;
@@ -810,6 +815,7 @@ CpuThreadInsertThreads(
 	WCHAR Buffer[MAX_PATH];
 	WCHAR Name[MAX_PATH];
     LVITEM lvi = {0};
+	PLISTVIEW_OBJECT ListView;
 
     Object = (PDIALOG_OBJECT)SdkGetObject(hWnd);
     Context = (PCPU_FORM_CONTEXT)Object->Context;
@@ -967,7 +973,11 @@ CpuThreadInsertThreads(
     // right pane
     //
 
-    SetFocus(hWndCtrl);
+	ListView = Context->ListView;
+	ListView->LastClickedColumn = 2;
+    ListView_SortItemsEx(hWndCtrl, CpuThreadSortThreadCallback, (LPARAM)hWnd);
+    
+	SetFocus(hWndCtrl);
     ListViewSelectSingle(hWndCtrl, 0);
 }
 

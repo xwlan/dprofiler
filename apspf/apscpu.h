@@ -445,6 +445,13 @@ CpuBuildOnCpuStatisticsEx(
 	OUT PCPU_FUNCTION_COUNTERS* Func
 	);
 
+VOID
+CpuDumpOnCpuFunction(
+	IN PPF_REPORT_HEAD Head,
+	IN PCPU_FUNCTION_COUNTERS Func,
+	IN PBTR_TEXT_TABLE Table
+	);
+
 BOOLEAN
 CpuIsMarkRecord(
 	IN PBTR_CPU_RECORD Record

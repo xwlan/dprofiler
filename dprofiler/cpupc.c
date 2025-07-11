@@ -604,6 +604,10 @@ CpuPcInsertData(
 		ListView_SetItem(hWndCtrl, &lvi);
 	}
 
+#ifdef _DEBUG
+	CpuDumpOnCpuFunction(Head, OnFunc, TextTable);
+#endif
+
 	ApsDestroySymbolTable(TextTable);
 
 	//

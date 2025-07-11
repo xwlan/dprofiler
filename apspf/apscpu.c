@@ -1704,6 +1704,7 @@ CpuUpdateOnFunctionCounter(
 {
 	ULONG i;
 	PCPU_FUNCTION_ENTRY Function;
+	PBTR_FUNCTION_ENTRY FuncEntry;
 
 	for (i = 0; i < OnFunc->AllocationCount; i++) {
 
@@ -1796,11 +1797,37 @@ CpuBuildOnCpuStatisticsEx(
 	// Sort the function entries in decreasing order by its time
 	//
 
-	qsort(&OnFunc->Function[0], OnFunc->FunctionCount, sizeof(CPU_FUNCTION_ENTRY), CpuOnCpuFunctionSortCallback);
+	//qsort(&OnFunc->Function[0], OnFunc->FunctionCount, sizeof(CPU_FUNCTION_ENTRY), CpuOnCpuFunctionSortCallback);
 	
 	*Func = OnFunc;
 
 	return APS_STATUS_OK;
+}
+
+VOID
+CpuDumpOnCpuFunction(
+	IN PPF_REPORT_HEAD Head,
+	IN PCPU_FUNCTION_COUNTERS Func,
+	IN PBTR_TEXT_TABLE Table
+	)
+{
+	ULONG i;
+	PCPU_FUNCTION_ENTRY Entry;
+	PLIST_ENTRY ListEntry;
+	PBTR_PC_ENTRY PcEntry;
+
+	for (i = 0; i < Func->FunctionCount; i++) {
+		Entry = &Func->Function[i];
+		ApsDebugTrace("Function: 0x%I64x ID: %u", Entry->Function.Address, Entry->Function.FunctionId);
+		if (!IsListEmpty(&Entry->Function.ListEntry)) {
+			ListEntry = Entry->Function.ListEntry.Flink;
+			while (ListEntry != &Entry->Function.ListEntry) {
+				PcEntry = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
+				ApsDebugTrace("PC: 0x%I64x FucntionId %u", PcEntry->Address, PcEntry->FunctionId);
+				ListEntry = ListEntry->Flink;
+			}
+		}
+	}
 }
 
 int __cdecl
@@ -2312,6 +2339,7 @@ CpuIsPcInFunction(
 	ListEntry = Func->Function.ListEntry.Flink;
 	while (ListEntry != &Func->Function.ListEntry) {
 		PcEntry = CONTAINING_RECORD(ListEntry, BTR_PC_ENTRY, ListEntry);
+		ASSERT(PcEntry->FunctionId == Func->Function.FunctionId);
 		if (PcEntry->Address == Pc) {
 			return TRUE;
 		}
@@ -2395,7 +2423,6 @@ CpuBuildStackTraceList(
 			}
 
 			StackRecord = &StackFile[Sample->StackId];
-			//if ((ULONG_PTR)StackRecord->Frame[0] == (ULONG_PTR)Pc->Pc.Address) {
 			if (CpuIsPcInFunction(Func, StackRecord->Frame[0])) {
 				CpuInsertPcStackTrace(StackTrace, StackRecord, Sample);
 			}
