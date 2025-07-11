@@ -1525,3 +1525,110 @@ BtrValidateStackTrace(
 	RtlCopyMemory(Callers, Frame, sizeof(ULONG_PTR) * Valid);
 	return Valid;
 }
+
+PVOID 
+BtrFunctionTableAccessRoutine(
+	IN HANDLE Process,
+	IN DWORD64 ControlPc 
+	)
+{
+	PRUNTIME_FUNCTION Function;
+	ULONG64 ImageBase;
+
+	Function = RtlLookupFunctionEntry(ControlPc, &ImageBase, NULL);
+	return Function;
+}
+
+DWORD64
+BtrGetModuleBaseRoutine(
+	IN HANDLE Process,
+	IN DWORD64 Address
+	)
+{
+	PVOID ImageBase = NULL;
+	return RtlPcToFileHeader((PVOID)Address, &ImageBase);
+}
+
+BOOL 
+BtrReadProcessMemoryRoutine(
+	_In_ HANDLE hProcess,
+	_In_ DWORD64 qwBaseAddress,
+	_Out_writes_bytes_(nSize) PVOID lpBuffer,
+	_In_ DWORD nSize,
+	_Out_ LPDWORD lpNumberOfBytesRead
+	)
+{
+	__try {
+		RtlCopyMemory(lpBuffer, (PVOID)qwBaseAddress, nSize);
+		*lpNumberOfBytesRead = nSize;
+		return TRUE;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		return FALSE;
+	}
+}
+
+ULONG
+BtrStackWalk64(
+	IN HANDLE Process,
+	IN HANDLE Thread,
+	IN PCONTEXT Context,
+	IN ULONG Limit,
+	OUT PVOID Callers[],
+	OUT PULONG Hash
+	)
+{
+	CONTEXT Record;
+	STACKFRAME64 StackFrame = { 0 };
+	BOOL Status;
+	ULONG Number;
+	ULONG Index;
+
+	Record = *Context;
+
+#ifdef _M_AMD64
+	StackFrame.AddrPC.Offset = Context->Rip;
+	StackFrame.AddrPC.Mode = AddrModeFlat;
+	StackFrame.AddrFrame.Offset = Context->Rbp;
+	StackFrame.AddrFrame.Mode = AddrModeFlat;
+	StackFrame.AddrStack.Offset = Context->Rsp;
+	StackFrame.AddrStack.Mode = AddrModeFlat;
+
+#elif defined(_M_IX86)
+	StackFrame.AddrPC.Offset = Context->Eip;
+	StackFrame.AddrPC.Mode = AddrModeFlat;
+	StackFrame.AddrFrame.Offset = Context->Ebp;
+	StackFrame.AddrFrame.Mode = AddrModeFlat;
+	StackFrame.AddrStack.Offset = Context->Esp;
+	StackFrame.AddrStack.Mode = AddrModeFlat;
+
+#endif
+
+	Number = 0;
+
+	while (Number < Limit) {
+
+#ifdef _M_AMD64
+		Status = StackWalk64(IMAGE_FILE_MACHINE_AMD64, Process, Thread, &StackFrame, &Record, 
+							BtrReadProcessMemoryRoutine, BtrFunctionTableAccessRoutine, 
+							BtrGetModuleBaseRoutine, NULL);
+#elif defined(_M_IX86)
+		Status = StackWalk64(IMAGE_FILE_MACHINE_I386, Process, Thread, &StackFrame, &Record,
+							BtrReadProcessMemoryRoutine, NULL, 
+							BtrGetModuleBaseRoutine, NULL);
+#endif
+		if (!Status) {
+			break;
+		}
+
+		Callers[Number] = (PVOID)StackFrame.AddrPC.Offset;
+		Number += 1;
+	}
+
+	*Hash = 0;
+	for (Index = 0; Index < Number; Index += 1) {
+		*Hash += PtrToUlong(Callers[Index]);
+	}
+	
+	return Number;
+}

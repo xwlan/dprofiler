@@ -786,11 +786,12 @@ CpuCollectSample(
 	LIST_ENTRY FailedThreadList;
 	PTEB Teb;
 	PBTR_STACK_RECORD StackRecord;
-	CONTEXT Context;
+	CONTEXT Context = { 0 };
 	PVOID Callers[MAX_STACK_DEPTH];
 	LARGE_INTEGER ExitTime;
 	LARGE_INTEGER EnterTime;
 	BTR_CPU_RECORD MarkRecord;
+	HANDLE CurrentProcess;
 	static ULONG MarkStep = 0;
 	static ULONG CurrentStep = 0;
 
@@ -810,6 +811,8 @@ CpuCollectSample(
 
 	InitializeListHead(&StackRecordList);
 	InitializeListHead(&FailedThreadList);
+
+	CurrentProcess = GetCurrentProcess();
 
     //
     // Allocate CPU profile record
@@ -881,10 +884,11 @@ CpuCollectSample(
                 // record the target RIP in Callers[0]
                 //
 
-				Depth = BtrRemoteWalkStack(Thread->ThreadId, StackBase, StackLimit,
-									       &Context, MAX_STACK_DEPTH - 1, &Callers[1], &Hash);
-				Depth = BtrValidateStackTrace((PULONG_PTR)&Callers[1], Depth);
-				Depth += 1;
+				//Depth = BtrRemoteWalkStack(Thread->ThreadId, StackBase, StackLimit,
+				//					       &Context, MAX_STACK_DEPTH - 1, &Callers[1], &Hash);
+				Depth = BtrStackWalk64(CurrentProcess, Thread->ThreadHandle, &Context, MAX_STACK_DEPTH, Callers, &Hash);
+				//Depth = BtrValidateStackTrace((PULONG_PTR)&Callers[1], Depth);
+				//Depth += 1;
 
 				//
 				// Update thread's CPU time
@@ -1506,6 +1510,12 @@ CpuInitializeProcess(
 
     Object->ProcessId = ProcessId;
     Object->ProcessHandle = ProcessHandle;
+
+	//
+	// Initialize dbghelp, this is for StackWalk64
+	//
+
+	SymInitialize(GetCurrentProcess(), NULL, TRUE);
     return S_OK;
 }
 

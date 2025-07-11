@@ -159,6 +159,16 @@ BtrValidateStackTrace(
 	__in ULONG Depth
 	);
 
+ULONG
+BtrStackWalk64(
+	IN HANDLE Process,
+	IN HANDLE Thread,
+	IN PCONTEXT Context,
+	IN ULONG Limit,
+	OUT PVOID Callers[],
+	OUT PULONG Hash
+	);
+
 extern BTR_STACK_TABLE BtrStackTable;
 
 #ifdef __cplusplus
