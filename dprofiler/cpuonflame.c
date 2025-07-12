@@ -282,21 +282,14 @@ CpuOnFlameInsertData(
 	DllEntry = &DllFile->Dll[0];
 	FlameContext->DllEntry = DllEntry;
 
-	Record = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
-	Count = ApsGetStreamRecordCount(Head, STREAM_STACK, BTR_STACK_RECORD);
-
 	FuncTable = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
 	ApsCreatePcTableFromStream(Head, &PcTable);
 
 	//
-	// Create CPU call graph
+	// Create On CPU call graph, it's in topdown mode
 	//
 
-	//ThreadTable = CpuTreeCreateThreadedGraph();
-	//Thread = ThreadTable->Thread[0];
-	//ApsCreateCallGraphCpuPerThread(&Graph, Thread, Record, 
-	//                               PcTable, FuncTable, TextTable);
-
+	CpuPickOnCpuStackRecord(Head, &Count, &Record);
 	ApsCreateCallGraphTopdown(&Graph, PROFILE_CPU_TYPE, Record, Count, PcTable, FuncTable, TextTable);
 	FlameContext->Graph = Graph;
 	Context->Context = FlameContext;

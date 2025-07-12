@@ -553,6 +553,20 @@ CpuInsertPcStackTrace(
 	IN PBTR_CPU_SAMPLE Sample
 	);
 
+VOID
+CpuUpdateOnCpuStackTraceCounter(
+	IN PCPU_PC_STACKTRACE StackTrace,
+	IN ULONG Limit,
+	IN PBTR_CPU_SAMPLE Sample
+	);
+
+ULONG
+CpuPickOnCpuStackRecord(
+	IN PPF_REPORT_HEAD Head,
+	OUT PULONG OnCpuCount,
+	OUT PBTR_STACK_RECORD* OnCpuRecord
+	);
+
 #ifdef __cplusplus 
 }
 #endif

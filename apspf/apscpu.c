@@ -1704,7 +1704,6 @@ CpuUpdateOnFunctionCounter(
 {
 	ULONG i;
 	PCPU_FUNCTION_ENTRY Function;
-	PBTR_FUNCTION_ENTRY FuncEntry;
 
 	for (i = 0; i < OnFunc->AllocationCount; i++) {
 
@@ -1774,7 +1773,6 @@ CpuBuildOnCpuStatisticsEx(
 {
 	PCPU_FUNCTION_COUNTERS OnFunc;
 	PCPU_PC_ENTRY PcEntry;
-	ULONG Status;
 	ULONG Number;
 
 	ASSERT(OnCpu != NULL);
@@ -2333,7 +2331,7 @@ CpuIsPcInFunction(
 	ASSERT(Pc != NULL);
 
 	if (Func->Function.FunctionId == -1) {
-		return Func->Function.Address == Pc ? TRUE : FALSE;
+		return Func->Function.Address == (ULONG64)Pc ? TRUE : FALSE;
 	}
 
 	ListEntry = Func->Function.ListEntry.Flink;
@@ -2431,4 +2429,194 @@ CpuBuildStackTraceList(
 
 	ASSERT(StackTrace->Count != 0);
 	return StackTrace;
+}
+
+ULONG
+CpuBuildOnCpuStackRecord(
+	IN PPF_REPORT_HEAD Head
+	)
+{
+	PCPU_COUNTERS Counter;
+	PCPU_COUNTERS Thread;
+	PCPU_FUNCTION_COUNTERS Function;
+	PCPU_FUNCTION_ENTRY FuncEntry;
+	PBTR_FUNCTION_ENTRY FuncTable;
+	PCPU_PC_STACKTRACE Stack;
+	PBTR_STACK_RECORD StackRecord;
+	ULONG Number = 0;
+	ULONG MaxStackCount;
+	PCPU_PC_STACKTRACE StackIdTrace;
+	ULONG StackIdCount;
+
+	StackRecord = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
+	MaxStackCount = ApsGetStreamRecordCount(Head, STREAM_STACK, BTR_STACK_RECORD);
+
+	FuncTable = (PBTR_FUNCTION_ENTRY)ApsGetStreamPointer(Head, STREAM_FUNCTION);
+	if (!FuncTable) {
+		return 0;
+	}
+
+	CpuScanOnCpuThreaded(Head, CPU_COUNTER_ONCPU_THREADED, &Counter);
+	if (!Counter->ThreadCount || !Counter->PcCount) {
+		return 0;
+	}
+
+	//
+	// Allocate stack trace IDs
+	//
+
+	StackIdCount = 0;
+
+	StackIdTrace = (PCPU_PC_STACKTRACE)ApsMalloc(MaxStackCount * sizeof(CPU_PC_STACKTRACE));
+	for (Number = 0; Number < MaxStackCount; Number += 1) {
+		StackIdTrace[Number].StackId = -1;
+	}
+
+	for (Thread = CpuGetFirstCounter(Counter); Thread != NULL;
+		Thread = CpuGetNextCounter(Counter, Thread)) {
+		
+		CpuBuildOnCpuStatisticsEx(Head, Thread, &Function);
+
+		for (Number = 0; Number < Function->FunctionCount; Number += 1) {
+
+			FuncEntry = &Function->Function[Number];
+			if (FuncEntry->Function.FunctionId != -1) {
+
+				//
+				// Fill real function address if function id is valid
+				//
+
+				FuncEntry->Function.Address = FuncTable[FuncEntry->Function.FunctionId].Address;
+			}
+
+			Stack = CpuBuildStackTraceList(Head, Thread->ThreadId, 
+										   FuncEntry, TRUE);
+		}
+	}
+
+	return 0;
+}
+
+ULONG
+CpuPickOnCpuStackRecord(
+	IN PPF_REPORT_HEAD Head,
+	OUT PULONG OnCpuCount,
+	OUT PBTR_STACK_RECORD *OnCpuRecord
+	)
+{
+	PBTR_FILE_INDEX Index;
+	PBTR_CPU_RECORD Record;
+	PBTR_CPU_SAMPLE Sample;
+	ULONG Number;
+	ULONG Count;
+	ULONG ThreadCount;
+	PBTR_STACK_RECORD StackFile;
+	PBTR_STACK_RECORD StackRecord;
+	PCPU_PC_STACKTRACE StackTraceId;
+	PCPU_PC_STACKTRACE StackTrace;
+	ULONG i;
+	ULONG MaxStackCount;
+
+	Index = (PBTR_FILE_INDEX)ApsGetStreamPointer(Head, STREAM_INDEX);
+	Record = (PBTR_CPU_RECORD)ApsGetStreamPointer(Head, STREAM_RECORD);
+	Count = (ULONG)(Head->Streams[STREAM_INDEX].Length / sizeof(BTR_FILE_INDEX));
+
+	StackFile = (PBTR_STACK_RECORD)ApsGetStreamPointer(Head, STREAM_STACK);
+	ASSERT(StackFile != NULL);
+
+	//
+	// Allocate Stack trace IDs, the first entry is reserved as head for counting 
+	// purpose, the left are real stack trace entries.
+	//
+
+	MaxStackCount = ApsGetStreamLength(Head, STREAM_STACK) / sizeof(BTR_STACK_RECORD);
+	StackTraceId = (PCPU_PC_STACKTRACE)ApsMalloc(sizeof(CPU_PC_STACKTRACE) * MaxStackCount);
+	for (Number = 0; Number < MaxStackCount; Number += 1) {
+		StackTraceId[Number].StackId = -1;
+	}
+
+	int MarkIndex = 0;
+	for (Number = 0; Number < Count; Number += 1) {
+
+		//
+		// Get next CPU profiling record
+		//
+
+		Record = CpuGetNextCpuRecord(Record, Number);
+		if (CpuIsMarkRecord(Record)) {
+			MarkIndex += 1;
+			continue;
+		}
+
+		//
+		// Get number of total threads include retired ones
+		//
+
+		ThreadCount = Record->ActiveCount + Record->RetireCount;
+
+		for (i = 0; i < ThreadCount; i++) {
+
+			Sample = &Record->Sample[i];
+			if (Sample->KernelTime == 0 && Sample->UserTime == 0) {
+				continue;
+			}
+
+			CpuUpdateOnCpuStackTraceCounter(StackTraceId, MaxStackCount, Sample);
+		}
+	}
+
+	//
+	// Allocate On CPU stack records as per collected stack trace IDs
+	// 
+
+	StackRecord = (PBTR_STACK_RECORD)ApsMalloc(sizeof(BTR_STACK_RECORD) * StackTraceId[0].Count);
+	for (Number = 1; Number < StackTraceId[0].Count + 1; Number += 1) {
+
+		StackTrace = &StackTraceId[Number];
+		ASSERT(StackTrace->StackId != -1);
+
+		StackRecord[Number - 1] = StackFile[StackTrace->StackId];
+		StackRecord[Number - 1].Count = StackTrace->Count;
+		StackRecord[Number - 1].SizeOfAllocs = (ULONG64)StackTrace->KernelTime + (ULONG64)StackTrace->UserTime;
+	}
+	
+	*OnCpuCount = StackTraceId[0].Count;
+	*OnCpuRecord = StackRecord;
+
+	ApsFree(StackTraceId);
+	return APS_STATUS_OK;
+}
+
+VOID
+CpuUpdateOnCpuStackTraceCounter(
+	IN PCPU_PC_STACKTRACE StackTrace,
+	IN ULONG Limit,
+	IN PBTR_CPU_SAMPLE Sample
+	)
+{
+	ULONG Number;
+
+	for (Number = 1; Number < Limit; Number += 1) {
+
+		ASSERT(Sample->StackId != -1);
+
+		if (StackTrace[Number].StackId == Sample->StackId) {
+			StackTrace[Number].Count += 1;
+			StackTrace[Number].KernelTime += Sample->KernelTime;
+			StackTrace[Number].UserTime += Sample->UserTime;
+			StackTrace[0].KernelTime += Sample->KernelTime;
+			StackTrace[0].UserTime += Sample->UserTime;
+			break;
+		}
+		else if (StackTrace[Number].StackId == -1) {
+			StackTrace[Number].StackId = Sample->StackId;
+			StackTrace[Number].Count = 1;
+			StackTrace[Number].KernelTime = Sample->KernelTime;
+			StackTrace[Number].UserTime = Sample->UserTime;
+			StackTrace[0].Count += 1;
+			StackTrace[0].KernelTime += Sample->KernelTime;
+			StackTrace[0].UserTime += Sample->UserTime;
+			break;
+		}
+	}
 }

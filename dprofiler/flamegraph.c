@@ -731,6 +731,7 @@ FlameComputeLevel(
 
 	if (Object->Mode == FLAME_MODE_BOTTOMUP) {
 		y = Object->ValidRect.bottom - y;
+		Depth = y / Step;
 	}
 	else {
 		Depth = y / Step;
@@ -1468,7 +1469,7 @@ FlameQueryNodeFormatTooltip(
 		case PROFILE_CPU_TYPE:
 			Percent = (Node->Ccr.Inclusive * 100.0) / Graph->Inclusive;
 			SampleCount = Node->Cpu.Inclusive;
-			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples",
+			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples )",
 				Module, Symbol, Percent, SampleCount);
 			break;
 		case PROFILE_MM_TYPE:
@@ -1476,11 +1477,11 @@ FlameQueryNodeFormatTooltip(
 			SampleCount = Node->Mm.Count;
 			SampleBytes = Node->Mm.InclusiveBytes;
 			if (SampleBytes > 1024) {
-				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %I64u KB",
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples, %I64u KB )",
 					Module, Symbol, Percent, SampleCount, SampleBytes / 1024);
 			}
 			else {
-				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %u bytes",
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples, %u bytes )",
 					Module, Symbol, Percent, SampleCount, SampleBytes);
 			}
 			break;
@@ -1489,18 +1490,18 @@ FlameQueryNodeFormatTooltip(
 			SampleCount = Node->Io.Count;
 			SampleBytes = Node->Io.InclusiveBytes;
 			if (SampleBytes > 1024) {
-				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %I64u KB",
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples, %I64u KB )",
 					Module, Symbol, Percent, SampleCount, SampleBytes / 1024);
 			}
 			else {
-				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples, %u bytes",
+				StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples, %u bytes )",
 					Module, Symbol, Percent, SampleCount, SampleBytes);
 			}
 			break;
 		case PROFILE_CCR_TYPE:
 			Percent = (Node->Ccr.Inclusive * 100.0) / Graph->Inclusive;
 			SampleCount = Node->Ccr.Inclusive;
-			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s, %.2f %%, %u samples",
+			StringCchPrintf(QueryNode->Text, MAX_PATH, L"%s!%s ( %.2f %%, %u samples )",
 				Module, Symbol, Percent, SampleCount);
 			break;
 		case PROFILE_NONE_TYPE:
