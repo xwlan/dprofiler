@@ -719,7 +719,7 @@ LONG
 FlameComputeLevel(
 	__in PFLAME_CONTROL Object,
 	__in LONG y
-	)
+)
 {
 	LONG Depth;
 	LONG Step;
@@ -728,8 +728,14 @@ FlameComputeLevel(
 		return -1;
 
 	Step = Object->FrameHeight + 1;
-	y = Object->ValidRect.bottom - y;
-	Depth = y / Step;
+
+	if (Object->Mode == FLAME_MODE_BOTTOMUP) {
+		y = Object->ValidRect.bottom - y;
+	}
+	else {
+		Depth = y / Step;
+	}
+
 	return Depth;
 }
 
@@ -1398,7 +1404,7 @@ FlameDrawNodes(
 		Object->ValidRect.bottom = Object->bmpRect.bottom;
 	}
 	else {
-		Object->ValidRect.top = 0;
+		Object->ValidRect.top = Object->bmpRect.top;
 		Object->ValidRect.bottom = bottom;
 	}
 
